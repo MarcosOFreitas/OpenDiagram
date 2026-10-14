@@ -6,6 +6,10 @@ import { dbml } from '../Editor.jsx';
 // fenced code (with a Copy button), blockquote callouts (> **Note** ...), rules and inline code / bold / italic / links.
 export const slugify = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*_]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+// screenshots: ![alt](file.png) on its own line, files live in ./img (bundled by Vite)
+const IMGS = import.meta.glob('./img/*.{png,jpg,webp}', { query: '?url', import: 'default', eager: true });
+const imgUrl = (n) => IMGS[`./img/${n}`];
+
 const href = (u) => (/^(https?:|mailto:|#|\/)/.test(u) ? u : `/docs/${u}`);
 
 function inline(text, key = 'i') {
@@ -51,7 +55,7 @@ export function render(md) {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const blocks = [], toc = [];
   let i = 0, k = 0;
-  const isSpecial = (l) => /^(#{1,3} |```|> |\s*[-*] |\s*\d+\. |\|.*\||---+$)/.test(l);
+  const isSpecial = (l) => /^(!\[|#{1,3} |```|> |\s*[-*] |\s*\d+\. |\|.*\||---+$)/.test(l);
   while (i < lines.length) {
     const l = lines[i];
     if (!l.trim()) { i++; continue; }
@@ -65,6 +69,11 @@ export function render(md) {
       const level = m[1].length, text = m[2], id = slugify(text), Tag = `h${level}`;
       if (level > 1) toc.push({ id, text: text.replace(/[`*]/g, ''), level });
       blocks.push(<Tag key={k++} id={id}>{level > 1 && <a className="ds-anchor" href={`#${id}`} aria-hidden="true">#</a>}{inline(text, `h${k}`)}</Tag>); i++; continue;
+    }
+    if ((m = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(l.trim()))) { // screenshot
+      const src = imgUrl(m[2]);
+      if (src) blocks.push(<figure key={k++} className="ds-fig"><img src={src} alt={m[1]} loading="lazy" /><figcaption>{m[1]}</figcaption></figure>);
+      i++; continue;
     }
     if (/^---+$/.test(l)) { blocks.push(<hr key={k++} />); i++; continue; }
     if (l.startsWith('> ')) { // callout / quote
