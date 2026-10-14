@@ -1,0 +1,157 @@
+import { useCallback, useEffect, useState } from 'react';
+import { api, errMsg } from './api.js';
+
+// Administration overlay: users, groups (flat; one user can be in several) and instance settings
+export default function Admin({ me, onClose, notify, onSettings }) {
+  const [tab, setTab] = useState('users');
+  const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [secret, setSecret] = useState(null); // { who, password } shown once after create / reset
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    try { const [u, g, s] = await Promise.all([api('admin/users'), api('admin/groups'), api('admin/settings')]); setUsers(u); setGroups(g); setSettings(s); }
+    catch (e) { setErr(errMsg(e)); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // errors are shown inside the panel (a toast would sit behind it)
+  const act = (fn, ok) => async () => { setErr(''); try { await fn(); await load(); if (ok) notify('ok', ok); } catch (e) { setErr(errMsg(e)); } };
+  const copy = (t) => navigator.clipboard.writeText(t).then(() => notify('ok', 'Copied'), () => notify('err', 'Clipboard blocked'));
+
+  const submitUser = (e) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const body = { email: String(f.get('email') || '').trim(), name: String(f.get('name') || '').trim(), role: f.get('role') || 'member', password: String(f.get('password') || '') || undefined };
+    if (!body.email) { setErr('enter the e-mail of the new user'); return; }
+    const form = e.currentTarget;
+    act(async () => {
+      const r = await api('admin/users', body);
+      form.reset();       setSecret({ who: r.user.email, password: r.tempPassword ?? null });
+    }, 'User created — they must choose a new password at first sign-in')();
+  };
+  const submitGroup = (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const name = String(new FormData(form).get('group') || '').trim();
+    if (!name) { setErr('enter a name for the group'); return; }
+    act(async () => { await api('admin/groups', { name }); form.reset(); }, 'Group created')();
+  };
+  const resetPassword = (u) => act(async () => {
+    if (!window.confirm(`Reset the password of ${u.email}? They are signed out everywhere and must choose a new one.`)) return;
+    const r = await api(`admin/users/${u.id}/reset-password`, {});
+    setSecret({ who: u.email, password: r.tempPassword });
+  })();
+  const removeUser = (u) => act(async () => {
+    if (!window.confirm(`Delete ${u.email}? Their diagrams and saved connections are deleted too. (Disabling keeps everything.)`)) return;
+    await api(`admin/users/${u.id}`, undefined, 'DELETE');
+  }, 'User deleted')();
+
+  const notInGroup = (g) => users.filter((u) => !u.disabled && !g.members.some((m) => m.id === u.id));
+
+  return (
+    <div className="admin" role="dialog" aria-label="Administration">
+      <div className="admin-card">
+        <div className="admin-head">
+          <h2>Administration</h2>
+          <div className="dtabs">
+            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+          </div>
+          <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
+        </div>
+
+        <div className="admin-body">
+          {err && <div className="auth-err">{err} <a onClick={() => setErr('')}>dismiss</a></div>}
+          {secret && (
+            <div className="warn">
+              {secret.password
+                ? <><b>Temporary password for {secret.who}</b> — shown only once. <code>{secret.password}</code> <button onClick={() => copy(secret.password)}>Copy</button> They must choose a new password at the next sign-in.</>
+                : <><b>{secret.who}</b> was created with the password you typed; they must change it at first sign-in.</>}
+              <button className="ghost" onClick={() => setSecret(null)}>✕</button>
+            </div>
+          )}
+
+          {tab === 'users' && (<>
+            <form className="admin-form" onSubmit={submitUser} autoComplete="off">
+              <input name="email" type="text" inputMode="email" placeholder="E-mail" autoComplete="off" />
+              <input name="name" placeholder="Name" autoComplete="off" />
+              <select name="role" defaultValue="member"><option value="member">Member</option><option value="admin">Administrator</option></select>
+              <input name="password" placeholder="Password (empty = generate)" autoComplete="new-password" />
+              <button type="submit" className="primary">Add user</button>
+            </form>
+            <table className="admin-table">
+              <thead><tr><th>User</th><th>Role</th><th>Groups</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {users.map((u) => {
+                  const self = u.id === me.id;
+                  return (
+                    <tr key={u.id} className={u.disabled ? 'off' : ''}>
+                      <td><b>{u.name}</b>{self && <span className="chip"> you</span>}<small>{u.email}</small></td>
+                      <td>
+                        <select value={u.role} disabled={self} onChange={(e) => act(() => api(`admin/users/${u.id}`, { role: e.target.value }, 'PATCH'), 'Role updated')()}>
+                          <option value="member">Member</option><option value="admin">Administrator</option>
+                        </select>
+                      </td>
+                      <td>{u.groups.map((g) => <span key={g.id} className="chip">{g.name}</span>)}</td>
+                      <td>{u.disabled ? 'Disabled' : u.mustChangePassword ? 'Must change password' : 'Active'}</td>
+                      <td className="actions">
+                        <button disabled={self} onClick={act(() => api(`admin/users/${u.id}`, { disabled: !u.disabled }, 'PATCH'), u.disabled ? 'User enabled' : 'User disabled')}>{u.disabled ? 'Enable' : 'Disable'}</button>
+                        <button onClick={() => resetPassword(u)}>Reset password</button>
+                        <button disabled={self} onClick={() => removeUser(u)}>Delete</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>)}
+
+          {tab === 'groups' && (<>
+            <form className="admin-form group-form" onSubmit={submitGroup} autoComplete="off">
+              <input name="group" placeholder="New group name" autoComplete="off" />
+              <button type="submit" className="primary">Create group</button>
+            </form>
+            <small className="hint">Groups are flat and a person can be in several. Share a diagram with a group from the diagram's Share tab.</small>
+            {groups.length === 0 && <small className="hint">No groups yet.</small>}
+            {groups.map((g) => (
+              <div key={g.id} className="group-card">
+                <div className="group-head">
+                  <b>{g.name}</b><span className="chip">{g.members.length} member{g.members.length === 1 ? '' : 's'}</span>
+                  <span className="grow" />
+                  <button onClick={() => { const n = window.prompt('Rename group', g.name); if (n && n.trim() && n !== g.name) act(() => api(`admin/groups/${g.id}`, { name: n }, 'PATCH'), 'Group renamed')(); }}>Rename</button>
+                  <button onClick={() => { if (window.confirm(`Delete group "${g.name}"? Diagrams shared with it stop being visible to its members.`)) act(() => api(`admin/groups/${g.id}`, undefined, 'DELETE'), 'Group deleted')(); }}>Delete</button>
+                </div>
+                <div className="group-members">
+                  {g.members.map((m) => <span key={m.id} className="chip member">{m.name}<a title={`Remove ${m.email}`} onClick={act(() => api(`admin/groups/${g.id}/members/${m.id}`, undefined, 'DELETE'))}>✕</a></span>)}
+                  <select value="" onChange={(e) => e.target.value && act(() => api(`admin/groups/${g.id}/members/${e.target.value}`, {}, 'PUT'), 'Member added')()}>
+                    <option value="">+ add member…</option>
+                    {notInGroup(g).map((u) => <option key={u.id} value={u.id}>{u.name} — {u.email}</option>)}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </>)}
+
+          {tab === 'settings' && settings && (
+            <div className="admin-settings">
+              <label>Organisation name<input value={settings.orgName} onChange={(e) => setSettings({ ...settings, orgName: e.target.value })} placeholder="Shown on the sign-in screen and the top bar" /></label>
+              <label className="chk">
+                <input type="checkbox" checked={settings.allowSignup} disabled={settings.signupForcedBy !== null} onChange={(e) => setSettings({ ...settings, allowSignup: e.target.checked })} />
+                Let people create their own account (as members)
+              </label>
+              {settings.signupForcedBy !== null && <small className="hint">Forced by the server environment (<code>ALLOW_SIGNUP={settings.signupForcedBy}</code>).</small>}
+              <small className="hint">Keep this off to make the instance invitation-only: administrators create every account.</small>
+              <button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -47,10 +47,16 @@ export const docsCss = `
 .cmt{background:var(--cmt);border:1px solid var(--cmtline);color:var(--cmtfg);border-radius:6px;padding:4px 8px;font-size:12.5px;white-space:pre-wrap;margin:6px 0}
 .cmt.none{background:transparent;border-style:dashed;opacity:.65;cursor:pointer}
 .cmt.none:hover{opacity:1}
-.cmt:not(.view):not(.none){cursor:pointer}
 td .cmt{margin:0}
 .cmt-in{width:100%;border:1px solid var(--cmtline);background:var(--cmt);color:var(--cmtfg);border-radius:6px;padding:5px 8px;font:12.5px inherit;resize:vertical}
 .cmt-lbl{font-size:11px;color:var(--muted);margin-top:10px}
+.cmt-meta{display:flex;align-items:center;gap:8px;font-size:11px;opacity:.85;margin-bottom:1px}
+.cmt-meta b{font-weight:600}
+.cmt-x{margin-left:auto;border:0;background:transparent;color:inherit;cursor:pointer;opacity:.6;padding:0 2px}
+.cmt-x:hover{opacity:1}
+.cmt-actions{display:flex;gap:6px;margin:4px 0}
+.cmt-actions button{border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:6px;padding:3px 10px;font:12px inherit;cursor:pointer}
+.cmt-actions button:disabled{opacity:.5;cursor:default}
 .dx-body{overflow-x:auto}
 .dx-table:not([open])>.dx-body{display:none}
 .dx td:last-child .cmt,.dx td:last-child .cmt-in{min-width:170px}
@@ -92,26 +98,38 @@ const Ref = ({ model, id, col }) => {
   return t ? <a href={`#${slug(id)}`}>{display(t)}.{col}</a> : <code>{id}.{col}</code>;
 };
 
-// comment saved by the app only (never written to the database); read-only text in exports
-function CommentBox({ k, comments, onComment, compact }) {
-  const text = comments[k] || '';
-  const [edit, setEdit] = useState(false);
-  const [draft, setDraft] = useState(text);
-  const skip = useRef(false);
-  if (!onComment) return text ? <div className="cmt view">{text}</div> : null;
-  if (edit) {
-    return (
-      <textarea className="cmt-in" autoFocus rows={compact ? 2 : 3} value={draft} placeholder="Comment — kept in this app only, never written to the database"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => { setEdit(false); if (skip.current) { skip.current = false; return; } if (draft.trim() !== text) onComment(k, draft.trim()); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') { skip.current = true; e.target.blur(); } }} />
-    );
-  }
-  return <div className={`cmt${text ? '' : ' none'}`} title="Click to edit — saved only in this app" onClick={() => { setDraft(text); setEdit(true); }}>{text || (compact ? '+ comment' : '+ Add comment')}</div>;
+const when = (t) => new Date(t * 1000).toISOString().slice(0, 10);
+
+// comments live in the app (never in the database); `ctx` = { cmap, canComment, canDelete(c), onAdd(key, text), onDelete(id) }
+function Thread({ k, ctx, compact }) {
+  const list = ctx.cmap.get(k) || [];
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const post = () => { const t = draft.trim(); if (t) ctx.onAdd(k, t); setDraft(''); setOpen(false); };
+  return (
+    <>
+      {list.map((c) => (
+        <div key={c.id} className="cmt">
+          <div className="cmt-meta"><b>{c.author}</b><span>{when(c.createdAt)}</span>{ctx.canDelete && ctx.canDelete(c) && <button type="button" className="cmt-x" title="Delete comment" onClick={() => ctx.onDelete(c.id)}>✕</button>}</div>
+          {c.text}
+        </div>
+      ))}
+      {ctx.canComment && (open
+        ? (
+          <div className="cmt-new">
+            <textarea className="cmt-in" autoFocus rows={compact ? 2 : 3} value={draft} placeholder="Comment — visible to everyone who can open this diagram. Ctrl+Enter to post."
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setDraft(''); setOpen(false); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) post(); }} />
+            <div className="cmt-actions"><button type="button" onClick={post} disabled={!draft.trim()}>Post</button><button type="button" onClick={() => { setDraft(''); setOpen(false); }}>Cancel</button></div>
+          </div>
+        )
+        : <div className="cmt none" title="Add a comment (kept in this app, not in the database)" onClick={() => setOpen(true)}>{list.length ? '+ reply' : compact ? '+ comment' : '+ Add comment'}</div>)}
+    </>
+  );
 }
 
-function Table({ model, t, collapsed, comments, onComment }) {
-  const hasCol = onComment || t.fields.some((f) => comments[`${t.id}.${f.name}`]);
+function Table({ model, t, collapsed, ctx }) {
+  const hasCol = ctx.canComment || t.fields.some((f) => ctx.cmap.has(`${t.id}.${f.name}`));
   return (
     <details className="dx-table" id={slug(t.id)} open={!collapsed.has(slug(t.id))}>
       <summary>
@@ -122,7 +140,7 @@ function Table({ model, t, collapsed, comments, onComment }) {
       </summary>
       <div className="dx-body">
         {t.note && <p className="note">{t.note}</p>}
-        <CommentBox k={t.id} comments={comments} onComment={onComment} />
+        <Thread k={t.id} ctx={ctx} />
         <table>
           <thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Default</th><th>References</th><th>Note</th>{hasCol && <th>Comment</th>}</tr></thead>
           <tbody>
@@ -134,7 +152,7 @@ function Table({ model, t, collapsed, comments, onComment }) {
                 <td>{f.default && <code>{f.default}</code>}</td>
                 <td>{f.refs.map((r, i) => <div key={i}>→ <Ref model={model} id={r.id} col={r.col} /> <small className="note">{r.card}</small></div>)}</td>
                 <td className="note">{f.note}</td>
-                {hasCol && <td><CommentBox k={`${t.id}.${f.name}`} comments={comments} onComment={onComment} compact /></td>}
+                {hasCol && <td><Thread k={`${t.id}.${f.name}`} ctx={ctx} compact /></td>}
               </tr>
             ))}
           </tbody>
@@ -154,7 +172,7 @@ function Table({ model, t, collapsed, comments, onComment }) {
   );
 }
 
-export function DocsPage({ model, title, theme, comments = {}, onComment, collapsed = new Set() }) {
+export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
   const sections = ordered(model);
   const heading = title || model.name || 'Database documentation';
   return (
@@ -178,7 +196,7 @@ export function DocsPage({ model, title, theme, comments = {}, onComment, collap
             <h2>{heading}</h2>
             {model.databaseType && <span className="chip" style={{ marginLeft: 0 }}>{model.databaseType}</span>}
             {model.note && <p className="note">{model.note}</p>}
-            <CommentBox k="__project" comments={comments} onComment={onComment} />
+            <Thread k="__project" ctx={ctx} />
             <div className="stats">
               <div className="stat"><b>{model.tables.length}</b>tables</div>
               <div className="stat"><b>{model.refs.length}</b>relationships</div>
@@ -198,7 +216,7 @@ export function DocsPage({ model, title, theme, comments = {}, onComment, collap
               </table>
             </>)}
           </section>
-          {sections.map((s) => s.tables.map((t) => <Table key={`${s.title}.${t.id}`} model={model} t={t} collapsed={collapsed} comments={comments} onComment={onComment} />))}
+          {sections.map((s) => s.tables.map((t) => <Table key={`${s.title}.${t.id}`} model={model} t={t} collapsed={collapsed} ctx={ctx} />))}
           {model.enums.map((e) => (
             <details key={e.name} className="dx-table" id={slug(`enum_${e.name}`)} open={!collapsed.has(slug(`enum_${e.name}`))}>
               <summary><h2>{e.name}</h2><span className="dx-schema">enum</span><span className="count">{e.values.length} values</span></summary>
@@ -214,11 +232,17 @@ export function DocsPage({ model, title, theme, comments = {}, onComment, collap
   );
 }
 
+export function commentMap(list = []) {
+  const m = new Map();
+  for (const c of list) { if (!m.has(c.key)) m.set(c.key, []); m.get(c.key).push(c); }
+  return m;
+}
+
 const STORE_KEY = 'docsCollapsed';
 const readCollapsed = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]')); } catch { return new Set(); } };
 
 // in-app view: remembers which tables are collapsed (per browser); comments are saved through onComment
-export function DocsView({ model, title, theme, comments, onComment }) {
+export function DocsView({ model, title, theme, comments, me, canComment, isOwner, onAdd, onDelete }) {
   const host = useRef(null);
   const collapsed = useRef(readCollapsed()); // initial state only: afterwards <details> keeps its own open state
   useEffect(() => {
@@ -229,12 +253,12 @@ export function DocsView({ model, title, theme, comments, onComment }) {
     el.addEventListener('toggle', save, true); // `toggle` does not bubble
     return () => el.removeEventListener('toggle', save, true);
   }, [model]);
-  return <div className="dx-host" ref={host}><style>{docsCss}</style><DocsPage model={model} title={title} theme={theme} comments={comments} onComment={onComment} collapsed={collapsed.current} /></div>;
+  return <div className="dx-host" ref={host}><style>{docsCss}</style><DocsPage model={model} title={title} theme={theme} ctx={{ cmap: commentMap(comments), canComment, canDelete: (c) => !!me && (isOwner || c.userId === me.id), onAdd, onDelete }} collapsed={collapsed.current} /></div>;
 }
 
 // self-contained .html file: inline CSS + the small script, no external requests; comments are included read-only
-export function standaloneHtml(model, title, comments = {}) {
+export function standaloneHtml(model, title, comments = []) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const body = renderToStaticMarkup(<DocsPage model={model} title={title} comments={comments} />);
+  const body = renderToStaticMarkup(<DocsPage model={model} title={title} ctx={{ cmap: commentMap(comments), canComment: false }} />);
   return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title || model.name || 'Database documentation')}</title><style>html,body{margin:0;height:100%}.dx-host{height:100%}${docsCss}</style></head><body><div class="dx-host" id="dx-root">${body}</div><script>(${initDocs.toString()})(document.getElementById('dx-root'))</script></body></html>\n`;
 }

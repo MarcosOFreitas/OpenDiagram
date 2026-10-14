@@ -1,8 +1,10 @@
 // Help tab: how to use the app + DBML feature cheat-sheet. Each example can be inserted into the editor.
 const STEPS = [
+  ['Account', 'Your diagrams and database connections are private to your account and autosave. The Diagrams tab lists yours and the ones shared with you (administrators see every diagram of the organisation). Administrators create accounts and groups from the avatar menu → Administration; Account & password is in the same menu.'],
+  ['Share', 'In the Share tab give a person or a whole group view, comment or edit access, or create an optional link. The highest level that applies wins. You can change or remove access anytime; connections and credentials are never shared.'],
   ['Connect', 'Open Database, fill host/port/database (Oracle: service name), user and password, then Test connection. Save keeps it for later (password stored encrypted).'],
   ['Import', 'Tick the schemas to read (optionally list table names) and press Import. Tables, columns, PK, FK, indexes and comments become DBML in the editor and a diagram on the canvas.'],
-  ['Edit', 'The DBML editor is the source of truth: type to change the diagram live. Ctrl+Space autocompletes keywords, types, tables and table.column. Syntax errors are underlined and listed in the status bar.'],
+  ['Edit', 'The DBML editor is the source of truth: type to change the diagram live. Ctrl+Space autocompletes keywords, types, tables and table.column. Syntax errors are underlined and listed in the status bar. Ctrl+F searches and replaces. Drag the edge of the editor to resize it, or turn on line wrapping in View.'],
   ['Explore', 'Drag tables, click one to highlight its relationships, use the search box to dim non-matching tables, and Arrange to re-run the automatic layout.'],
   ['Stay safe', 'Every session is opened read-only and only reads catalog metadata (never table data). If the credential has write/admin privileges the app warns you; tick "Block credentials with write privileges" to refuse them. Prefer a dedicated user with SELECT only.'],
   ['Keep fresh', 'After an import the connection stays linked: use the ↻ button in the top bar to re-read metadata, or set an automatic interval in the connection (runs while the page is open). Refresh keeps TableGroups and positions.'],

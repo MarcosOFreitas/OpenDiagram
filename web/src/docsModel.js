@@ -55,23 +55,26 @@ export function ordered(model) {
 
 const esc = (s) => String(s).replaceAll('|', '\\|').replaceAll('\n', ' ');
 
-export function toMarkdown(model, title, comments = {}) {
+export function toMarkdown(model, title, commentList = []) {
+  const byKey = new Map();
+  for (const c of commentList) byKey.set(c.key, [...(byKey.get(c.key) || []), c]);
+  const flat = (k) => (byKey.get(k) || []).map((c) => `${c.author}: ${c.text}`.replaceAll('\n', ' ')).join(' / ');
   const out = [`# ${title || model.name || 'Database documentation'}`, ''];
   if (model.databaseType) out.push(`*Database: ${model.databaseType}*`, '');
   if (model.note) out.push(`> ${model.note.replaceAll('\n', '\n> ')}`, '');
   out.push(`${model.tables.length} tables · ${model.refs.length} relationships · ${model.enums.length} enums`, '');
-  if (comments.__project) out.push(`> **Comment:** ${comments.__project.replaceAll('\n', ' ')}`, '');
+  for (const c of byKey.get('__project') || []) out.push(`> **Comment (${c.author}):** ${c.text.replaceAll('\n', ' ')}`, '');
   for (const sec of ordered(model)) {
     out.push(`## ${sec.title}`, '');
     if (sec.note) out.push(sec.note, '');
     for (const t of sec.tables) {
       out.push(`### ${display(t)}`, '');
       if (t.note) out.push(t.note, '');
-      if (comments[t.id]) out.push(`> **Comment:** ${comments[t.id].replaceAll('\n', ' ')}`, '');
-      const withCmt = t.fields.some((f) => comments[`${t.id}.${f.name}`]);
+      for (const c of byKey.get(t.id) || []) out.push(`> **Comment (${c.author}):** ${c.text.replaceAll('\n', ' ')}`, '');
+      const withCmt = t.fields.some((f) => byKey.has(`${t.id}.${f.name}`));
       out.push(`| Column | Type | Constraints | Default | References | Note |${withCmt ? ' Comment |' : ''}`, `|---|---|---|---|---|---|${withCmt ? '---|' : ''}`);
       for (const f of t.fields) {
-        out.push(`| \`${esc(f.name)}\` | ${esc(f.type)} | ${constraints(f).join(', ')} | ${f.default ? `\`${esc(f.default)}\`` : ''} | ${f.refs.map((r) => `${display(model.byId.get(r.id) ?? { name: r.id })}.${r.col} (${r.card})`).join(', ')} | ${esc(f.note)} |${withCmt ? ` ${esc(comments[`${t.id}.${f.name}`] || '')} |` : ''}`);
+        out.push(`| \`${esc(f.name)}\` | ${esc(f.type)} | ${constraints(f).join(', ')} | ${f.default ? `\`${esc(f.default)}\`` : ''} | ${f.refs.map((r) => `${display(model.byId.get(r.id) ?? { name: r.id })}.${r.col} (${r.card})`).join(', ')} | ${esc(f.note)} |${withCmt ? ` ${esc(flat(`${t.id}.${f.name}`))} |` : ''}`);
       }
       out.push('');
       if (t.indexes.length) {

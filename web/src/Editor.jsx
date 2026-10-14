@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { ViewPlugin, Decoration, WidgetType } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Compartment } from '@codemirror/state';
 import { StreamLanguage, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { search } from '@codemirror/search';
 import { autocompletion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
 
@@ -102,7 +103,24 @@ const colorSwatches = ViewPlugin.fromClass(class {
   update(u) { if (u.docChanged || u.viewportChanged) this.decorations = swatches(u.view); }
 }, { decorations: (v) => v.decorations });
 
+// Ctrl+F / Ctrl+H panel: friendlier labels (CodeMirror looks them up in these phrases)
+const PHRASES = { Find: 'Find', Replace: 'Replace with…', next: '↓ Next', previous: '↑ Prev', all: 'Select all', 'match case': 'Aa  Match case', 'by word': 'Whole word', regexp: '.*  Regex', replace: 'Replace', 'replace all': 'Replace all' };
+
 const theme = EditorView.theme({
+  '.cm-panels': { backgroundColor: '#111a2b', color: '#d6deeb' },
+  '.cm-panels.cm-panels-top': { borderBottom: '1px solid #243350' },
+  '.cm-search': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px', padding: '9px 34px 9px 10px', position: 'relative', fontSize: '12px' },
+  '.cm-search br': { display: 'none' },
+  '.cm-search .cm-textfield': { flex: '1 1 150px', minWidth: '110px', margin: 0, background: '#0b111c', color: '#e5e9f2', border: '1px solid #2a3750', borderRadius: '6px', padding: '5px 8px', fontSize: '12.5px' },
+  '.cm-search .cm-textfield:focus': { outline: 'none', borderColor: '#4f8cff', boxShadow: '0 0 0 2px #264a8a' },
+  '.cm-search .cm-button': { backgroundImage: 'none', background: '#1a2438', color: '#d6deeb', border: '1px solid #2a3750', borderRadius: '6px', padding: '4px 10px', margin: 0, cursor: 'pointer' },
+  '.cm-search .cm-button:hover': { background: '#223050' },
+  '.cm-search label': { color: '#aab4c8', display: 'inline-flex', alignItems: 'center', gap: '5px', margin: 0, cursor: 'pointer', whiteSpace: 'nowrap' },
+  '.cm-search label input': { margin: 0, accentColor: '#4f8cff' },
+  '.cm-search [name=close]': { position: 'absolute', right: '6px', top: '8px', background: 'transparent', border: 'none', color: '#8b9ab5', fontSize: '17px', cursor: 'pointer', padding: '0 6px' },
+  '.cm-searchMatch': { backgroundColor: 'rgba(252, 211, 77, .28)', outline: '1px solid rgba(252, 211, 77, .55)' },
+  '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'rgba(79, 140, 255, .45)', outline: '1px solid #4f8cff' },
+  '.cm-selectionMatch': { backgroundColor: 'rgba(79, 140, 255, .18)' },
   '&': { height: '100%', backgroundColor: '#0f1623', color: '#d6deeb', fontSize: '12.5px' },
   '.cm-scroller': { fontFamily: 'ui-monospace, "Cascadia Mono", Consolas, monospace', lineHeight: '20px', scrollbarColor: '#2a3750 #0f1623' },
   '.cm-gutters': { backgroundColor: '#0f1623', color: '#5b6b86', border: 'none', borderRight: '1px solid #1d283b' },
@@ -121,10 +139,12 @@ const theme = EditorView.theme({
  * DBML editor: highlighting, autocomplete (keywords, types, tables, table.column) and parser diagnostics.
  * `diags`: [{from,to,message}] resolved by the caller as 1-based line/col; `info`: {tables:[{name,columns}]}.
  */
-export default function Editor({ value, onChange, diags, info }) {
+export default function Editor({ value, onChange, diags, info, readOnly = false, wrap = false }) {
   const host = useRef(null);
   const view = useRef(null);
   const live = useRef({ diags, info, onChange });
+  const ro = useRef(new Compartment());
+  const wrapC = useRef(new Compartment());
   live.current = { diags, info, onChange };
 
   useEffect(() => {
@@ -151,7 +171,8 @@ export default function Editor({ value, onChange, diags, info }) {
       state: EditorState.create({
         doc: value,
         extensions: [
-          basicSetup, dbml, syntaxHighlighting(highlight), theme, lintGutter(), autocompletion({
+          ro.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]), wrapC.current.of(wrap ? EditorView.lineWrapping : []),
+          basicSetup, search({ top: true }), EditorState.phrases.of(PHRASES), dbml, syntaxHighlighting(highlight), theme, lintGutter(), autocompletion({
             override: [complete],
             addToOptions: [{ position: 20, render: (c) => { if (!/^#[0-9a-f]{6}$/i.test(c.label)) return null; const sw = document.createElement('span'); sw.style.cssText = `display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;background:${c.label}`; return sw; } }],
           }), colorSwatches,
@@ -161,6 +182,10 @@ export default function Editor({ value, onChange, diags, info }) {
     });
     return () => view.current.destroy();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { view.current?.dispatch({ effects: ro.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) }); }, [readOnly]);
+
+  useEffect(() => { view.current?.dispatch({ effects: wrapC.current.reconfigure(wrap ? EditorView.lineWrapping : []) }); }, [wrap]);
 
   // external value change (import, sample) -> replace document
   useEffect(() => {
