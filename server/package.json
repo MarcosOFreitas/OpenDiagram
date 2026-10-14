@@ -1,0 +1,12 @@
+{
+  "name": "dbdiagram-open-server",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node src/index.js", "test": "node --test" },
+  "dependencies": {
+    "@fastify/static": "^8.0.0",
+    "fastify": "^5.0.0",
+    "oracledb": "^6.6.0",
+    "pg": "^8.13.0"
+  }
+}
