@@ -9,6 +9,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 ## Data lineage
 
 - **Dashed arrows** from the source to the table built from it, from the database (views and materialized views; columns in PostgreSQL) or written by hand as `// lineage:` comments.
+- **Column lineage of views**: the SQL of each view is read and every output column is mapped to the source columns it comes from; the arrows go from column to column.
 - Lineage takes part in **Arrange** (derived tables to the right of their sources) and appears in the **Docs** view and the HTML/Markdown exports (*Built from* and *Feeds*); labels read *uses N cols*.
 - Lineage switch (dock and View), focus on a table (upstream violet, downstream teal), focus on an arrow, trace and filter in the Tables panel; hidden tables take their arrows with them.
 

@@ -60,17 +60,17 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 
 Everything below is implemented, committed and covered by the e2e scripts unless marked otherwise (details and acceptance criteria in `.specs/`): DBML editor + diagram, live import from PostgreSQL/Oracle (read-only sessions, privilege guardrails, TLS, manual/auto refresh), generated documentation with comments, accounts and administration (first account = administrator, groups, settings), private diagrams with autosave, sharing with people/groups/links, administrators manage every diagram (never others' connections), SSRF host policy.
 
-Not verified yet: Oracle TLS with a wallet/CA PEM, `noverify` and `serverDn` (plain `verify` against an OCI Autonomous DB works, checked by hand); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
+Not verified yet: Oracle TLS `noverify` and `serverDn` (plain `verify` against an OCI Autonomous DB works, checked by hand; wallets are not supported on purpose); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
 Also implemented since: table picker with TableGroups, views/enums/sequences/triggers in the import, five Arrange algorithms (group-aware), Tables panel with hide + saved views, detail levels, draggable ref labels and group boxes, resizable/collapsible tables, password-protected share links, Export menu, English sample model, and the public documentation site at `/docs` (`web/src/docsite/`, spec [10](.specs/10-documentation-site.md)). Dropped on purpose: embedding diagrams in an iframe.
 
 Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/10-documentation-site.md`):
 1. **Documentation follow-ups**: none pending except more screenshots as features change. (Done: screenshots, DBML syntax colours, release-notes page, phone layout check, proofreading of every page against the UI labels and server limits.)
 2. ~~Versions + changelog~~ **done** (edit conflicts answer 409, History drawer with names, compare, restore; spec 09). Possible follow-ups: notice a newer version without saving, changelog inside the Docs view.
-3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Lineage also feeds Arrange and the Docs view/exports. Follow-ups: draw a lineage link by dragging between tables (writes the comment), automatic column mapping (SQL parser).
-4. ~~Sticky notes~~ **done** (`NoteNode` in `App.jsx`, top-level `Note` blocks; spec 02). Next: presence and, only if needed, real-time co-editing (Yjs).
+3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Lineage also feeds Arrange and the Docs view/exports. Column lineage of views is read from their SQL (`server/src/lineage.js`, `pgsql-ast-parser`).
+4. ~~Sticky notes~~ **done** (`NoteNode` in `App.jsx`, top-level `Note` blocks; spec 02). Next: **presence**, scoped to showing who has the diagram open (avatars in the top bar) and, if cheap, what each person has selected; real-time co-editing (Yjs) only if needed. Decided not to build: sticky note colours, drawing lineage links by dragging.
 5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
-6. Still open from before: **A3** Oracle TLS with wallet/CA PEM, `noverify`, `serverDn` (plain `verify` is done); **B1** group-owned connections with an audit log; **B2** OIDC/LDAP SSO.
+6. Still open from before: **B1** group-owned connections with an audit log (an administrator registers a read-only connection once, groups use it without seeing the secret); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets.
 Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.
@@ -82,5 +82,5 @@ The REA reverse-engineering MCP was only used to study the public dbdiagram.io U
 ## Working agreements
 
 - Smallest change that solves the problem; reuse what exists. Keep specs, README and the documentation pages (`web/src/docsite/pages/*.md`) consistent when behaviour changes.
-- Report honestly what was and was not tested (e.g. Oracle TLS wallet/`noverify`/`serverDn` are unverified).
+- Report honestly what was and was not tested (e.g. Oracle TLS `noverify`/`serverDn` are unverified).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.

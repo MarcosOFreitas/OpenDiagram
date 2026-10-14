@@ -35,7 +35,7 @@ No. DBML has no view type, so a view is a table marked **· View** with its SQL 
 
 ### Why does an Oracle connection with TLS close right after connecting?
 
-You probably have TLS **off** against a TCPS port (the error mentions `NJS-521`). Set the TLS mode to *on, verify certificate*. If the database is an Oracle Autonomous Database, also check its **access control list** and whether it requires mTLS (a wallet).
+You probably have TLS **off** against a TCPS port (the error mentions `NJS-521`). Set the TLS mode to *on, verify certificate*. If the database is an Oracle Autonomous Database, also check its **access control list** and whether it requires mTLS: databases that require a wallet (mutual TLS) are not supported, so allow TLS-only (non-mTLS) connections on the database.
 
 ### Can I go back to an earlier version?
 

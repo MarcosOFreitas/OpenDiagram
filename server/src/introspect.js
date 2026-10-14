@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ACTION } from './dbml.js';
+import { viewColumnLineage } from './lineage.js';
 
 const key = (s, n) => `${s}.${n}`;
 
@@ -28,6 +29,12 @@ function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], en
     if (tk === sk || !tables.has(tk) || !tables.has(sk)) continue;
     if (!lin.has(tk)) lin.set(tk, { target: r.target, sources: [] });
     lin.get(tk).sources.push({ ...r.source, columns: r.columns ?? [] });
+  }
+  // which source column each output column of a view comes from (parsing the view's SQL); added to the table-level entries
+  for (const c of viewColumnLineage([...tables.values()].map((t) => ({ schema: t.schema, name: t.name, columns: t.columns.map((x) => x.name), view: t.view })))) {
+    const k = key(c.target.schema, c.target.name);
+    if (!lin.has(k)) lin.set(k, { target: c.target, sources: [] });
+    lin.get(k).columns = c.columns;
   }
   return { tables: [...tables.values()], refs, enums, sequences, lineage: [...lin.values()] };
 }
@@ -266,7 +273,8 @@ export async function importModel(c, schemas, tables) {
     const have = new Set(m.tables.map((t) => key(t.schema, t.name)));
     m.refs = m.refs.filter((r) => have.has(key(r.from.schema, r.from.name)) && have.has(key(r.to.schema, r.to.name)));
     m.lineage = (m.lineage ?? []).filter((l) => have.has(key(l.target.schema, l.target.name)))
-      .map((l) => ({ ...l, sources: l.sources.filter((s) => have.has(key(s.schema, s.name))) })).filter((l) => l.sources.length);
+      .map((l) => ({ ...l, sources: l.sources.filter((s) => have.has(key(s.schema, s.name))), columns: (l.columns ?? []).map((c) => ({ ...c, from: c.from.filter((s) => have.has(key(s.schema, s.name))) })).filter((c) => c.from.length) }))
+      .filter((l) => l.sources.length || l.columns.length);
   }
   return m;
 }

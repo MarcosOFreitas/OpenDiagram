@@ -44,6 +44,8 @@ check('A1 enum', r.dbml.includes('Enum shop.order_state {'));
 check('A1 view as a Table with comment + definition', r.dbml.includes(`Table shop.v_customer_orders [note: '''\nOrders with customer name\n\nVIEW\nSELECT`));
 check('A1 materialized view', r.dbml.includes("Table shop.mv_orders_by_status [note: '''\nMATERIALIZED VIEW\n"));
 check('lineage: a view lists its source tables and the columns it uses', /\/\/ lineage\(auto\): shop\.v_customer_orders <- shop\.customers\([^)]*name[^)]*\), shop\.orders\(/.test(r.dbml), (r.dbml.match(/\/\/ lineage.*/g) || []).join(' | '));
+check('lineage: each output column of a view is mapped to its source column', ['customer_id <- shop.customers.id', 'name <- shop.customers.name', 'order_id <- shop.orders.id', 'status <- shop.orders.status'].every((m) => r.dbml.includes(`// lineage(auto): shop.v_customer_orders.${m}`)), (r.dbml.match(/\/\/ lineage\(auto\): shop\.v_customer_orders\.\w+ <-.*/g) || []).join(' | '));
+check('lineage: an aggregate output (count(*)) gets no column mapping', !/shop\.mv_orders_by_status\.total/.test(r.dbml));
 check('lineage: a materialized view too', /\/\/ lineage\(auto\): shop\.mv_orders_by_status <- shop\.orders\([^)]*status/.test(r.dbml));
 r.lineageOnly = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'], tables: ['shop.v_customer_orders', 'shop.orders'] });
 check('lineage: sources outside the picked tables are dropped', /<- shop\.orders\(/.test(r.lineageOnly.dbml) && !/shop\.customers\(/.test(r.lineageOnly.dbml.match(/\/\/ lineage.*/g)?.join(' ')), r.lineageOnly.dbml.match(/\/\/ lineage.*/g)?.join(' | '));

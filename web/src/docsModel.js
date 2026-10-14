@@ -31,8 +31,8 @@ export function buildModel(db, lineage = []) {
   }
 
   for (const l of lineage) {
-    byId.get(l.target)?.builtFrom.push({ id: l.source, cols: l.sCols, tCols: l.tCols });
-    byId.get(l.source)?.feeds.push({ id: l.target, cols: l.sCols, tCols: l.tCols });
+    byId.get(l.target)?.builtFrom.push({ id: l.source, cols: l.sCols, tCols: l.tCols, maps: l.maps });
+    byId.get(l.source)?.feeds.push({ id: l.target, cols: l.sCols, tCols: l.tCols, maps: l.maps });
   }
 
   const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({
@@ -47,7 +47,7 @@ export function buildModel(db, lineage = []) {
 }
 
 // "orders (id, total)" / "orders.total -> v.total" text for a lineage link
-export const linkCols = (l) => (l.cols?.length ? ` (${l.cols.join(', ')}${l.tCols?.length ? ` -> ${l.tCols.join(', ')}` : ''})` : '');
+export const linkCols = (l) => (l.maps?.length ? ` (${l.maps.map((m) => `${m.s} -> ${m.t}`).join(', ')})` : l.cols?.length ? ` (${l.cols.join(', ')}${l.tCols?.length ? ` -> ${l.tCols.join(', ')}` : ''})` : '');
 export const display = (t) => (t.schema && t.schema !== 'public' ? `${t.schema}.${t.name}` : t.name);
 export const constraints = (f) => [f.pk && 'PK', f.notNull && !f.pk && 'NN', f.unique && 'UQ', f.increment && 'AI'].filter(Boolean);
 

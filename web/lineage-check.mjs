@@ -15,6 +15,8 @@ e = lineageEdges('//lineage:  sales.v_sum.total <- public.orders.total , items.p
 assert.equal(e.length, 2);
 assert.deepEqual(e[0].tCols, ['total']); assert.deepEqual(e[0].sCols, ['total']); assert.equal(e[0].manual, true);
 assert.deepEqual(e[1].sCols, ['price']);
+assert.deepEqual(e[0].maps, [{ s: 'total', t: 'total' }]); assert.deepEqual(e[1].maps, [{ s: 'price', t: 'total' }]);
+assert.deepEqual(lineageEdges('// lineage(auto): sales.v_sum <- orders(id)\n', tables)[0].maps, []);
 
 e = lineageEdges('// lineage: v_sum <- orders\n// lineage: sales.v_sum <- orders(id)\n', tables);
 assert.equal(e.length, 1, 'same pair on two lines is merged');

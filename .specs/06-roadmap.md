@@ -10,12 +10,12 @@ Today only tables, columns, PK/FK and indexes are imported.
 
 - **A1 (done). Import more objects**, per engine: **views** (with their columns, and the definition in a note), **enums**, **sequences**, **triggers**, and **comments on non-table objects** (views and their columns, sequences, functions…). Decide the DBML representation first — DBML has `Enum`, `Note` and `Table` but no native view/trigger/sequence — and keep `toDbml` the single generator. Update the privilege/limits notes in [03](03-connections-import.md) and the round-trip expectations in [04](04-formats.md).
 - **A2 (done). Pick specific tables inside a schema**: replace the comma-separated text filter with a table list (checkboxes, search, select all/none) fed by a new read-only "list tables" endpoint (catalog query, same guardrails as the rest) and remembered in the connection (`tables`).
-- **A3. Verify Oracle TLS end to end** (partly done: `verify` without wallet works against an OCI Autonomous DB, checked by hand; the rest below is open) (TCPS listener + wallet/CA PEM, `verify` / `noverify`, `serverDn`). Needs an Oracle with TCPS configured (a TLS-enabled Oracle service in `docker-compose.yml`, or a real server). Until then it stays documented as unverified; only the descriptor, the clean failure and the injection rejection are tested.
+- **A3. Oracle TLS** — **decision: wallets are not supported.** Oracle is reached only through a connection string with TLS (`verify`, or `noverify`, optional server DN); `verify` without wallet works against an OCI Autonomous DB (checked by hand). The `ewallet.pem` path that reads the CA field as a wallet stays in `introspect.js` but is unsupported and unverified; remove it when convenient. `noverify` and `serverDn` are still untested against a real server.
 
 ### B. Collaboration (original plan, steps 4 and 5)
 
 - **B1. Group-owned database connections** (*not done*): an administrator or group owner registers a connection once (read-only credential); members use it to import and refresh without seeing the secret; clear rules for who may use it; **audit log** of who used which connection and when. Sensitive: revisit [05](05-security.md) first.
-- **B2. SSO** (*not done*): OIDC/LDAP login for organisations.
+- **B2. SSO** (*future feature, not scheduled*): OIDC login for organisations; the target integration is **AWS Cognito** (OIDC), LDAP only if someone asks.
 - Already delivered from the original plan: step 3 — sharing with people, groups and links with view/comment/edit, flat groups, administration ([09](09-accounts-sharing.md)).
 
 ## After that
@@ -41,7 +41,7 @@ Details in [10](10-documentation-site.md): add screenshots/GIFs (pages were proo
 ## Next: ideas taken from dbdiagram's paid plan (agreed order)
 
 1. ~~**Versions + changelog**~~ **done**: version number + 409 on conflict, history with names, compare and restore (see [09](09-accounts-sharing.md)). Open: notice a newer version while editing (polling) and a visible per-diagram changelog in the Docs view.
-2. ~~**Data lineage**~~ **done** (see [02](02-editor-diagram.md) and [03](03-connections-import.md)): `// lineage:` comment syntax, import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows, focus, filters. Lineage also feeds Arrange and the Docs view/exports. Open: writing a link by dragging between tables; mapping output columns of views automatically (needs a SQL parser, e.g. `pgsql-ast-parser` for PostgreSQL).
+2. ~~**Data lineage**~~ **done** (see [02](02-editor-diagram.md) and [03](03-connections-import.md)): `// lineage:` comment syntax, import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows, focus, filters. Lineage also feeds Arrange and the Docs view/exports. Column mapping of views is automatic (`pgsql-ast-parser`, spec 03). Decided not to build drawing a lineage link by dragging.
 3. ~~**Sticky notes**~~ **done** (DBML `Note` blocks as movable, editable notes on the canvas; see [02](02-editor-diagram.md)). Open: colours, Docs view, presence.
 4. Small ones: *named views* (done), *detail levels* (done), *password on share links* (done). Embed/iframe was dropped on purpose.
 5. Presence, then real-time co-editing (Yjs) only if the use asks for it.

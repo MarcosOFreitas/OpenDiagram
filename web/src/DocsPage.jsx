@@ -259,7 +259,7 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
                 <tbody>{model.lineage.map((l, i) => (
                   <tr key={i}>
                     <td>{model.byId.get(l.source) ? <a href={`#${slug(l.source)}`}>{display(model.byId.get(l.source))}</a> : l.source}</td><td>→</td>
-                    <td>{model.byId.get(l.target) ? <a href={`#${slug(l.target)}`}>{display(model.byId.get(l.target))}</a> : l.target}</td><td>{l.sCols.join(', ')}{l.tCols.length > 0 && ` → ${l.tCols.join(', ')}`}</td>
+                    <td>{model.byId.get(l.target) ? <a href={`#${slug(l.target)}`}>{display(model.byId.get(l.target))}</a> : l.target}</td><td>{l.maps.length ? l.maps.map((m) => `${m.s} → ${m.t}`).join(', ') : <>{l.sCols.join(', ')}{l.tCols.length > 0 && ` → ${l.tCols.join(', ')}`}</>}</td>
                   </tr>
                 ))}</tbody>
               </table>

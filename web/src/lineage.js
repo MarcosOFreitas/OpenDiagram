@@ -25,7 +25,7 @@ const parseRef = (s) => {
   return { path: segments(m[1]), cols: m[2] ? splitTop(m[2]).map((c) => segments(c).join('.')) : [] };
 };
 
-// tables: [{ id: 'schema.name', schema, name, fields: [{ name }] }]. Returns [{ id, source, target, sCols, tCols, manual }]
+// tables: [{ id: 'schema.name', schema, name, fields: [{ name }] }]. Returns [{ id, source, target, sCols, tCols, maps: [{ s, t }], manual }] (one per pair of tables; `maps` = column to column mappings)
 export function lineageEdges(text, tables) {
   if (!/lineage(\s*\(auto\))?:/i.test(text)) return [];
   const byId = new Map(tables.map((t) => [t.id.toLowerCase(), t]));
@@ -49,14 +49,15 @@ export function lineageEdges(text, tables) {
       const ref = parseRef(raw), src = find(ref.path);
       if (!src || src.table.id === tgt.table.id) continue;
       const k = `${src.table.id}>${tgt.table.id}`;
-      if (!merged.has(k)) merged.set(k, { id: `lin:${k}`, source: src.table.id, target: tgt.table.id, sCols: new Set(), tCols: new Set(), manual: false });
+      if (!merged.has(k)) merged.set(k, { id: `lin:${k}`, source: src.table.id, target: tgt.table.id, sCols: new Set(), tCols: new Set(), maps: new Map(), manual: false });
       const e = merged.get(k);
       [...ref.cols, ...(src.col ? [src.col] : [])].forEach((c) => e.sCols.add(c));
       if (tgt.col) e.tCols.add(tgt.col);
+      if (tgt.col && src.col) e.maps.set(`${src.col}>${tgt.col}`, { s: src.col, t: tgt.col }); // output column <- source column: drawn column to column
       if (src.col || tgt.col) e.manual = true; // a column mapping was written by hand
     }
   });
-  return [...merged.values()].map((e) => ({ ...e, sCols: [...e.sCols], tCols: [...e.tCols] }));
+  return [...merged.values()].map((e) => ({ ...e, sCols: [...e.sCols], tCols: [...e.tCols], maps: [...e.maps.values()] }));
 }
 
 // every table that feeds `id` (up) and every table `id` feeds (down), following the arrows through any number of steps

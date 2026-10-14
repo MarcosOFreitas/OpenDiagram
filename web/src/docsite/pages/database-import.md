@@ -33,7 +33,7 @@ Press **Import**. The DBML appears in the editor and the diagram is drawn. The c
 
 - **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE` / `ON UPDATE`) and indexes.
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark; the SQL definition is kept in the table note. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
-- **Data lineage** of views and materialized views (which tables they are built from, and in PostgreSQL which columns) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
+- **Data lineage** of views and materialized views (which tables they are built from, and which source column each output column comes from) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.
 - **Sequences** (those that are not owned by a column) as standalone `Note` blocks.
 - **Triggers** as text in the note of their table.

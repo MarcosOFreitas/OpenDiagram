@@ -7,12 +7,12 @@ Lineage lines are **not** relationships. A relationship (`Ref`) is a foreign key
 ## Where lineage comes from
 
 - **From the database, automatically.** When you import or refresh, every **view** and **materialized view** gets arrows from the tables and views it reads.
-  - **PostgreSQL** also knows which **columns** of each source the view uses, so the arrow is labelled *uses N cols* and shows the list when you click it. "Uses" means every column the view reads, including the ones in joins and filters, not only the ones it outputs.
-  - **Oracle** gives the tables and views only (its dictionary has no column dependencies).
+  - **Table level**: the catalog says which tables and views each view is built from. In PostgreSQL it also says which columns of each source the view reads, shown as *uses N cols* (joins and filters included).
+  - **Column level**: OpenDiagram reads the SQL text of the view and maps **each output column to the source columns it is computed from**: `c.name`, `upper(o.status) AS st`, `sum(total)`, `*`, sub-queries, `WITH`, `UNION` and views over views are followed. The arrows then go from column to column. Output columns that use no column (`count(*)`, constants) get no arrow.
   - Sources that are not part of the import are left out.
 - **By hand**, for everything the database cannot know: loads, ETL jobs, copies between schemas. You write a comment line in the DBML.
 
-> **Note** The database cannot tell which output column of a view comes from which source column (that needs a SQL parser). Write those mappings by hand when you need them.
+> **Note** The column mapping is read from the SQL, not from the database catalog, so it only exists when the SQL can be read. A query the reader does not understand (for example Oracle `(+)` joins or `CONNECT BY`, a view over 20,000 characters, or a `*` over a table that is not imported) keeps its table-level arrow and gets no column arrows. You can always write the mapping by hand.
 
 ## Writing lineage in the DBML
 
@@ -54,5 +54,5 @@ Lines that the import generates start with `// lineage(auto):`. A **refresh rewr
 ## Limits
 
 - Only views and materialized views get automatic lineage. Plain tables loaded by a job need a hand-written line.
-- The database does not say which output column of a view comes from which source column; write that mapping by hand when you need it.
-- Procedures, functions and triggers are not read.
+- Column mapping covers views whose SQL can be read (see above); anything else stays at table level. Functions and procedures are not read.
+- Triggers are not read.
