@@ -16,6 +16,33 @@ function matcher(text) {
 
 const split = (name) => { const i = name.indexOf('.'); return [name.slice(0, i), name.slice(i + 1)]; };
 
+// compact searchable checklist used by the Groups tab: its selection belongs to a group, not to the import
+function TableChooser({ items, value, onToggle, onMany, groupOf }) {
+  const [q, setQ] = useState('');
+  const shown = useMemo(() => { const m = matcher(q); return items.filter((i) => m(i.name)); }, [items, q]);
+  return (
+    <div className="tp-ch">
+      <div className="tp-row">
+        <input placeholder="Search: text, VW_* or /regex/" value={q} onChange={(e) => setQ(e.target.value)} />
+        <small className="tp-actions"><a onClick={() => onMany(shown.map((i) => i.name), true)}>Select shown ({shown.length})</a> · <a onClick={() => onMany(shown.map((i) => i.name), false)}>Clear shown</a></small>
+      </div>
+      <div className="tp-chlist">
+        {shown.map((i) => {
+          const g = groupOf.get(i.name);
+          return (
+            <label key={i.name} className={`tp-card ${value.has(i.name) ? 'on' : ''}`} title={g && !value.has(i.name) ? `Currently in group ${g.name}: selecting moves it here` : i.name}>
+              <input type="checkbox" checked={value.has(i.name)} onChange={(e) => onToggle(i.name, e.target.checked)} />
+              <span className="tp-txt"><b>{split(i.name)[1]}</b><small>{split(i.name)[0]}{i.view && ' · view'}</small></span>
+              {g && <i className="tp-dot" style={{ background: g.color }} />}
+            </label>
+          );
+        })}
+        {!shown.length && <div className="hint">No table matches.</div>}
+      </div>
+    </div>
+  );
+}
+
 // Centered dialog to choose which tables/views to import and to define TableGroups for them.
 // items: [{ name: 'schema.table', view }]; selected: names (empty = all); groups: [{ name, color, tables: ['schema.table'] }]
 export default function TablePicker({ items, selected, groups, onApply, onClose }) {
@@ -28,6 +55,8 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
   const [only, setOnly] = useState(false);
   const [gName, setGName] = useState('');
   const [gColor, setGColor] = useState(PALETTE[0][0]);
+  const [gSel, setGSel] = useState(() => new Set()); // tables for the NEW group (not the import selection)
+  const [editing, setEditing] = useState(null); // index of the group whose tables are being edited
   const schemas = useMemo(() => [...new Set(items.map((i) => split(i.name)[0]))], [items]);
   const shown = useMemo(() => {
     const m = matcher(q);
@@ -46,16 +75,22 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
   const addShown = () => setSel((s) => new Set([...s, ...shown.map((i) => i.name)]));
   const dropShown = () => setSel((s) => { const n = new Set(s); shown.forEach((i) => n.delete(i.name)); return n; });
 
-  // groups: a table belongs to one group (moving it removes it from the previous one)
+  // groups: a table belongs to one group (adding it to a group removes it from the previous one)
   const dup = gName.trim() && gs.some((g) => g.name === gName.trim());
   const create = () => {
     const name = gName.trim();
-    if (!name || dup || !sel.size) return;
-    setGs((l) => [...l.map((g) => ({ ...g, tables: g.tables.filter((t) => !sel.has(t)) })), { name, color: gColor, tables: [...sel] }]);
-    setGName('');
+    if (!name || dup || !gSel.size) return;
+    setGs((l) => [...l.map((g) => ({ ...g, tables: g.tables.filter((t) => !gSel.has(t)) })), { name, color: gColor, tables: [...gSel] }]);
+    setGName(''); setGSel(new Set());
   };
   const patch = (i, p) => setGs((l) => l.map((g, j) => (j === i ? { ...g, ...p } : g)));
-  const addSelected = (i) => setGs((l) => l.map((g, j) => (j === i ? { ...g, tables: [...new Set([...g.tables, ...sel])] } : { ...g, tables: g.tables.filter((t) => !sel.has(t)) })));
+  const setMembers = (i, names, on) => setGs((l) => l.map((g, j) => {
+    const set = new Set(names);
+    if (j === i) return { ...g, tables: on ? [...new Set([...g.tables, ...names])] : g.tables.filter((t) => !set.has(t)) };
+    return on ? { ...g, tables: g.tables.filter((t) => !set.has(t)) } : g;
+  }));
+  const toggleGSel = (name, on) => setGSel((x) => { const n = new Set(x); if (on) n.add(name); else n.delete(name); return n; });
+  const manyGSel = (names, on) => setGSel((x) => { const n = new Set(x); names.forEach((t) => (on ? n.add(t) : n.delete(t))); return n; });
 
   const apply = () => {
     const seen = new Set();
@@ -113,14 +148,15 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
         {tab === 'groups' && (
           <div className="tp-groups">
             <div className="tp-new">
-              <b>New group from the {sel.size} selected table(s)</b>
+              <b>New group</b>
               <div className="tp-row">
                 <input placeholder="Group name" value={gName} onChange={(e) => setGName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} />
                 <input type="color" value={gColor} onChange={(e) => setGColor(e.target.value.toUpperCase())} title="Custom color" />
-                <button className="primary" disabled={!gName.trim() || !!dup || !sel.size} onClick={create}>Create group</button>
+                <button className="primary" disabled={!gName.trim() || !!dup || !gSel.size} onClick={create}>Create group ({gSel.size})</button>
               </div>
               <div className="tp-sw">{PALETTE.map(([hex, nm]) => <button key={hex} className={gColor === hex ? 'on' : ''} style={{ background: hex }} title={nm} onClick={() => setGColor(hex)} />)}</div>
-              <small className="hint">{dup ? 'A group with this name already exists.' : sel.size ? 'Select tables in the Tables tab first; a table belongs to one group.' : 'First select tables in the Tables tab.'}</small>
+              <TableChooser items={items} value={gSel} onToggle={toggleGSel} onMany={manyGSel} groupOf={groupOf} />
+              <small className="hint">{dup ? 'A group with this name already exists.' : 'Pick the tables of this group here: it is independent of the import selection (grouped tables are imported too). A table belongs to one group.'}</small>
             </div>
             {gs.map((g, i) => (
               <div key={i} className="tp-g" style={{ borderLeftColor: g.color }}>
@@ -128,13 +164,14 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
                   <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(g.color || '') ? g.color : '#6b7280'} onChange={(e) => patch(i, { color: e.target.value.toUpperCase() })} title="Group color" />
                   <input value={g.name} onChange={(e) => patch(i, { name: e.target.value })} />
                   <span className="hint">{g.tables.length} table(s)</span>
-                  <button disabled={!sel.size} onClick={() => addSelected(i)} title="Move the selected tables into this group">Add selected ({sel.size})</button>
-                  <button onClick={() => setGs((l) => l.filter((_, j) => j !== i))} title="Delete group (tables stay)">Delete</button>
+                  <button onClick={() => setEditing(editing === i ? null : i)}>{editing === i ? 'Done' : 'Edit tables'}</button>
+                  <button onClick={() => { setGs((l) => l.filter((_, j) => j !== i)); setEditing(null); }} title="Delete group (tables stay)">Delete</button>
                 </div>
                 <div className="tp-chips">
                   {g.tables.map((t) => <span key={t} className="tp-chip" style={have.has(t) ? undefined : { opacity: 0.5 }} title={have.has(t) ? t : `${t} — not in this import, dropped from the group`}>{split(t)[1]}<a onClick={() => patch(i, { tables: g.tables.filter((x) => x !== t) })}>×</a></span>)}
                   {!g.tables.length && <small className="hint">Empty: removed when you apply.</small>}
                 </div>
+                {editing === i && <TableChooser items={items} value={new Set(g.tables)} onToggle={(n, on) => setMembers(i, [n], on)} onMany={(ns, on) => setMembers(i, ns, on)} groupOf={groupOf} />}
               </div>
             ))}
             {!gs.length && <div className="hint">No groups yet.</div>}
