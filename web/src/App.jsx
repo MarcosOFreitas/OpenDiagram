@@ -670,6 +670,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
+  useEffect(() => { // close on any click outside the menu or Escape (a fixed backdrop inside the transformed dock would only cover the dock)
+    if (!algoOpen) return undefined;
+    const away = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !e.target.closest?.('.algo-pop, .algo-toggle')) setAlgoOpen(false); };
+    document.addEventListener('mousedown', away); document.addEventListener('keydown', away);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', away); };
+  }, [algoOpen]);
   const focusTable = (id) => { // select it and bring it to the middle (showing it if it was hidden)
     if (hidden.has(id)) setHidden([id], false);
     setActiveEdge(null); setActiveId(id);
@@ -892,9 +898,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
             <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
             <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
-            <button onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
+            <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
             {algoOpen && (<>
-              <div className="algo-bg" onClick={() => setAlgoOpen(false)} />
               <div className="algo-pop" role="menu">
                 <b>Auto-arrange algorithm</b>
                 {ALGOS.map((a) => (
