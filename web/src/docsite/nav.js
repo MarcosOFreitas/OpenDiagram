@@ -15,7 +15,7 @@ export const NAV = [
   { title: 'Working with diagrams', items: ['diagram-basics', 'tables-panel-and-views', 'arrange', 'table-groups'] },
   'generated-documentation',
   'import-export',
-  { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links'] },
+  { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links', 'versions-and-history'] },
   'administration',
   'self-hosting',
   'shortcuts-faq',

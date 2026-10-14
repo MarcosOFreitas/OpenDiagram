@@ -337,3 +337,13 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .ref-label { position: absolute; pointer-events: all; cursor: grab; user-select: none; padding: 1px 6px; border-radius: 6px; line-height: 1.5; white-space: nowrap; }
 .ref-label:hover { box-shadow: 0 0 0 1px var(--accent); }
 .ref-label:active { cursor: grabbing; }
+
+/* history, compare dialog and edit-conflict dialog */
+.savestate.conflict { color: #fdba74; font-weight: 600; }
+.admin-card.conflict { max-width: 480px; height: auto; } .admin-card.conflict.wide { max-width: 860px; height: min(640px, 100%); }
+.admin-card.conflict h3 { margin: 0; font-size: 16px; } .admin-card.conflict p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.hist-name { display: flex; gap: 8px; } .hist-name input { flex: 1; padding: 8px 10px; border: 1px solid #d5dbe5; border-radius: 6px; font: inherit; }
+.card.hist { align-items: flex-start; } .card.hist button { padding: 4px 9px; font-size: 12px; } .hist-sum { color: #4b5563; } .chip { margin-left: 8px; }
+.diff { flex: 1; overflow: auto; padding: 10px 14px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.dl { display: flex; gap: 8px; white-space: pre; } .dl > span { width: 12px; flex: none; color: #6b7280; } .dl.add { background: #e6f6ec; } .dl.del { background: #fde8e8; }
+.hist-legend { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; } .hist-legend .dl { padding: 0 8px; border-radius: 4px; }

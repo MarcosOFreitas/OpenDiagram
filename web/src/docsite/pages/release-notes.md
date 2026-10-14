@@ -2,11 +2,17 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Versions and history
+
+- **Edit conflicts are detected**: a save over someone else's newer version is refused and you choose to load theirs or keep yours.
+- **History** (More → History): every saved version with author and summary, named versions, compare and restore.
+
 ## Documentation and interface
 
 - **Documentation site** at `/docs` (More → Documentation) replaces the Help drawer, with search, sidebar and *On this page* index.
 - Lighter top bar: **Export** menu, and rarely used actions under **More**. Clicking a TableGroup puts it in focus.
 - The sample model is in English ("Online store - sample").
+- Screenshots in the pages and DBML syntax colours; the algorithm menu of Arrange now closes when you click elsewhere.
 
 ## Diagram
 

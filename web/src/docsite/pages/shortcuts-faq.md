@@ -22,7 +22,7 @@ No. Database sessions are read-only and only query catalog views (`pg_catalog`, 
 
 ### Can two people edit at the same time?
 
-Not in real time yet: the last save wins. Give the other person *Comment* access, or take turns. See [Accounts & permissions](accounts-and-sharing).
+Not in real time yet. If both save changes, the second save is refused and a dialog asks whether to load the other person's version or keep yours (the other version stays in the history). See [Versions & history](versions-and-history). Giving the other person *Comment* access avoids the question.
 
 ### My diagram became slow with hundreds of tables. What can I do?
 
@@ -35,6 +35,10 @@ No. DBML has no view type, so a view is a table marked **· View** with its SQL 
 ### Why does an Oracle connection with TLS close right after connecting?
 
 You probably have TLS **off** against a TCPS port (the error mentions `NJS-521`). Set the TLS mode to *on, verify certificate*. If the database is an Oracle Autonomous Database, also check its **access control list** and whether it requires mTLS (a wallet).
+
+### Can I go back to an earlier version?
+
+Yes: **More → History** lists the saved versions with who changed what. You can name a version, compare it with the current one and restore it. See [Versions & history](versions-and-history).
 
 ### Where is my data stored?
 

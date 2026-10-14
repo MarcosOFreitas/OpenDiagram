@@ -136,9 +136,10 @@ app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));
 app.get('/api/diagrams/:id', (req) => dg.getForUser(req.user, req.params.id));
 const baseVersion = (b) => (Number.isInteger(b?.baseVersion) ? b.baseVersion : undefined); // the version the client last saw; a stale one is answered with 409
+const saveOpts = (req) => ({ baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || req.body?.entry === 'refresh', reason: req.body?.entry === 'refresh' ? 'Refresh from database' : '' }); // overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh. Both get their own history entry
 app.put('/api/diagrams/:id', (req) => {
   const d = dg.getForUser(req.user, req.params.id);
-  const o = { baseVersion: baseVersion(req.body), actor: req.user };
+  const o = saveOpts(req);
   let version;
   if (d.role === 'owner') version = dg.update(d.id, req.body ?? {}, { includeSource: true, ...o });
   else if (d.role === 'admin') version = dg.update(d.id, { title: req.body?.title, dbml: req.body?.dbml, layout: req.body?.layout }, o); // never the owner's connection link
@@ -217,7 +218,7 @@ app.get('/api/shared/:token', async (req) => {
 app.put('/api/shared/:token', async (req) => {
   const s = await share(req, 'edit');
   const { dbml, layout } = req.body ?? {};
-  const version = dg.update(s.diagramId, { dbml, layout }, { baseVersion: baseVersion(req.body), actor: req.user }); // editors change the diagram itself, never its title, connection link or sharing
+  const version = dg.update(s.diagramId, { dbml, layout }, saveOpts(req)); // editors change the diagram itself, never its title, connection link or sharing
   return { ok: true, version };
 });
 app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));

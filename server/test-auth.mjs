@@ -300,6 +300,21 @@ r = await B('GET', `/api/diagrams/${vId}/versions`);
 check('people with only view access cannot read the history', r.status === 403, `status ${r.status}`);
 r = await anon('GET', `/api/diagrams/${vId}/versions`);
 check('anonymous cannot read the history', r.status === 401);
+r = await A('GET', `/api/diagrams/${vId}`); const v0 = r.json.version, n0 = (await A('GET', `/api/diagrams/${vId}/versions`)).json.length;
+r = await A('PUT', `/api/diagrams/${vId}`, { dbml: `${T2}
+// a`, baseVersion: v0 });
+r = await A('PUT', `/api/diagrams/${vId}`, { dbml: `${T2}
+// b`, baseVersion: v0 + 1 });
+check('quick saves by the same person share one history entry', (await A('GET', `/api/diagrams/${vId}/versions`)).json.length <= n0 + 1);
+const n1 = (await A('GET', `/api/diagrams/${vId}/versions`)).json.length;
+r = await A('PUT', `/api/diagrams/${vId}`, { dbml: `${T2}
+// c`, baseVersion: v0 + 2, overwrite: true });
+check('a save flagged overwrite always gets its own history entry', (await A('GET', `/api/diagrams/${vId}/versions`)).json.length === n1 + 1);
+const n2 = (await A('GET', `/api/diagrams/${vId}/versions`)).json.length;
+r = await A('PUT', `/api/diagrams/${vId}`, { dbml: `${T2}
+// d`, baseVersion: v0 + 3, entry: 'refresh' });
+r = await A('GET', `/api/diagrams/${vId}/versions`);
+check('a save that follows a metadata refresh gets its own entry, marked as such', r.json.length === n2 + 1 && r.json[0].summary.startsWith('Refresh from database: '), r.json[0]?.summary);
 r = await A('POST', `/api/diagrams/${vId}/versions`, { label: '  ' });
 check('a version name is required', r.status === 400);
 r = await A('POST', `/api/diagrams/${vId}/shares`, { access: 'edit' }); const vedit = r.json;

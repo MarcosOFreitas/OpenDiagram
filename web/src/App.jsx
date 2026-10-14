@@ -14,6 +14,7 @@ import Menu from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
 import TablePicker, { matcher } from './TablePicker.jsx';
+import History from './History.jsx';
 import TablesPanel from './TablesPanel.jsx';
 import { BLANK, TEMPLATES } from './templates.js';
 
@@ -357,6 +358,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [loadErr, setLoadErr] = useState('');
   const [needPass, setNeedPass] = useState(null); // protected share link: message shown above the password field
   const [unlockTick, setUnlockTick] = useState(0);
+  const entryRef = useRef(''); // 'refresh' while the next save follows a metadata refresh: it gets its own History entry
+  const overwriteRef = useRef(false); // set by "Keep my changes": the next save is flagged so the server keeps the overwritten version in History
+  const verRef = useRef(null); // the server version this editor last loaded or saved: sent as baseVersion so a save over someone else's work is refused (409)
+  const [docVersion, setDocVersion] = useState(null);
+  const [conflict, setConflict] = useState(null); // { version, by, at } while a newer version exists on the server
   const [diagrams, setDiagrams] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [editorW, setEditorW] = useState(() => Math.max(260, Math.min(1100, +store('editorW') || 380)));
@@ -515,6 +521,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     idsKey.current = '';
     savedRef.current = JSON.stringify(payloadOf(d));
     setNodes([]); setEdges([]);
+    verRef.current = d.version ?? null; setDocVersion(d.version ?? null); setConflict(null);
     setDoc(d); setDbml(d.dbml); setTitle(d.title); setSource(d.source ?? null); setComments(list ?? []); setSaveState('saved');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const openDiagram = useCallback(async (id) => {
@@ -553,20 +560,28 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
 
   // autosave (owner: everything; edit link: DBML + layout)
   useEffect(() => {
-    if (!doc || !canEdit) return undefined;
+    if (!doc || !canEdit || conflict) return undefined;
     const payload = payloadOf({ title, dbml, source, layout: layoutRef.current, isOwner: doc.isOwner, access: doc.access });
     const sig = JSON.stringify(payload);
     if (sig === savedRef.current) return undefined;
     setSaveState('saving');
     const t = setTimeout(async () => {
       try {
-        await api(shared ? `shared/${shareToken}` : `diagrams/${doc.id}`, payload, 'PUT');
+        const r = await api(shared ? `shared/${shareToken}` : `diagrams/${doc.id}`, verRef.current != null ? { ...payload, baseVersion: verRef.current, ...(overwriteRef.current ? { overwrite: true } : {}), ...(entryRef.current ? { entry: entryRef.current } : {}) } : payload, 'PUT');
+        overwriteRef.current = false; entryRef.current = '';
+        if (r.version != null) { verRef.current = r.version; setDocVersion(r.version); }
         savedRef.current = sig; setSaveState('saved');
         if (!shared) setDiagrams((l) => l.map((x) => (x.id === doc.id ? { ...x, title, updatedAt: Math.floor(Date.now() / 1000) } : x)));
-      } catch (e) { setSaveState('error'); notify('err', `Not saved: ${errMsg(e)}`); }
+      } catch (e) {
+        if (e.code === 'conflict') { // someone else saved first: stop autosaving and let the person choose
+          setSaveState('conflict');
+          const by = shared ? null : await api(`diagrams/${doc.id}/versions`).then((l) => l[0]).catch(() => null);
+          setConflict({ version: e.version, by: by?.author, at: by?.savedAt });
+        } else { setSaveState('error'); notify('err', `Not saved: ${errMsg(e)}`); }
+      }
     }, 800);
     return () => clearTimeout(t);
-  }, [doc, canEdit, title, dbml, source, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doc, canEdit, conflict, title, dbml, source, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // comments (stored by the app, never in the database); refetched when the Docs view opens so other people's show up
   const cbase = shared ? `shared/${shareToken}` : `diagrams/${doc?.id}`;
@@ -734,6 +749,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
       const cur = dbmlRef.current, merged = keepGroups(cur, r.dbml);
       lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
+      if (merged !== cur) entryRef.current = 'refresh';
       setDbml(merged);
       notify('ok', `Metadata refreshed: ${diffSummary(cur, merged)}`);
     } catch (e) { notify('err', `Refresh failed: ${errMsg(e)}`); } finally { refreshing.current = false; setBusy(''); }
@@ -782,10 +798,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const tabs = shared
     ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View']]
     : owner
-      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['view', 'View'], ['share', 'Share']]
-      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : [])];
+      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['history', 'History'], ['view', 'View'], ['share', 'Share']]
+      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import'], ['history', 'History']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : [])];
   const tabName = Object.fromEntries(tabs);
-  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', share: 'Share', account: 'Account' };
+  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', history: 'History', share: 'Share', account: 'Account' };
   const primary = ['share'].filter((k) => tabName[k]); // everything else lives under "Export" / "More"
   const LABEL = { view: 'view only', comment: 'can comment', edit: 'can edit', admin: 'administrator access' };
   const open = (t) => setDrawer(drawer === t ? null : t);
@@ -819,7 +835,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         {shared
           ? <span className="chip-access" title={`Shared by ${doc.ownerName}`}>{access === 'edit' ? (user ? 'can edit' : 'edit link — log in to edit') : access === 'comment' ? (user ? 'can comment' : 'comment link — log in to comment') : 'view only'}</span>
           : !manage || !owner ? <span className="chip-access" title={`Owned by ${doc.ownerName}`}>{doc.ownerName} · {LABEL[access]}</span> : null}
-        {canEdit && <span className={`savestate ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Not saved' : 'Saved'}</span>}
+        {canEdit && <span className={`savestate ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Not saved' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>}
         <div className="mode" role="tablist" aria-label="View mode">
           <button role="tab" aria-selected={mode === 'diagram'} className={mode === 'diagram' ? 'on' : ''} onClick={() => setMode('diagram')}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><rect x="9.5" y="10" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M4 6v4h5.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>Diagram
@@ -836,8 +852,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             { header: 'SQL' }, ...EXPORTS.filter(([k]) => ['postgres', 'mysql', 'mssql', 'oracle'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
             { header: 'Other' }, ...EXPORTS.filter(([k]) => ['dbml', 'json', 'docs-html', 'docs-md'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
             { sep: true }, { key: 'copy', label: 'Copy DBML to clipboard', onClick: copyDbml }]} />
-        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'view'].includes(drawer)} title="Diagrams, Database, Import, View, Documentation"
-          items={[...['diagrams', 'connect', 'import', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
+        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'history', 'view'].includes(drawer)} title="Diagrams, Database, Import, History, View, Documentation"
+          items={[...['diagrams', 'connect', 'import', 'history', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
             { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
         {user
           ? <Menu align="right" title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
@@ -933,6 +949,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           )}
           {drawer === 'diagrams' && <Library diagrams={diagrams} currentId={doc?.id} isAdmin={user?.role === 'admin'} onOpen={(id) => { openDiagram(id).then(() => setDrawer(null)).catch((e) => notify('err', errMsg(e))); }} templates={TEMPLATES} onCreate={newDiagram} onDelete={deleteDiagram} />}
           {drawer === 'share' && manage && doc?.id && <SharePanel diagramId={doc.id} notify={notify} />}
+          {drawer === 'history' && canEdit && doc?.id && !shared && <History diagramId={doc.id} version={docVersion} dbml={dbml} notify={notify} onRestored={() => openDiagram(doc.id)} />}
 
           {drawer === 'connect' && (
             <div className="dbody">
@@ -1054,6 +1071,19 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </aside>
       </div>
 
+      {conflict && (
+        <div className="admin">
+          <div className="admin-card conflict" role="alertdialog" aria-label="Edit conflict">
+            <div className="dbody">
+              <h3>Someone else saved this diagram</h3>
+              <p>{conflict.by ? `${conflict.by} saved version ${conflict.version} ${ago(conflict.at * 1000)}.` : `A newer version (${conflict.version}) was saved.`} Your changes since you opened it are not saved yet; they are still in the editor.</p>
+              <button onClick={() => { setConflict(null); if (shared) setUnlockTick((n) => n + 1); else openDiagram(doc.id).catch((e) => notify('err', errMsg(e))); }}>Load the latest version (discard my changes)</button>
+              <button className="primary" onClick={() => { verRef.current = conflict.version; overwriteRef.current = true; setConflict(null); }}>Keep my changes (overwrite theirs)</button>
+              {!shared && <small className="hint">Their version stays in History, so nothing is lost.</small>}
+            </div>
+          </div>
+        </div>
+      )}
       {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} onClose={() => setPicker(false)} onApply={({ tables, groups }) => { setTableSel(tables); setTableGroups(groups); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>{toast.text}</div>}

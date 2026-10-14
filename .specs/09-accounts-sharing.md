@@ -61,6 +61,13 @@ Levels: **view** (diagram, docs, comments), **comment** (+ add comments, delete 
 
 Everything under `/api` except `health`, `auth/*` and `shared/*` requires a session; resources of other accounts answer **404** so existence is not revealed.
 
+## Versions, conflicts and history
+- `diagrams.version` (integer, starts at 1) is bumped by every content save (title, DBML, layout, source); a save that changes nothing does not bump it. `PUT /api/diagrams/:id` and `PUT /api/shared/:token` accept `baseVersion` (the version the client loaded or last saved): a different current version answers **409** `{code:'conflict', version}` and writes nothing. No `baseVersion` = no check (scripts). A flagged `overwrite:true` save (the person chose "Keep my changes") and an `entry:'refresh'` save (sent by the first autosave after a metadata refresh that changed the DBML, manual or automatic) each get their own history entry; the refresh one is summarised as `Refresh from database: …`.
+- Table `diagram_versions` (title, DBML, layout, author, summary, optional label). Entries of the same person within 10 minutes are coalesced; unnamed entries are pruned to the latest 60, named ones are kept. The first save after the feature (or on a migrated diagram) first stores the previous content as the "starting point". `summary` is computed when saving: tables added/removed by name (regex on `Table name`), plus lines added/removed.
+- Routes (edit level or above, owner and administrators; not view/comment, not links): `GET /api/diagrams/:id/versions`, `GET .../versions/:vid` (full content), `POST .../versions {label}` (name the current state), `DELETE .../versions/:vid`, `POST .../versions/:vid/restore` (saved as a new version; editors never change the title).
+- UI: **More → History** (`History.jsx`: list, name, Compare = line diff against the editor, Restore) and the conflict dialog in `App.jsx` (autosave pauses while it is open; status shows "Conflict").
+- Not done: detecting a newer version without saving (no polling, no push), a per-entry delete button, diff of the layout, history for edit-link visitors.
+
 ## Comments
 
 Any number per target key (`"<schema>.<table>"`, `"<schema>.<table>.<column>"`, `"__project"`) with author, date and text (≤ 2000 chars), stored in the app — **never** in DBML or a database; included (with author) in the `.html`/`.md` documentation exports. The Docs view refetches them when opened.

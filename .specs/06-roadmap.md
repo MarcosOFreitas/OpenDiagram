@@ -40,7 +40,7 @@ Details in [10](10-documentation-site.md): add screenshots/GIFs (pages were proo
 
 ## Next: ideas taken from dbdiagram's paid plan (agreed order)
 
-1. **Versions + changelog** of diagrams/docs, with a version number on save to detect edit conflicts (autosave currently overwrites silently when two people edit).
+1. ~~**Versions + changelog**~~ **done**: version number + 409 on conflict, history with names, compare and restore (see [09](09-accounts-sharing.md)). Open: notice a newer version while editing (polling) and a visible per-diagram changelog in the Docs view.
 2. **Data lineage**: table level and column level; Postgres gives it exactly from `pg_depend`/`pg_rewrite` (views), Oracle `ALL_DEPENDENCIES` at table level; a DBML syntax to declare it by hand.
 3. **Sticky notes** (DBML `Note` blocks as movable notes on the canvas).
 4. Small ones: *named views* (done), *detail levels* (done), *password on share links* (done). Embed/iframe was dropped on purpose.

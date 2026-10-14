@@ -92,7 +92,7 @@ export function summarize(before, after, layoutChanged = false) {
 const recent = (id) => db.prepare('select id, dbml, layout, label, author_id, created_at from diagram_versions where diagram_id = ? order by version desc limit 2').all(id);
 
 // records the new state in the history (called after every content save)
-function snapshot(id, version, st, actor) {
+function snapshot(id, version, st, actor, separate = false, reason = '') {
   let rows = recent(id);
   const t = now();
   if (!rows.length) { // first save since history exists: keep what was there before as the starting point
@@ -101,20 +101,20 @@ function snapshot(id, version, st, actor) {
     rows = recent(id);
   }
   const last = rows[0];
-  if (actor && last.author_id === actor.id && !last.label && t - last.created_at < COALESCE && rows.length > 1) { // same person, still working: update the entry
+  if (!separate && actor && last.author_id === actor.id && !last.label && t - last.created_at < COALESCE && rows.length > 1) { // same person, still working: update the entry
     db.prepare('update diagram_versions set version = ?, title = ?, dbml = ?, layout = ?, summary = ?, saved_at = ? where id = ?')
       .run(version, st.title, st.dbml, st.layout, summarize(rows[1].dbml, st.dbml, rows[1].layout !== st.layout), t, last.id);
   } else {
     db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, summarize(last.dbml, st.dbml, last.layout !== st.layout), t, t);
+      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, (reason ? `${reason}: ` : '') + summarize(last.dbml, st.dbml, last.layout !== st.layout), t, t);
   }
   db.prepare(`delete from diagram_versions where diagram_id = ? and label is null and id not in
     (select id from diagram_versions where diagram_id = ? and label is null order by version desc limit ?)`).run(id, id, KEEP);
 }
 
 // partial update; `source` (link to a saved connection) is only ever set by the owner.
-// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. A save that changes nothing does not bump it.
-export function update(id, patch, { includeSource = false, baseVersion, actor } = {}) {
+// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. `separate` forces its own history entry (someone chose to overwrite a newer version, or a refresh from the database); `reason` prefixes its summary. A save that changes nothing does not bump it.
+export function update(id, patch, { includeSource = false, baseVersion, actor, separate = false, reason = '' } = {}) {
   check(patch);
   const cur = db.prepare('select version, title, dbml, layout, source, updated_at from diagrams where id = ?').get(id);
   if (!cur) throw bad('diagram not found', 404);
@@ -127,7 +127,7 @@ export function update(id, patch, { includeSource = false, baseVersion, actor } 
   if (next.title === cur.title && next.dbml === cur.dbml && next.layout === cur.layout && next.source === cur.source) return cur.version;
   const version = cur.version + 1;
   db.prepare('update diagrams set title = ?, dbml = ?, layout = ?, source = ?, version = ?, updated_at = ? where id = ?').run(next.title, next.dbml, next.layout, next.source, version, now(), id);
-  if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor);
+  if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor, separate, reason);
   return version;
 }
 
