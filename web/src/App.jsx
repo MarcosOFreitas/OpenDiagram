@@ -299,8 +299,19 @@ function groupedPositions(tables, refs, groups, mode = 'auto') {
   return shelfPack(blocks, 70).pos;
 }
 
-// algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact
-function layout(tables, refs, old, groups = [], algo = 'auto') {
+// data lineage as extra edges for the layout, in the shape of refs: the flow runs source -> derived table, so a derived table sits to the right of what it is built from
+// (dagre puts `child` before `parent`; the pipeline ranks a table after what it depends on, so there the derived table is the child)
+function lineageRefs(tables, lineage, algo) {
+  const byId = new Map(tables.map((t) => [t.id, t]));
+  return lineage.filter((l) => byId.has(l.source) && byId.has(l.target)).map((l) => {
+    const s = byId.get(l.source), t = byId.get(l.target), [c, p] = algo === 'pipeline' ? [t, s] : [s, t];
+    return { child: { schemaName: c.schema, tableName: c.name, fieldNames: [] }, parent: { schemaName: p.schema, tableName: p.name, fieldNames: [] } };
+  });
+}
+
+// algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact. lineage: edges of the data lineage that take part in the layout (empty when it is switched off)
+function layout(tables, refs, old, groups = [], algo = 'auto', lineage = []) {
+  if (lineage.length) refs = [...refs, ...lineageRefs(tables, lineage, algo)];
   let pos;
   if (algo === 'lr') pos = dagrePositions(tables, refs, groups);
   else if (algo === 'pipeline') pos = pipelinePositions(tables, refs, groups);
@@ -311,11 +322,11 @@ function layout(tables, refs, old, groups = [], algo = 'auto') {
 }
 
 const ALGOS = [
-  { k: 'auto', name: 'Auto', desc: 'Packs each group and each connected cluster on its own. Best default, especially with many tables.' },
-  { k: 'lr', name: 'Left to right', desc: 'Layered layout following the relationships. Best for long relationship chains.' },
+  { k: 'auto', name: 'Auto', desc: 'Packs each group and each cluster connected by relationships or data lineage on its own. Best default, especially with many tables.' },
+  { k: 'lr', name: 'Left to right', desc: 'Layered layout following the relationships and data lineage. Best for long chains.' },
   { k: 'pipeline', name: 'Pipeline', desc: 'Groups become stages from left to right by dependency, tables stacked vertically.' },
   { k: 'snowflake', name: 'Snowflake', desc: 'The most connected table in the center, related tables in rings around it.' },
-  { k: 'compact', name: 'Compact', desc: 'Tables in a compact rectangle, ignoring relationships.' },
+  { k: 'compact', name: 'Compact', desc: 'Tables in a compact rectangle, ignoring relationships and data lineage.' },
 ];
 const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
 const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
@@ -622,7 +633,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const parsed = useMemo(() => parse(dbml), [dbml]);
   const lastGood = useRef(null);
   if (!parsed.error) lastGood.current = parsed;
-  const docModel = useMemo(() => (mode === 'docs' && lastGood.current?.db ? buildModel(lastGood.current.db) : null), [mode, parsed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const docModel = useMemo(() => (mode === 'docs' && lastGood.current?.db ? buildModel(lastGood.current.db, lastGood.current.lineage) : null), [mode, parsed]); // eslint-disable-line react-hooks/exhaustive-deps
   const editorDiags = useMemo(() => {
     const lines = dbml.split('\n');
     const off = (l, c) => { let o = 0; for (let i = 0; i < Math.min(l - 1, lines.length); i++) o += lines[i].length + 1; return o + Math.max(0, (c || 1) - 1); };
@@ -637,7 +648,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const keyCols = {};
     parsed.refs.forEach((r) => { (keyCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames); (keyCols[tid(r.parent.schemaName, r.parent.tableName)] ||= []).push(...r.parent.fieldNames); });
     const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [] }));
-    setNodes((old) => layout(tables, parsed.refs, new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]), parsed.groups));
+    setNodes((old) => layout(tables, parsed.refs, new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]), parsed.groups, 'auto', view.lineage !== false ? parsed.lineage || [] : []));
     setEdges(parsed.refs.map((r) => ({
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
       target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
@@ -692,7 +703,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       const color = picked ? '#f59e0b' : inUp ? '#8b5cf6' : inDown ? '#0d9488' : dark ? '#a78bfa' : '#7c3aed';
       const faded = (!!linC && !inUp && !inDown) || (!!activeEdge && !picked) || (!!gSet && !gSet.has(e.source) && !gSet.has(e.target));
       const cols = sCols.join(', ') + (tCols.length ? ` → ${tCols.join(', ')}` : '');
-      const text = picked ? (cols.length > 70 ? `${cols.slice(0, 67)}…` : cols) : sCols.length > 1 ? `${sCols.length} cols` : one ? '' : sCols.length === 1 ? sCols[0] : '';
+      const shownCols = tCols.length ? cols : `uses ${cols}`; // a mapping `a -> b` reads as is; a plain list is what the view uses (joins and filters included), not what it outputs
+      const text = picked ? (shownCols.length > 70 ? `${shownCols.slice(0, 67)}…` : shownCols) : sCols.length > 1 ? `uses ${sCols.length} cols` : one ? '' : sCols.length === 1 ? `uses ${sCols[0]}` : '';
       return { ...e, ...lh, type: 'ref', zIndex: picked ? 20 : inUp || inDown ? 10 : 0, interactionWidth: 20, markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
         style: { stroke: color, strokeWidth: picked ? 3 : inUp || inDown ? 2.4 : 1.6, strokeDasharray: '7 5', ...(faded ? { opacity: 0.18 } : {}) },
         data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css: { background: dark ? '#1b1531' : '#f5f0ff', border: `1px solid ${dark ? '#4c3a8a' : '#d8c8ff'}`, color: dark ? '#c4b5fd' : '#6d28d9', fontSize: 10, fontWeight: picked ? 700 : 500, opacity: faded ? 0.3 : 1 }, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
@@ -730,7 +742,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       setNodes((old) => {
         const sz = layoutRef.current['@sizes'], hid = new Set(layoutRef.current['@hidden'] || []);
         const vis = old.filter((n) => !hid.has(n.id));
-        const next = layout(vis.map((n) => ({ ...n.data, detail: view.detail || 'full', hideIndexes: view.hideIndexes, collapsed: !!sz?.[n.id]?.c || view.detail === 'tables', w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo);
+        const next = layout(vis.map((n) => ({ ...n.data, detail: view.detail || 'full', hideIndexes: view.hideIndexes, collapsed: !!sz?.[n.id]?.c || view.detail === 'tables', w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo, lineageOn ? parsed.lineage || [] : []);
         const fresh = new Map(next.map((n) => [n.id, n])), merged = old.map((n) => fresh.get(n.id) || n); // hidden tables keep their place
         layoutRef.current = { ...Object.fromEntries(merged.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}), ...(hid.size ? { '@hidden': [...hid] } : {}), ...Object.fromEntries(['@views', '@base', '@view'].filter((k) => layoutRef.current[k]).map((k) => [k, layoutRef.current[k]])) };
         return merged;
@@ -807,7 +819,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     try {
       if (fmt === 'docs-html' || fmt === 'docs-md') {
         if (parsed.error) throw new Error('fix the DBML errors first');
-        const m = buildModel(parsed.db);
+        const m = buildModel(parsed.db, parsed.lineage);
         if (fmt === 'docs-html') download(`${base}-docs.html`, standaloneHtml(m, title, comments));
         else download(`${base}-docs.md`, toMarkdown(m, title, comments));
       } else if (fmt === 'dbml') download(`${base}.dbml`, dbml);

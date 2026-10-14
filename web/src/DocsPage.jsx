@@ -1,7 +1,7 @@
 // Generated database documentation (dbdocs-style): used live in the app and as a standalone HTML export.
 import { useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { slug, display, constraints, ordered } from './docsModel.js';
+import { slug, display, constraints, ordered, linkCols } from './docsModel.js';
 
 export const docsCss = `
 .dx{--bg:#fff;--fg:#1f2937;--muted:#6b7280;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -189,6 +189,14 @@ function Table({ model, t, collapsed, ctx }) {
           <div className="dx-sub">Indexes</div>
           <ul className="plain">{t.indexes.map((i, n) => <li key={n}>{i.pk ? 'PRIMARY KEY' : i.unique ? 'UNIQUE' : 'INDEX'} <code>({i.cols.join(', ')})</code>{i.name && <> — {i.name}</>}</li>)}</ul>
         </>)}
+        {t.builtFrom.length > 0 && (<>
+          <div className="dx-sub">Built from <small className="note">data lineage</small></div>
+          <ul className="plain">{t.builtFrom.map((l, n) => <li key={n}>{model.byId.get(l.id) ? <a href={`#${slug(l.id)}`}>{display(model.byId.get(l.id))}</a> : <code>{l.id}</code>}<small className="note">{linkCols(l)}</small></li>)}</ul>
+        </>)}
+        {t.feeds.length > 0 && (<>
+          <div className="dx-sub">Feeds <small className="note">data lineage</small></div>
+          <ul className="plain">{t.feeds.map((l, n) => <li key={n}>{model.byId.get(l.id) ? <a href={`#${slug(l.id)}`}>{display(model.byId.get(l.id))}</a> : <code>{l.id}</code>}</li>)}</ul>
+        </>)}
         {t.incoming.length > 0 && (<>
           <div className="dx-sub">Referenced by</div>
           <ul className="plain">{t.incoming.map((r, n) => (
@@ -230,6 +238,7 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
               <div className="stat"><b>{model.refs.length}</b>relationships</div>
               <div className="stat"><b>{model.enums.length}</b>enums</div>
               <div className="stat"><b>{model.groups.length}</b>groups</div>
+              {model.lineage.length > 0 && <div className="stat"><b>{model.lineage.length}</b>lineage links</div>}
             </div>
             {model.refs.length > 0 && (<>
               <div className="dx-sub">Relationships</div>
@@ -239,6 +248,18 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
                   <tr key={i}>
                     <td><Ref model={model} id={r.from.id} col={r.from.cols.join(', ')} /></td><td>{r.card}</td>
                     <td><Ref model={model} id={r.to.id} col={r.to.cols.join(', ')} /></td><td>{r.onDelete}</td><td>{r.onUpdate}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </>)}
+            {model.lineage.length > 0 && (<>
+              <div className="dx-sub">Data lineage</div>
+              <table>
+                <thead><tr><th>Source</th><th></th><th>Built table</th><th>Columns used</th></tr></thead>
+                <tbody>{model.lineage.map((l, i) => (
+                  <tr key={i}>
+                    <td>{model.byId.get(l.source) ? <a href={`#${slug(l.source)}`}>{display(model.byId.get(l.source))}</a> : l.source}</td><td>→</td>
+                    <td>{model.byId.get(l.target) ? <a href={`#${slug(l.target)}`}>{display(model.byId.get(l.target))}</a> : l.target}</td><td>{l.sCols.join(', ')}{l.tCols.length > 0 && ` → ${l.tCols.join(', ')}`}</td>
                   </tr>
                 ))}</tbody>
               </table>

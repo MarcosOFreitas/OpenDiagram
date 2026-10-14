@@ -3,7 +3,8 @@ export const slug = (s) => `t_${String(s).replace(/\W+/g, '_')}`;
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
 const defaultText = (d) => (!d ? '' : d.type === 'expression' ? `\`${d.value}\`` : d.type === 'string' ? `'${d.value}'` : String(d.value));
 
-export function buildModel(db) {
+// lineage: edges from lineageEdges() ({ source, target, sCols, tCols }); each table gets `builtFrom` (its sources) and `feeds` (what is built from it)
+export function buildModel(db, lineage = []) {
   const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({
     id: tid(t.schema.name, t.name), schema: t.schema.name, name: t.name, note: t.note || '', color: t.headerColor || '',
     fields: t.fields.map((f) => ({
@@ -11,7 +12,7 @@ export function buildModel(db) {
       default: defaultText(f.dbdefault), note: f.note || '', refs: [],
     })),
     indexes: t.indexes.map((i) => ({ name: i.name || '', unique: !!i.unique, pk: !!i.pk, type: i.type || '', cols: i.columns.map((c) => c.value) })),
-    incoming: [], groups: [],
+    incoming: [], groups: [], builtFrom: [], feeds: [],
   }));
   const byId = new Map(tables.map((t) => [t.id, t]));
 
@@ -29,6 +30,11 @@ export function buildModel(db) {
     r.from.cols.forEach((c, i) => from?.fields.find((f) => f.name === c)?.refs.push({ id: r.to.id, col: r.to.cols[i] ?? r.to.cols[0], card: r.card }));
   }
 
+  for (const l of lineage) {
+    byId.get(l.target)?.builtFrom.push({ id: l.source, cols: l.sCols, tCols: l.tCols });
+    byId.get(l.source)?.feeds.push({ id: l.target, cols: l.sCols, tCols: l.tCols });
+  }
+
   const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({
     name: g.name, color: g.color || '', note: g.note || '', tables: g.tables.map((t) => tid(t.schema?.name, t.name)).filter((id) => byId.has(id)),
   }));
@@ -37,9 +43,11 @@ export function buildModel(db) {
   const enums = db.schemas.flatMap((s) => s.enums || []).map((e) => ({
     schema: e.schema?.name, name: e.name, note: e.note || '', values: e.values.map((v) => ({ name: v.name, note: v.note || '' })),
   }));
-  return { name: db.name || '', note: db.note || '', databaseType: db.databaseType || '', tables, refs, groups, enums, byId };
+  return { name: db.name || '', note: db.note || '', databaseType: db.databaseType || '', tables, refs, groups, enums, lineage, byId };
 }
 
+// "orders (id, total)" / "orders.total -> v.total" text for a lineage link
+export const linkCols = (l) => (l.cols?.length ? ` (${l.cols.join(', ')}${l.tCols?.length ? ` -> ${l.tCols.join(', ')}` : ''})` : '');
 export const display = (t) => (t.schema && t.schema !== 'public' ? `${t.schema}.${t.name}` : t.name);
 export const constraints = (f) => [f.pk && 'PK', f.notNull && !f.pk && 'NN', f.unique && 'UQ', f.increment && 'AI'].filter(Boolean);
 
@@ -62,7 +70,7 @@ export function toMarkdown(model, title, commentList = []) {
   const out = [`# ${title || model.name || 'Database documentation'}`, ''];
   if (model.databaseType) out.push(`*Database: ${model.databaseType}*`, '');
   if (model.note) out.push(`> ${model.note.replaceAll('\n', '\n> ')}`, '');
-  out.push(`${model.tables.length} tables · ${model.refs.length} relationships · ${model.enums.length} enums`, '');
+  out.push(`${model.tables.length} tables · ${model.refs.length} relationships · ${model.enums.length} enums${model.lineage.length ? ` · ${model.lineage.length} lineage links` : ''}`, '');
   for (const c of byKey.get('__project') || []) out.push(`> **Comment (${c.author}):** ${c.text.replaceAll('\n', ' ')}`, '');
   for (const sec of ordered(model)) {
     out.push(`## ${sec.title}`, '');
@@ -80,6 +88,16 @@ export function toMarkdown(model, title, commentList = []) {
       if (t.indexes.length) {
         out.push('**Indexes**', '');
         t.indexes.forEach((i) => out.push(`- ${i.pk ? 'PRIMARY KEY' : i.unique ? 'UNIQUE' : 'INDEX'} (${i.cols.join(', ')})${i.name ? ` — ${i.name}` : ''}`));
+        out.push('');
+      }
+      if (t.builtFrom.length) {
+        out.push('**Built from** (data lineage)', '');
+        t.builtFrom.forEach((l) => out.push(`- ${display(model.byId.get(l.id) ?? { name: l.id })}${linkCols(l)}`));
+        out.push('');
+      }
+      if (t.feeds.length) {
+        out.push('**Feeds** (data lineage)', '');
+        t.feeds.forEach((l) => out.push(`- ${display(model.byId.get(l.id) ?? { name: l.id })}`));
         out.push('');
       }
       if (t.incoming.length) {

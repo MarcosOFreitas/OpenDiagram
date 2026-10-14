@@ -27,7 +27,8 @@
 - Syntax (a comment, so DBML parsers ignore it; the editor keeps it as text): `// lineage: target <- source, source(col, col)`; a column on both sides (`v.total <- orders.total`) is a column mapping. Names: `table`, `schema.table`, `table.column`, `schema.table.column`, double quotes for odd names; unknown names are ignored, repeated pairs merged. Import writes `// lineage(auto): ...`; refresh rewrites those and keeps the hand-written ones (`keepGroups` in `App.jsx`).
 - Drawing: dashed violet arrows source -> target (type `ref` edge with `data.kind = 'lineage'`, arrow head, table-level handles `ls/lsl/lt/ltr` in the table header; a one-to-one column mapping uses the column handles). Label: `N cols`, the list of columns when the arrow is picked.
 - State: `view.lineage` (default on) = dock button + View checkbox; saved per named view (`@lineage`). Hidden tables hide their arrows. Click a table: upstream (violet) / downstream (teal) closure (`closure()`) outlined and its arrows coloured, other lineage arrows fade. Click an arrow: focus it and its two tables. Tables panel: lineage icon per row (show only that table's whole lineage) and the filter "Only tables with data lineage".
-- Not done: lineage does not feed Arrange; no lineage section in the Docs view; no parsing of SQL to map output columns.
+- Arrange: while lineage is on, `layout(..., lineage)` appends its edges as pseudo-refs (`lineageRefs`: the derived table is `parent` for dagre so it lands to the right, `child` for the pipeline ranking); Compact ignores them. Docs view and exports: `buildModel(db, lineage)` adds `builtFrom` / `feeds` per table and `model.lineage`; cards show Built from (with columns used) / Feeds, the overview a Data lineage table and a stat. Label: `uses N cols` (the columns a view reads, joins and filters included).
+- Not done: no parsing of SQL to map output columns of a view; no UI to draw a lineage link by dragging.
 
 ## Acceptance criteria
 

@@ -12,6 +12,10 @@
 | **Snowflake** | The most connected table in the center and the related tables in rings around it. | Star and snowflake schemas. |
 | **Compact** | Tables in a compact rectangle, ignoring relationships. | A quick overview. |
 
+## With data lineage
+
+While [data lineage](data-lineage) is shown, Auto, Left to right, Pipeline and Snowflake treat its arrows like relationships: a table built from others goes to the right of its sources and linked tables stay in one cluster. Compact ignores it, and switching the lineage off removes it from the layout.
+
 ## With table groups
 
 Auto, Snowflake and Compact lay out **each group on its own** and treat it as one block with room for its box, so group boxes never overlap. Left to right uses the groups as clusters of a single layout; Pipeline makes each group a stage.

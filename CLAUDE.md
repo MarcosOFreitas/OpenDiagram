@@ -67,7 +67,7 @@ Also implemented since: table picker with TableGroups, views/enums/sequences/tri
 Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/10-documentation-site.md`):
 1. **Documentation follow-ups**: none pending except more screenshots as features change. (Done: screenshots, DBML syntax colours, release-notes page, phone layout check, proofreading of every page against the UI labels and server limits.)
 2. ~~Versions + changelog~~ **done** (edit conflicts answer 409, History drawer with names, compare, restore; spec 09). Possible follow-ups: notice a newer version without saving, changelog inside the Docs view.
-3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Follow-ups: lineage in the Docs view and in Arrange, automatic column mapping (SQL parser).
+3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Lineage also feeds Arrange and the Docs view/exports. Follow-ups: draw a lineage link by dragging between tables (writes the comment), automatic column mapping (SQL parser).
 4. **Sticky notes** (movable `Note` blocks on the canvas), then presence and, only if needed, real-time co-editing (Yjs).
 5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
 6. Still open from before: **A3** Oracle TLS with wallet/CA PEM, `noverify`, `serverDn` (plain `verify` is done); **B1** group-owned connections with an audit log; **B2** OIDC/LDAP SSO.

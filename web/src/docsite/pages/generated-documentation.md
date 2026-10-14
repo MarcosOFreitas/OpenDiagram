@@ -6,6 +6,7 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 
 - An **overview** with counts (tables, relationships, enums, groups) and the list of all relationships.
 - One card per **table**: columns with type, constraints (primary key, not null, unique), default, references, notes, the indexes, and the tables that reference it.
+- **Data lineage**, when the diagram has it: a table in the overview and, on each table, **Built from** (with the columns used) and **Feeds**, with links. See [Data lineage](data-lineage).
 - **Enums** with their values.
 - The sidebar lists the tables **by table group** (with the group color), then ungrouped tables and enums.
 

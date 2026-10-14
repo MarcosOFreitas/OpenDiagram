@@ -7,7 +7,7 @@ Lineage lines are **not** relationships. A relationship (`Ref`) is a foreign key
 ## Where lineage comes from
 
 - **From the database, automatically.** When you import or refresh, every **view** and **materialized view** gets arrows from the tables and views it reads.
-  - **PostgreSQL** also knows which **columns** of each source the view uses, so the arrow is labelled *N cols* and shows the list when you click it.
+  - **PostgreSQL** also knows which **columns** of each source the view uses, so the arrow is labelled *uses N cols* and shows the list when you click it. "Uses" means every column the view reads, including the ones in joins and filters, not only the ones it outputs.
   - **Oracle** gives the tables and views only (its dictionary has no column dependencies).
   - Sources that are not part of the import are left out.
 - **By hand**, for everything the database cannot know: loads, ETL jobs, copies between schemas. You write a comment line in the DBML.
@@ -46,8 +46,13 @@ Lines that the import generates start with `// lineage(auto):`. A **refresh rewr
 - The panel filter **Only tables with data lineage** lists just the tables that appear in some lineage line.
 - The state of the lineage switch is saved with each **saved view**, so a view can show lineage and another can hide it.
 
+## Arrange and the documentation
+
+- **Arrange** (Auto, Left to right, Pipeline, Snowflake) also follows the lineage while it is switched on: a table built from others is placed to the **right** of its sources, and tables joined only by lineage stay together instead of ending in the loose column. Compact ignores it. Switch the lineage off before arranging to lay out the relationships alone.
+- The **Docs** view and the HTML and Markdown exports list **Built from** (with the columns used) and **Feeds** on each table card, a *Data lineage* table in the overview and a count in the summary. See [Generated documentation](generated-documentation).
+
 ## Limits
 
 - Only views and materialized views get automatic lineage. Plain tables loaded by a job need a hand-written line.
-- Lineage does not influence **Arrange**; the layout still follows the relationships and table groups.
+- The database does not say which output column of a view comes from which source column; write that mapping by hand when you need it.
 - Procedures, functions and triggers are not read.
