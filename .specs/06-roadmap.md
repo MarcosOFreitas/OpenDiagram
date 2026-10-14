@@ -34,7 +34,11 @@ Today only tables, columns, PK/FK and indexes are imported.
 - Realtime collaboration.
 - Mobile/narrow layout.
 
-## Ideas taken from dbdiagram's paid plan (agreed order)
+## Next session: documentation follow-ups
+
+Details in [10](10-documentation-site.md): proofread the pages written from memory, add screenshots/GIFs, syntax colours for DBML blocks, check the narrow-screen layout on a phone, a release-notes page.
+
+## Next: ideas taken from dbdiagram's paid plan (agreed order)
 
 1. **Versions + changelog** of diagrams/docs, with a version number on save to detect edit conflicts (autosave currently overwrites silently when two people edit).
 2. **Data lineage**: table level and column level; Postgres gives it exactly from `pg_depend`/`pg_rewrite` (views), Oracle `ALL_DEPENDENCIES` at table level; a DBML syntax to declare it by hand.
@@ -45,5 +49,8 @@ Today only tables, columns, PK/FK and indexes are imported.
 Not planned: data samples (they would read table data, against the catalog-only invariant).
 
 ## Done (see git history)
+
+Since the first release notes below: table picker with groups, views/enums/sequences/triggers import (Oracle materialized views handled), packed and group-aware Arrange with five algorithms, Tables panel (search, hide, saved views), detail levels, draggable relationship labels and group boxes, resizable/collapsible tables, nearest-side relationship lines, password on share links, lighter top bar with an Export menu, English sample model, and the `/docs` documentation site.
+
 
 Accounts with roles, administration (users, flat groups, settings), operator CLI, private diagrams (autosave), sharing with people/groups/links with owner-chosen permissions, multi-author comments, administrators manage every diagram, SSRF host policy, sample shop model · DBML editor + diagram · live import PG/Oracle (tables, columns, PK/FK, indexes, table/column comments) · TableGroups/colors/themes · multi-format import/export · Help tab · generated documentation (view, comments, HTML/Markdown export; shareable through links) · read-only guardrails, privilege checks, TLS (PostgreSQL verified; Oracle partly), manual/auto refresh.

@@ -62,9 +62,15 @@ Everything below is implemented, committed and covered by the e2e scripts unless
 
 Not verified yet: Oracle TLS with a wallet/CA PEM, `noverify` and `serverDn` (plain `verify` against an OCI Autonomous DB works, checked by hand); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
-Next steps, in the agreed order (details in `.specs/06-roadmap.md`; A1 more objects and A2 table picker are done):
-1. **A3** finish verifying Oracle TLS: `verify` without wallet is done (OCI Autonomous DB, by hand); still open: wallet/CA PEM (mTLS), `noverify`, `serverDn`, ideally an automated TCPS demo service.
-2. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
+Also implemented since: table picker with TableGroups, views/enums/sequences/triggers in the import, five Arrange algorithms (group-aware), Tables panel with hide + saved views, detail levels, draggable ref labels and group boxes, resizable/collapsible tables, password-protected share links, Export menu, English sample model, and the public documentation site at `/docs` (`web/src/docsite/`, spec [10](.specs/10-documentation-site.md)). Dropped on purpose: embedding diagrams in an iframe.
+
+Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/10-documentation-site.md`):
+1. **Documentation follow-ups**: proofread the pages (written from memory), add screenshots, DBML syntax colours, check the burger layout on a phone, release-notes page.
+2. **Versions + changelog** of diagrams/docs, with a version number on save to detect edit conflicts (autosave silently overwrites when two people edit today).
+3. **Data lineage** (table and column level; Postgres from `pg_depend`/`pg_rewrite`, Oracle `ALL_DEPENDENCIES`; DBML syntax to declare it).
+4. **Sticky notes** (movable `Note` blocks on the canvas), then presence and, only if needed, real-time co-editing (Yjs).
+5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
+6. Still open from before: **A3** Oracle TLS with wallet/CA PEM, `noverify`, `serverDn` (plain `verify` is done); **B1** group-owned connections with an audit log; **B2** OIDC/LDAP SSO.
 Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.
