@@ -1,5 +1,6 @@
 -- runs as SYS; switch to the PDB, objects go to app user SHOP
 alter session set container = FREEPDB1;
+grant create materialized view, create view, create sequence, create trigger to shop;
 alter session set current_schema = shop;
 create table customers (
   id number(10) primary key,
@@ -24,3 +25,12 @@ create table order_items (
   constraint pk_order_items primary key (order_id, line_no),
   constraint fk_items_order foreign key (order_id) references orders(id)
 );
+
+-- A1 objects: view, materialized view (also appears as a TABLE of the same name), sequence, trigger
+create view v_customer_orders as select c.id customer_id, c.name, o.id order_id, o.status from customers c join orders o on o.customer_id = c.id;
+-- a materialized view must be created by its owner
+connect shop/shop@//localhost/FREEPDB1
+create materialized view mv_orders_by_status as select status, count(*) total from orders group by status;
+create sequence invoice_seq start with 1000 increment by 1;
+create or replace trigger trg_orders_bi before insert on orders for each row begin null; end;
+/

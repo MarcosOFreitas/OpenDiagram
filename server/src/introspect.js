@@ -7,9 +7,10 @@ import { ACTION } from './dbml.js';
 
 const key = (s, n) => `${s}.${n}`;
 
-function assemble(tableRows, colRows, pkRows, fkRows, idxRows) {
+// views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists
+function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = []) {
   const tables = new Map();
-  for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, columns: [], pk: [], indexes: [] });
+  for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] });
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
   for (const r of pkRows) tables.get(key(r.schema, r.table))?.pk.push(...r.cols);
   for (const r of idxRows) {
@@ -18,8 +19,9 @@ function assemble(tableRows, colRows, pkRows, fkRows, idxRows) {
     const samePk = r.unique && t.pk.length === r.columns.length && r.columns.every((c, i) => c === t.pk[i]);
     if (!samePk) t.indexes.push({ name: r.name, unique: r.unique, type: r.type, columns: r.columns });
   }
+  for (const r of trigRows) tables.get(key(r.schema, r.table))?.triggers.push({ name: r.name, def: r.def });
   const refs = fkRows.filter((r) => tables.has(key(r.from.schema, r.from.name)) && tables.has(key(r.to.schema, r.to.name)));
-  return { tables: [...tables.values()], refs };
+  return { tables: [...tables.values()], refs, enums, sequences };
 }
 
 // ---------- Postgres ----------
@@ -46,15 +48,16 @@ const pgSchemas = (c) => pgWith(c, async (cl) =>
   (await cl.query(`select nspname from pg_namespace where nspname not like 'pg\\_%' and nspname <> 'information_schema' order by 1`)).rows.map((r) => r.nspname));
 
 const pgTables = (c, schemas) => pgWith(c, async (cl) =>
-  (await cl.query(`select n.nspname schema, c.relname name from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname = any($1) order by 1,2`, [schemas])).rows);
+  (await cl.query(`select n.nspname schema, c.relname name, c.relkind in ('v','m') "view" from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2`, [schemas])).rows);
 
 const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   const q = async (sql) => (await cl.query(sql, [schemas])).rows;
-  const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname = any($1) order by 1,2`);
+  const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment, case when c.relkind in ('v','m') then pg_get_viewdef(c.oid,true) end view, case c.relkind when 'v' then 'VIEW' when 'm' then 'MATERIALIZED VIEW' end "viewKind"
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2`);
   const colRows = (await q(`select n.nspname schema, c.relname "table", a.attname, format_type(a.atttypid,a.atttypmod) type, a.attnotnull nn, pg_get_expr(d.adbin,d.adrelid) def, col_description(c.oid,a.attnum) cmt
     from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
     left join pg_attrdef d on d.adrelid=c.oid and d.adnum=a.attnum
-    where c.relkind in ('r','p') and n.nspname = any($1) order by 1,2,a.attnum`))
+    where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2,a.attnum`))
     .map((r) => ({ schema: r.schema, table: r.table, col: { name: r.attname, type: r.type, nullable: !r.nn, default: r.def, comment: r.cmt } }));
   const cons = await q(`select n.nspname schema, c.relname "table", con.conname, con.contype, con.confupdtype, con.confdeltype,
       (select array_agg(a.attname::text order by k.ord) from unnest(con.conkey) with ordinality k(n,ord) join pg_attribute a on a.attrelid=con.conrelid and a.attnum=k.n) cols,
@@ -72,9 +75,18 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
       (select array_agg(pg_get_indexdef(ix.indexrelid,k,true) order by k) from generate_series(1,ix.indnkeyatts) k) cols
     from pg_index ix join pg_class i on i.oid=ix.indexrelid join pg_class t on t.oid=ix.indrelid
     join pg_namespace n on n.oid=t.relnamespace join pg_am am on am.oid=i.relam
-    where n.nspname = any($1) and t.relkind in ('r','p') and not ix.indisprimary order by 1,2,3`))
+    where n.nspname = any($1) and t.relkind in ('r','p','m') and not ix.indisprimary order by 1,2,3`))
     .map((r) => ({ schema: r.schema, table: r.table, name: r.name, unique: r.uq, type: r.type, columns: r.cols }));
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows);
+  const trigRows = await q(`select n.nspname schema, c.relname "table", t.tgname name, pg_get_triggerdef(t.oid,true) def
+    from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and n.nspname = any($1) order by 1,2,3`);
+  const enums = await q(`select n.nspname schema, t.typname name, array_agg(e.enumlabel::text order by e.enumsortorder) "values"
+    from pg_type t join pg_enum e on e.enumtypid=t.oid join pg_namespace n on n.oid=t.typnamespace where n.nspname = any($1) group by 1,2 order by 1,2`);
+  // sequences owned by a column (serial / identity) are implementation detail: skipped
+  const sequences = (await q(`select n.nspname schema, c.relname name, s.seqtypid::regtype::text type, s.seqstart::text start, s.seqincrement::text step, s.seqmin::text min, s.seqmax::text max, s.seqcycle cycle, obj_description(c.oid,'pg_class') comment
+    from pg_sequence s join pg_class c on c.oid=s.seqrelid join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname = any($1) and not exists (select 1 from pg_depend d where d.objid=c.oid and d.deptype in ('a','i')) order by 1,2`))
+    .map((r) => ({ schema: r.schema, name: r.name, comment: r.comment, desc: `${r.type} start ${r.start} step ${r.step} min ${r.min} max ${r.max}${r.cycle ? ' cycle' : ''}` }));
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences);
 });
 
 // ---------- Oracle (thin mode, no Instant Client) ----------
@@ -114,8 +126,10 @@ const oraSchemas = (c) => oraWith(c, async (conn) =>
 
 const oraTables = (c, schemas) => oraWith(c, async (conn) => {
   const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
-  return (await conn.execute(`select t.owner "schema", t.table_name "name" from all_tables t where t.owner in (${schemas.map((_, i) => `:s${i}`).join(',')})
-    and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' order by 1,2`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
+  const inl = schemas.map((_, i) => `:s${i}`).join(',');
+  return (await conn.execute(`select t.owner "schema", t.table_name "name", (select count(*) from all_mviews m where m.owner=t.owner and m.mview_name=t.table_name) "view" from all_tables t where t.owner in (${inl})
+    and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' and t.table_name not like 'MLOG$\\_%' escape '\\' and t.table_name not like 'RUPD$\\_%' escape '\\'
+    union all select v.owner, v.view_name, 1 from all_views v where v.owner in (${inl}) order by 1,2`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows.map((r) => ({ ...r, view: !!r.view }));
 });
 
 function oraType(r) {
@@ -132,11 +146,16 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   const q = async (sql) => (await conn.execute(sql.replace('@IN', inl), binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
   const tableRows = await q(`select t.owner "schema", t.table_name "name", c.comments "comment" from all_tables t
     left join all_tab_comments c on c.owner=t.owner and c.table_name=t.table_name and c.table_type='TABLE'
-    where t.owner in (@IN) and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' order by 1,2`);
+    where t.owner in (@IN) and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' and t.table_name not like 'MLOG$\\_%' escape '\\' and t.table_name not like 'RUPD$\\_%' escape '\\' order by 1,2`);
+  // a materialized view also exists as a TABLE of the same name: show it once, as a view (its query is a LONG, fetched as string)
+  const mv = new Map((await q(`select owner, mview_name, query from all_mviews where owner in (@IN)`)).map((r) => [`${r.OWNER}.${r.MVIEW_NAME}`, r.QUERY]));
+  for (const t of tableRows) if (mv.has(`${t.schema}.${t.name}`)) { t.view = mv.get(`${t.schema}.${t.name}`) ?? ''; t.viewKind = 'MATERIALIZED VIEW'; }
+  tableRows.push(...await q(`select v.owner "schema", v.view_name "name", c.comments "comment", v.text_vc "view", 'VIEW' "viewKind" from all_views v
+    left join all_tab_comments c on c.owner=v.owner and c.table_name=v.view_name and c.table_type='VIEW' where v.owner in (@IN) order by 1,2`));
   const colRows = (await q(`select c.owner, c.table_name, c.column_name, c.data_type, c.data_length, c.char_length, c.data_precision, c.data_scale, c.nullable, c.data_default, cm.comments
-    from all_tab_cols c join all_tables t on t.owner=c.owner and t.table_name=c.table_name
+    from all_tab_cols c
     left join all_col_comments cm on cm.owner=c.owner and cm.table_name=c.table_name and cm.column_name=c.column_name
-    where c.owner in (@IN) and c.hidden_column='NO' order by c.owner,c.table_name,c.column_id`))
+    where c.owner in (@IN) and c.hidden_column='NO' and (c.owner, c.table_name) in (select owner, table_name from all_tables union all select owner, view_name from all_views) order by c.owner,c.table_name,c.column_id`))
     .map((r) => ({ schema: r.OWNER, table: r.TABLE_NAME, col: { name: r.COLUMN_NAME, type: oraType(r), nullable: r.NULLABLE === 'Y', default: r.DATA_DEFAULT, comment: r.COMMENTS } }));
   const cons = await q(`select c.owner, c.table_name, c.constraint_name, c.constraint_type, c.delete_rule, cc.column_name, cc.position,
       rc.owner r_owner, rc.table_name r_table, rcc.column_name r_column
@@ -160,11 +179,19 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   for (const r of await q(`select i.owner, i.table_name, i.index_name, i.uniqueness, i.index_type, ic.column_name, ic.column_position
     from all_indexes i join all_ind_columns ic on ic.index_owner=i.owner and ic.index_name=i.index_name
     where i.owner in (@IN) and i.index_type in ('NORMAL','FUNCTION-BASED NORMAL','BITMAP') order by i.owner,i.index_name,ic.column_position`)) {
+    if (r.INDEX_NAME.startsWith('I_SNAP$')) continue; // internal index of a materialized view
     const k = `${r.OWNER}.${r.INDEX_NAME}`;
     if (!idx.has(k)) idx.set(k, { schema: r.OWNER, table: r.TABLE_NAME, name: r.INDEX_NAME, unique: r.UNIQUENESS === 'UNIQUE', type: r.INDEX_TYPE === 'BITMAP' ? 'bitmap' : 'btree', columns: [] });
     idx.get(k).columns.push(r.COLUMN_NAME);
   }
-  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()]);
+  const trigRows = (await q(`select owner, table_name, trigger_name, trigger_type, triggering_event, status from all_triggers
+    where owner in (@IN) and base_object_type in ('TABLE','VIEW') order by owner,table_name,trigger_name`))
+    .map((r) => ({ schema: r.OWNER, table: r.TABLE_NAME, name: r.TRIGGER_NAME, def: `${r.TRIGGER_TYPE} ${r.TRIGGERING_EVENT}${r.STATUS === 'DISABLED' ? ' (disabled)' : ''}` }));
+  // sequences behind identity columns (ISEQ$$_*) are implementation detail: skipped
+  const sequences = (await q(`select s.sequence_owner, s.sequence_name, s.min_value, s.max_value, s.increment_by, s.cycle_flag from all_sequences s
+    where s.sequence_owner in (@IN) and s.sequence_name not like 'ISEQ$$_%' order by 1,2`))
+    .map((r) => ({ schema: r.SEQUENCE_OWNER, name: r.SEQUENCE_NAME, desc: `min ${r.MIN_VALUE} step ${r.INCREMENT_BY}${r.CYCLE_FLAG === 'Y' ? ' cycle' : ''}` }));
+  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences);
 });
 
 // guardrail 2: detect credentials that can do more than read metadata. Returns [{level, message}]

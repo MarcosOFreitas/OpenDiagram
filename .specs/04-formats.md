@@ -23,12 +23,25 @@ DB → DBML → export → re-import → compare columns/types/PK/NOT NULL/index
 
 | Source ↓ / format → | PG | MySQL | MSSQL | Oracle | JSON |
 |---------------------|----|-------|-------|--------|------|
-| Postgres demo | identical¹ | fails | fails | export only | fails |
+| Postgres demo (+ views, enum, sequence, trigger) | identical¹ | fails | fails | export only | fails |
 | Oracle demo | identical¹ | fails | identical¹ | export only | fails |
 
 ¹ after normalizing type aliases (`timestamp without time zone`≡`timestamp`, `character varying`≡`varchar`) and ref direction (the exporter flips endpoint order).
 
 Failures are cross-dialect issues, not parser bugs: PG defaults (`nextval(...::regclass)`), `character varying`, Oracle `NUMBER`, etc. are not valid in the target dialect.
+
+## Objects without a DBML type
+
+DBML has `Table`, `Enum` and `Note` only; `toDbml` stays the single generator and maps live-import objects like this:
+
+| Object | DBML |
+|--------|------|
+| View / materialized view | `Table` with `headercolor: #94a3b8` and `note` = comment + `VIEW` / `MATERIALIZED VIEW` + SQL definition; columns as usual, no PK/refs. Shows in the diagram and docs. |
+| Enum | native `Enum schema.name { … }`; columns typed with it link to it |
+| Trigger | text in the note of its table/view: `TRIGGERS` + `name: definition` |
+| Sequence | standalone `Note "schema.name" { ''' SEQUENCE … ''' }` (a sticky note, not a table) |
+
+Multi-line notes use `'''…'''`. Consequence: SQL/JSON **export** emits views as plain tables.
 
 ## Acceptance criteria
 

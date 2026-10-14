@@ -36,3 +36,12 @@ create role writer login password 'writer';
 grant connect on database demo to writer;
 grant usage on schema shop to writer;
 grant select, insert, update, delete on all tables in schema shop to writer;
+
+-- A1 objects: enum, view, materialized view, sequence, trigger
+create type shop.order_state as enum ('new', 'paid', 'shipped');
+create view shop.v_customer_orders as select c.id customer_id, c.name, o.id order_id, o.status from shop.customers c join shop.orders o on o.customer_id = c.id;
+comment on view shop.v_customer_orders is 'Orders with customer name';
+create materialized view shop.mv_orders_by_status as select status, count(*) total from shop.orders group by status;
+create sequence shop.invoice_seq start 1000;
+create function shop.touch() returns trigger language plpgsql as $$ begin return new; end $$;
+create trigger trg_orders_touch before insert on shop.orders for each row execute function shop.touch();

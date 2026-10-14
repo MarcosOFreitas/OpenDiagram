@@ -2,23 +2,32 @@
 const id = (s) => (/^[A-Za-z_]\w*$/.test(s) ? s : `"${s.replaceAll('"', '\\"')}"`);
 const str = (s) => `'${String(s).replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
 const type = (t) => (/^\w+(\(\s*\d+\s*(,\s*\d+\s*)?\))?(\[\])?$/.test(t) ? t : `"${t.replaceAll('"', '\\"')}"`);
+const mstr = (s) => `'''\n${String(s).replaceAll("'''", "'' '")}\n'''`; // multi-line note
 const expr = (s) => `\`${String(s).replaceAll('`', "'")}\``;
 const col = (c) => (/^[A-Za-z_]\w*$/.test(c) || /^"[^"]+"$/.test(c) ? c : expr(c));
 const tn = (t) => `${id(t.schema)}.${id(t.name)}`;
 export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set null', d: 'set default' };
 
-export function toDbml({ tables, refs }) {
+// DBML has no view/trigger/sequence: a view is a grey Table whose note holds the SQL definition, triggers go in their table's note, a sequence is a standalone Note
+const VIEW_COLOR = '#94a3b8';
+
+export function toDbml({ tables, refs, enums = [], sequences = [] }) {
   const out = [];
+  const enumTypes = new Set(enums.flatMap((e) => [`${e.schema}.${e.name}`, e.name]));
+  for (const e of enums) out.push(`Enum ${tn(e)} {`, ...e.values.map((v) => `  ${id(v)}`), '}', '');
   for (const t of tables) {
     const single = t.pk.length === 1 ? t.pk[0] : null;
-    out.push(`Table ${tn(t)}${t.comment ? ` [note: ${str(t.comment)}]` : ''} {`);
+    const parts = [t.comment, t.view != null && `${t.viewKind || 'VIEW'}\n${t.view.trim()}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
+    const note = parts.length ? (parts.length === 1 && t.view == null && !t.triggers?.length ? str(t.comment) : mstr(parts.join('\n\n'))) : '';
+    const attrs = [t.view != null && `headercolor: ${VIEW_COLOR}`, note && `note: ${note}`].filter(Boolean);
+    out.push(`Table ${tn(t)}${attrs.length ? ` [${attrs.join(', ')}]` : ''} {`);
     for (const c of t.columns) {
       const s = [];
       if (c.name === single) s.push('pk');
       if (!c.nullable && c.name !== single) s.push('not null');
       if (c.default != null && String(c.default).trim() !== '') s.push(`default: ${expr(String(c.default).trim())}`);
       if (c.comment) s.push(`note: ${str(c.comment)}`);
-      out.push(`  ${id(c.name)} ${type(c.type)}${s.length ? ` [${s.join(', ')}]` : ''}`);
+      out.push(`  ${id(c.name)} ${enumTypes.has(c.type) ? c.type.split('.').map(id).join('.') : type(c.type)}${s.length ? ` [${s.join(', ')}]` : ''}`);
     }
     const idx = [];
     if (t.pk.length > 1) idx.push(`    (${t.pk.map(id).join(', ')}) [pk]`);
@@ -37,5 +46,6 @@ export function toDbml({ tables, refs }) {
     if (r.onUpdate && r.onUpdate !== 'no action') s.push(`update: ${r.onUpdate}`);
     out.push(`Ref ${id(r.name)}: ${side(r.from)} > ${side(r.to)}${s.length ? ` [${s.join(', ')}]` : ''}`);
   }
+  for (const q of sequences) out.push('', `Note ${id(`${q.schema}.${q.name}`)} {`, `  ${mstr(`SEQUENCE ${q.schema}.${q.name}: ${q.desc}${q.comment ? `\n${q.comment}` : ''}`)}`, '}');
   return out.join('\n') + '\n';
 }

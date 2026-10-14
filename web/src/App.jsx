@@ -152,6 +152,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [tableSel, setTableSel] = useState([]); // 'schema.table' entries; empty = all tables
   const [tableList, setTableList] = useState(null); // null = not loaded
   const [tableQ, setTableQ] = useState('');
+  const [tableViews, setTableViews] = useState(new Set());
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -341,7 +342,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   });
   const loadTables = run('tables', async () => {
     const r = await api('tables', { ...body(), schemas: picked });
-    setTableList(r.tables.map((t) => `${t.schema}.${t.name}`)); setTableQ('');
+    setTableList(r.tables.map((t) => `${t.schema}.${t.name}`)); setTableViews(new Set(r.tables.filter((t) => t.view).map((t) => `${t.schema}.${t.name}`))); setTableQ('');
   });
   const persist = async (extra = {}) => {
     const { id } = await api('connections', body(extra));
@@ -587,7 +588,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   <input placeholder="Search tables…" value={tableQ} onChange={(e) => setTableQ(e.target.value)} />
                   <div className="schemas">
                     {tableList.filter((t) => t.toLowerCase().includes(tableQ.toLowerCase())).map((t) => (
-                      <label key={t} className="chk"><input type="checkbox" checked={tableSel.includes(t)} onChange={(e) => setTableSel(e.target.checked ? [...tableSel, t] : tableSel.filter((x) => x !== t))} /> {t}</label>
+                      <label key={t} className="chk"><input type="checkbox" checked={tableSel.includes(t)} onChange={(e) => setTableSel(e.target.checked ? [...tableSel, t] : tableSel.filter((x) => x !== t))} /> {t}{tableViews.has(t) && <i className="hint"> · view</i>}</label>
                     ))}
                   </div>
                   <small className="hint">{tableSel.length ? `${tableSel.length} selected` : 'Nothing selected = import all tables of the schemas.'}</small>

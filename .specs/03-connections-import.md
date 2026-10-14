@@ -28,7 +28,12 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 ## What is imported
 
 Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and `BIN$`), table + column comments, columns (type via `format_type` / Oracle type formatting, nullability, default expression), PK (single → `[pk]`, composite → `indexes { (a,b) [pk] }`), FK (single/composite, `ON DELETE`/`ON UPDATE`), non-PK indexes (unique flag, method, expression columns). FKs to tables outside the selection are dropped. Optional `tables` filter (case-insensitive; plain `name` or `schema.name` — the UI picker stores `schema.name`).
-**Not imported yet:** views, enums, sequences, triggers, check constraints, partitions detail.
+Also (A1), with the DBML representation in [04](04-formats.md#objects-without-a-dbml-type):
+- **Views** (Postgres `v`, `m`; Oracle `ALL_VIEWS` + `ALL_MVIEWS`) with columns, comment and SQL definition (`pg_get_viewdef`, `TEXT_VC` / `ALL_MVIEWS.QUERY`). In Oracle a materialized view also exists in `ALL_TABLES` as a container table of the same name: it is listed once, as a materialized view (`MLOG$_`/`RUPD$_` helper tables and the internal `I_SNAP$_` index are skipped).
+- **Enums** (Postgres `pg_enum`; Oracle has none), **sequences** (`pg_sequence` / `ALL_SEQUENCES`; sequences owned by a column — serial/identity, `ISEQ$$_` — are skipped), **triggers** (`pg_trigger` non-internal + `pg_get_triggerdef`; Oracle `ALL_TRIGGERS` timing/event/status, no body). Functions/procedures and comments on them are not imported.
+- The `tables` filter and the picker (`/api/tables` returns `view: true|false`) also apply to views.
+
+**Not imported yet:** check constraints, partitions detail, functions/procedures, Oracle enums-by-check.
 
 ## Refresh
 
@@ -54,7 +59,8 @@ All JSON. Errors: `{error}` with HTTP status.
 
 ## Acceptance criteria
 
-- [x] Postgres import of the demo schema yields 4 tables / 3 refs; Oracle yields 3 / 2 (DBML parses).
+- [x] Postgres import of the demo schema yields 4 tables + 2 views (view and materialized view) / 3 refs; Oracle yields 3 tables + 2 views (view and materialized view, listed once) / 2 refs (DBML parses).
+- [x] Postgres: enum → `Enum`, view → grey `Table` with definition, `invoice_seq` → `Note`, trigger in the table note, serial sequences skipped (`server/test-guardrails.mjs`). Oracle checked by hand against the demo (MV once, no `I_SNAP$` index, trigger, sequence).
 - [x] Superuser and `writer` produce warnings; `reader` produces none; strict mode blocks `writer`, allows `reader`.
 - [x] DDL inside the enforced read-only transaction is rejected by Postgres (checked with `psql` using the same mode).
 - [x] Postgres TLS: `verify` without CA rejects a self-signed cert; with the CA PEM connects; `noverify` connects; `verify` against a non-TLS server fails.
