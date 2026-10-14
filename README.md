@@ -35,7 +35,7 @@ Open <http://localhost:3000> and **create the first account — it becomes the a
 
 Schema to import: `shop` (Postgres) / `SHOP` (Oracle).
 
-If the Oracle demo has no tables (init scripts can race the app-user creation), load them once:
+The Oracle demo creates the `shop` user and its tables on first start (allow a minute or two for it to be ready). If the tables are ever missing, load them once:
 
 ```bash
 docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql
@@ -94,7 +94,7 @@ docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-t
 export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-password'
 node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, SSRF policy
 node server/test-guardrails.mjs        # read-only/privilege guardrails + PostgreSQL TLS modes
-cd web && node roundtrip.mjs           # DB import → export → re-import per format (needs the oracle profile)
+cd web && npm install && node roundtrip.mjs   # DB import → export → re-import per format (needs the oracle profile; `npm install` once for @dbml/core)
 ```
 
 Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI) · `demo/` (sample databases) · `.specs/` (product/architecture specs) · `CLAUDE.md` (guide for AI coding agents).
