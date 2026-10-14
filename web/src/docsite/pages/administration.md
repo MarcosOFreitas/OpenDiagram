@@ -24,6 +24,8 @@ Flat groups (no hierarchy). Create a group, add or remove members. A person can 
 - the **use of shared connections**: test, list tables, import and refresh, with the diagram, whether it worked and a short detail (schemas, number of tables, or the error);
 - every **change made in the Administration panel**: users, passwords reset, groups, members, settings and shared connections (the route and the ids only; never passwords or other contents).
 
+![Administration → Audit log, filtered to the use of shared connections.](admin-audit.jpg)
+
 Filter by kind, search a person, connection, diagram or detail, load more, or **Download CSV** (formula-safe for spreadsheets). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
 
 ## Settings

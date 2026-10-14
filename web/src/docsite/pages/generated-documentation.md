@@ -13,6 +13,8 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 
 ![The Docs view: overview with counts and relationships; the sidebar lists tables by group.](docs-view.jpg)
 
+![The Docs view: the Changelog at the top and, on each table, Feeds and Referenced by.](docs-changelog.jpg)
+
 ## Reading it
 
 - **Search** in the sidebar filters by table name, schema or any column name.

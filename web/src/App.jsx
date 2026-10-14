@@ -145,11 +145,11 @@ function NoteNode({ data: n, selected }) {
   return (
     <>
       <NodeResizer isVisible={!!selected && n.canEdit} minWidth={140} minHeight={70} onResize={(_, p) => n.onSize(n.id, { w: Math.round(p.width), h: Math.round(p.height) })} />
-      <div className={`note ${n.dark ? 'dark' : ''}`} style={{ width: n.w || 220, ...(n.h ? { height: n.h } : {}), minHeight: 70 }} onDoubleClick={() => n.canEdit && setEdit(true)} title={n.canEdit ? 'Double-click to edit' : ''}>
-        <div className="note-h"><span>{n.name.replace(/_/g, ' ')}</span>{n.canEdit && <button className="nodrag note-x" onClick={() => n.onRemove(n.name)} title="Delete note" aria-label="Delete note">✕</button>}</div>
+      <div className={`sticky ${n.dark ? 'dark' : ''}`} style={{ width: n.w || 220, ...(n.h ? { height: n.h } : {}), minHeight: 70 }} onDoubleClick={() => n.canEdit && setEdit(true)} title={n.canEdit ? 'Double-click to edit' : ''}>
+        <div className="sticky-h"><span>{n.name.replace(/_/g, ' ')}</span>{n.canEdit && <button className="nodrag sticky-x" onClick={() => n.onRemove(n.name)} title="Delete note" aria-label="Delete note">✕</button>}</div>
         {edit
-          ? <textarea className="nodrag nowheel note-t" autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => done(true)} onKeyDown={(e) => { if (e.key === 'Escape') done(false); }} />
-          : <div className="note-b">{n.text || <i>Empty note (double-click to write)</i>}</div>}
+          ? <textarea className="nodrag nowheel sticky-t" autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => done(true)} onKeyDown={(e) => { if (e.key === 'Escape') done(false); }} />
+          : <div className="sticky-b">{n.text || <i>Empty note (double-click to write)</i>}</div>}
       </div>
     </>
   );

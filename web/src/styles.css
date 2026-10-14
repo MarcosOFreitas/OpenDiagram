@@ -352,12 +352,12 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tbl.lin-up { box-shadow: 0 0 0 2px #8b5cf6, 0 4px 14px rgba(139, 92, 246, .28); } .tbl.lin-down { box-shadow: 0 0 0 2px #0d9488, 0 4px 14px rgba(13, 148, 136, .28); }
 
 /* sticky notes (DBML top-level Note blocks drawn on the canvas) */
-.note { display: flex; flex-direction: column; box-sizing: border-box; background: #fff4a3; color: #4a3f00; border: 1px solid #e3cb4f; border-radius: 4px; box-shadow: 2px 4px 10px rgba(0, 0, 0, .18); font: 12.5px/1.45 system-ui, sans-serif; }
-.note.dark { background: #4d4414; color: #ffefa0; border-color: #8a7a22; }
-.note-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; opacity: .75; cursor: grab; } .note-h span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-x { border: 0; background: transparent; color: inherit; cursor: pointer; opacity: 0; padding: 0 2px; font-size: 11px; } .note:hover .note-x, .react-flow__node.selected .note-x { opacity: .8; }
-.note-b { padding: 2px 10px 10px; white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; overflow: auto; } .note-b i { opacity: .55; }
-.note-t { box-sizing: border-box; flex: 1; width: calc(100% - 12px); min-width: 0; min-height: 60px; border: 0; background: rgba(255, 255, 255, .45); color: inherit; font: inherit; padding: 6px 10px; margin: 0 6px 6px; resize: none; outline: 2px solid rgba(37, 99, 235, .5); outline-offset: -2px; border-radius: 3px; }
+.sticky { display: flex; flex-direction: column; box-sizing: border-box; background: #fff4a3; color: #4a3f00; border: 1px solid #e3cb4f; border-radius: 4px; box-shadow: 2px 4px 10px rgba(0, 0, 0, .18); font: 12.5px/1.45 system-ui, sans-serif; }
+.sticky.dark { background: #4d4414; color: #ffefa0; border-color: #8a7a22; }
+.sticky-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; opacity: .75; cursor: grab; } .sticky-h span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sticky-x { border: 0; background: transparent; color: inherit; cursor: pointer; opacity: 0; padding: 0 2px; font-size: 11px; } .sticky:hover .sticky-x, .react-flow__node.selected .sticky-x { opacity: .8; }
+.sticky-b { padding: 2px 10px 10px; white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; overflow: auto; } .sticky-b i { opacity: .55; }
+.sticky-t { box-sizing: border-box; flex: 1; width: calc(100% - 12px); min-width: 0; min-height: 60px; border: 0; background: rgba(255, 255, 255, .45); color: inherit; font: inherit; padding: 6px 10px; margin: 0 6px 6px; resize: none; outline: 2px solid rgba(37, 99, 235, .5); outline-offset: -2px; border-radius: 3px; }
 
 /* presence: avatars of the other people who have the diagram open, their selection, and the newer-version bar */
 .peers { display: flex; margin-left: 4px; } .peer { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; border: 2px solid var(--top, #0f172a); margin-left: -6px; box-sizing: border-box; } .peer:first-child { margin-left: 0; }

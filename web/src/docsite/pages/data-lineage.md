@@ -14,6 +14,8 @@ Lineage lines are **not** relationships. A relationship (`Ref`) is a foreign key
 
 > **Note** The column mapping is read from the SQL, not from the database catalog, so it only exists when the SQL can be read. A query the reader does not understand (for example Oracle `(+)` joins or `CONNECT BY`, a view over 20,000 characters, or a `*` over a table that is not imported) keeps its table-level arrow and gets no column arrows. You can always write the mapping by hand.
 
+![Dashed arrows from the source to the table built from it, drawn from column to column (PostgreSQL view). A sticky note sits on the canvas and the avatar next to the title shows another person with the diagram open.](lineage-notes-presence.jpg)
+
 ## Writing lineage in the DBML
 
 A lineage line is a comment, so other DBML tools simply ignore it:

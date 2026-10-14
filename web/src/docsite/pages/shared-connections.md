@@ -12,6 +12,8 @@ By default a saved database connection is **private** to the account that create
 
 Open **avatar menu → Administration → Connections**.
 
+![Administration → Connections: a shared connection with the group that may use it.](admin-connections.jpg)
+
 1. Press **Register a shared connection** and fill in the name, host, port, database (or Oracle service name), the **read-only** database user and its password, and the TLS mode. Keep **Refuse to use this credential if it has write privileges** on: a person who tries it then gets an explanation instead of an import.
 2. Use **+ give access to…** on the connection to add **groups** and **people**. Remove them with the ✕ on their chip. Administrators can always use every shared connection.
 3. **Test** opens a read-only session and warns if the credential can do more than read metadata. **Edit** changes the fields (leave the password empty to keep it), **Delete** removes the connection; diagrams linked to it keep their text and can no longer refresh.

@@ -17,6 +17,8 @@ While the dialog is open, autosave is paused and the status next to the title sa
 
 Next to the title, round **avatars** show the other people who have the same diagram open right now (up to four, then *+N*). Hover one to see the name and what the person is doing: **looking at** a table (the table gets an outline in the person's color with their name) or **editing** (the avatar gets an amber ring while their changes are not saved yet). Visitors of a share link appear as *Guest*.
 
+![The avatar next to the title is another person with the diagram open; the table they selected is outlined in their color with their name.](lineage-notes-presence.jpg)
+
 When someone else saves while you have nothing unsaved, a bar says **Someone saved a newer version of this diagram** with **Load it** and **Dismiss**. If you do have unsaved changes, you are asked what to do when you save (see above).
 
 > **Note** Presence is a heartbeat every few seconds from each open tab, kept in the server's memory only: nothing is stored, and a restart empties it. It shows what people are looking at, not their cursors or text, and edits are still not merged live.
@@ -30,6 +32,8 @@ Open **More → History** (people who can **edit**, administrators and the owner
 | Name or **Version N** | the version; the newest one is marked **current** |
 | Author and time | who saved it and when (the first entry is the **Original** content) |
 | Summary | what changed: tables added or removed by name, and the number of lines added and removed |
+
+![More → History: the saved versions, with Compare and Restore.](history-drawer.jpg)
 
 - Changes by the **same person within 10 minutes** are grouped in one entry, so typing does not create hundreds.
 - Every **refresh from the database** that changes something is saved as its own entry (summary starting with *Refresh from database*), never merged with your edits, so you can compare or restore the state before and after it.

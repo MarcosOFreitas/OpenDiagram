@@ -32,6 +32,8 @@
 
 Sticky notes are free text on the canvas, kept in the DBML as top-level `Note` blocks (see [DBML](dbml#sticky-notes)).
 
+![A sticky note (bottom left) on the canvas next to the tables.](lineage-notes-presence.jpg)
+
 - **Add** one with the note button in the dock (people who can edit). It appears in the middle of the screen, ready to type.
 - **Edit** by double-clicking it. The text is written back into the DBML when you click outside; Esc cancels.
 - **Move** it by dragging its top; **resize** it with the corner handles when it is selected; **delete** it with the ✕ in its corner. Its place and size are saved with the diagram.
