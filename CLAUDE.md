@@ -65,6 +65,12 @@ Oracle TLS (`verify`, `serverDn`, `noverify`) is tested by `server/test-oracle-t
 
 Also implemented since: table picker with TableGroups, views/enums/sequences/triggers in the import, five Arrange algorithms (group-aware), Tables panel with hide + saved views, detail levels, draggable ref labels and group boxes, resizable/collapsible tables, password-protected share links, Export menu, English sample model, and the public documentation site at `/docs` (`web/src/docsite/`, spec [10](.specs/10-documentation-site.md)). Dropped on purpose: embedding diagrams in an iframe.
 
+**Where to resume (next session):**
+- **UI/UX optimisation round**, postponed: review the screens with the skill committed under `.claude/skills` (ui-ux-pro-max), starting from the user's own notes (ask for them first). Observations already collected: the *Register a shared connection* button (Administration → Connections) is wide and grey instead of a primary button; *Download CSV* in the Audit log looks disabled; the Docs column table scrolls horizontally in a narrow window. Retake the documentation pictures afterwards (`web/src/docsite/img`).
+- **MCP connector / API tokens / CLI** (step 5 below), the **server-side scheduled refresh** (after the audit log, plan in the roadmap) and then account hardening / public deployment.
+- Everything else listed below is done; `test-auth`, `test-guardrails`, `test-oracle-tls`, `test-lineage`, `lineage-check` pass on the last commit.
+- Gotchas learnt in the last session: never name a CSS class `.note` / `.top` for new components (the Docs view and React Flow already use them, a clash turned Docs descriptions yellow and stretched the resize handles); in Git Bash prefix `docker compose exec` and `openssl -subj` with `MSYS_NO_PATHCONV=1`; an administrator account sees every diagram, so a freshly created test admin opens someone else's diagram first: create and select your own diagram (`localStorage lastDiagram`) before taking screenshots.
+
 Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/10-documentation-site.md`):
 1. **Documentation follow-ups**: none pending except more screenshots as features change. (Done: screenshots, DBML syntax colours, release-notes page, phone layout check, proofreading of every page against the UI labels and server limits.)
 2. ~~Versions + changelog~~ **done** (edit conflicts answer 409, History drawer with names, compare, restore; spec 09). A newer version is noticed through presence..
