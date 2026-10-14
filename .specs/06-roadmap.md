@@ -20,7 +20,7 @@ Today only tables, columns, PK/FK and indexes are imported.
 
 ## After that
 
-- **Server-side scheduled refresh** — diagrams live on the server now; run refresh without an open page, keep the last snapshot and diff history.
+- **Server-side scheduled refresh** — diagrams live on the server now; run refresh without an open page, keep the last snapshot and diff history. **Decision: build it after B1** (it needs B1's audit log and an explicit connection owner). Plan: one job in the server process, every minute, over the connections that are due; minimum interval 5 min with jitter; skip a diagram while someone is editing it (presence); the result is saved as a "Refresh from database" history entry (version history exists); port `keepGroups` (groups, positions, hand-written lineage) to the server; show last run / last error on the connection; the browser timer goes away; a lock row in SQLite only if the app ever runs on more than one instance.
 - **Account hardening** — e-mail verification and self-service reset (optional SMTP), account deletion, session list, link expiry, audit log.
 - **Public deployment** — HTTPS reverse proxy, `DB_HOST_POLICY=public-only` with pinned resolved IPs, general rate limits, CI audit, free hosted instance ([05](05-security.md)).
 

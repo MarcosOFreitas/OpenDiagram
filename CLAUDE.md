@@ -71,7 +71,7 @@ Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/1
 4. ~~Sticky notes~~ **done** (`NoteNode` in `App.jsx`, top-level `Note` blocks; spec 02). **Presence done** (`server/src/presence.js`, heartbeat per tab; spec 09); real-time co-editing (Yjs) only if needed. Decided not to build: sticky note colours, drawing lineage links by dragging.
 5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
 6. Still open from before: **B1** group-owned connections with an audit log (an administrator registers a read-only connection once, groups use it without seeing the secret); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets.
-Afterwards: server-side scheduled refresh, account hardening, public deployment.
+Afterwards: server-side scheduled refresh (decided: after B1, which provides the audit log; plan in `.specs/06-roadmap.md`), account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.
 
