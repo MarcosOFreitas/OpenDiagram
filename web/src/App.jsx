@@ -8,7 +8,7 @@ import Docs from './Docs.jsx';
 import { DocsView, standaloneHtml } from './DocsPage.jsx';
 import { buildModel, toMarkdown } from './docsModel.js';
 
-import { api, store, errMsg, ago } from './api.js';
+import { api, store, errMsg, ago, sharePassword } from './api.js';
 import AuthScreen, { PasswordForm } from './Auth.jsx';
 import Admin from './Admin.jsx';
 import Menu from './Menu.jsx';
@@ -323,6 +323,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const shared = !!shareToken;
   const [doc, setDoc] = useState(null); // loaded diagram: { id, access, ownerName, isOwner }
   const [loadErr, setLoadErr] = useState('');
+  const [needPass, setNeedPass] = useState(null); // protected share link: message shown above the password field
+  const [unlockTick, setUnlockTick] = useState(0);
   const [diagrams, setDiagrams] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [editorW, setEditorW] = useState(() => Math.max(260, Math.min(1100, +store('editorW') || 380)));
@@ -450,10 +452,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           if (!alt) throw e;
           await openDiagram(alt.id);
         }
-      } catch (e) { if (!off) setLoadErr(e.message); }
+      } catch (e) { if (!off) { if (shared && e.code === 'share_password') setNeedPass(e.message); else setLoadErr(e.message); } }
     })();
     return () => { off = true; };
-  }, [shareToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shareToken, unlockTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // autosave (owner: everything; edit link: DBML + layout)
   useEffect(() => {
@@ -693,6 +695,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   };
   const stat = parsed.error ? 'syntax error' : `${parsed.tables.length} tables · ${parsed.refs.length} refs`;
 
+  if (needPass !== null) return (
+    <div className="auth-wrap"><form className="auth-card" onSubmit={(e) => { e.preventDefault(); const pw = new FormData(e.currentTarget).get('pw'); if (!pw) return; sharePassword(shareToken, String(pw)); setNeedPass(null); setUnlockTick((n) => n + 1); }}>
+      <h2>Protected link</h2><div className="auth-err" style={{ display: needPass ? 'block' : 'none' }}>{needPass}</div>
+      <input name="pw" type="password" autoFocus autoComplete="off" placeholder="Password" /><button className="primary" type="submit">Open</button>
+    </form></div>
+  );
   if (loadErr) return <div className="auth-wrap"><div className="auth-card"><h2>Could not open this diagram</h2><div className="auth-err">{loadErr}</div><a href="/">Go to the app</a></div></div>;
   if (!doc) return <div className="splash">Loading…</div>;
 

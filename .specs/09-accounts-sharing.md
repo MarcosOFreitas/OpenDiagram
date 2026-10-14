@@ -44,7 +44,7 @@ Who can open a diagram (the effective level is the **highest** that applies):
 | Administrator | role | everything except the owner's connection link/credentials (see above) |
 | Person | owner (Share tab → Person; search by name/e-mail) | level `view` / `comment` / `edit` |
 | Group | owner (Share tab → Group; any group of the installation) | applies to every current member; leaving the group or deleting it removes the level |
-| Link | owner (Share tab → Links) | random 24-char token `/s/<token>`; anonymous = read-only; `comment`/`edit` require sign-in |
+| Link | owner (Share tab → Links) | random 24-char token `/s/<token>`; anonymous = read-only; `comment`/`edit` require sign-in. Optional **password** (6–200 chars, scrypt in `shares.password_hash`, never returned): visitors send it in the `x-share-password` header (the UI asks once per tab and keeps it in `sessionStorage`); `401 {code:'share_password'}` when missing/wrong, `429` after 10 wrong attempts per (IP, link) in 15 min. Owner sets/changes/removes it with `PATCH /api/shares/:sid {password}` (empty removes) |
 
 Levels: **view** (diagram, docs, comments), **comment** (+ add comments, delete own), **edit** (+ change DBML and layout, which autosave into the owner's diagram). Editors never change the title, connection link, sharing, or delete; nobody but the owner sees `source`, saved connections or credentials; the owner and administrators delete any comment. Changes and revocations take effect immediately.
 

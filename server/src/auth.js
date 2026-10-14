@@ -125,3 +125,5 @@ export function sessionCookie(token, req) {
   const age = token ? SESSION_DAYS * DAY : 0;
   return `sid=${token ?? ''}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${age}${secure ? '; Secure' : ''}`;
 }
+// share-link passwords reuse the scrypt helpers and the failed-attempt limiter
+export { hash as hashSecret, verify as verifySecret, limited as isLimited, fail as recordFail };

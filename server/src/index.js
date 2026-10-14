@@ -150,8 +150,15 @@ app.delete('/api/diagrams/:id', (req) => {
 });
 
 app.get('/api/diagrams/:id/shares', (req) => dg.listShares(req.user, req.params.id));
-app.post('/api/diagrams/:id/shares', (req) => dg.createShare(req.user, req.params.id, req.body?.access));
-app.patch('/api/shares/:id', (req) => (dg.setShareAccess(req.user, req.params.id, req.body?.access), { ok: true }));
+// a link may carry a password (scrypt hash; never returned): visitors send it in the x-share-password header
+const linkPassword = (p) => { if (typeof p !== 'string' || p.length < 6 || p.length > 200) throw bad('link password must have 6 to 200 characters'); return p; };
+app.post('/api/diagrams/:id/shares', async (req) => dg.createShare(req.user, req.params.id, req.body?.access, req.body?.password ? await auth.hashSecret(linkPassword(req.body.password)) : null));
+app.patch('/api/shares/:id', async (req) => {
+  const b = req.body ?? {};
+  if (b.access !== undefined) dg.setShareAccess(req.user, req.params.id, b.access);
+  if ('password' in b) dg.setSharePassword(req.user, req.params.id, b.password ? await auth.hashSecret(linkPassword(b.password)) : null); // empty/null removes it
+  return { ok: true };
+});
 app.delete('/api/shares/:id', (req) => (dg.deleteShare(req.user, req.params.id), { ok: true }));
 
 app.get('/api/diagrams/:id/access', (req) => dg.listGrants(req.user, req.params.id));
@@ -171,30 +178,38 @@ app.delete('/api/diagrams/:id/comments/:cid', (req) => {
 });
 
 // ---------- shared link access: what the link allows is decided by the diagram owner
-function share(req, need) {
+async function share(req, need) {
   const s = dg.shareByToken(req.params.token);
   if (!s) throw bad('this link does not exist or was revoked', 404);
+  if (s.passwordHash) {
+    const key = `s|${req.ip}|${s.id}`;
+    if (auth.isLimited(key, 10)) throw bad('too many wrong passwords, try again in a few minutes', 429);
+    let given = req.headers['x-share-password'];
+    try { given = typeof given === 'string' ? decodeURIComponent(given) : ''; } catch { given = ''; }
+    if (!given) throw Object.assign(bad('this link is protected by a password', 401), { code: 'share_password' });
+    if (!(await auth.verifySecret(given, s.passwordHash))) { auth.recordFail(key); throw Object.assign(bad('wrong password', 401), { code: 'share_password' }); }
+  }
   if (need) {
     if (dg.RANK[s.access] < dg.RANK[need]) throw bad(`this link does not allow ${need === 'edit' ? 'editing' : 'commenting'}`, 403);
     if (!req.user) throw bad('login required', 401);
   }
   return s;
 }
-app.get('/api/shared/:token', (req) => {
-  const s = share(req);
+app.get('/api/shared/:token', async (req) => {
+  const s = await share(req);
   return { title: s.title, dbml: s.dbml, layout: s.layout, access: s.access, owner: s.ownerName, isOwner: req.user?.id === s.ownerId, comments: dg.listComments(s.diagramId) };
 });
-app.put('/api/shared/:token', (req) => {
-  const s = share(req, 'edit');
+app.put('/api/shared/:token', async (req) => {
+  const s = await share(req, 'edit');
   const { dbml, layout } = req.body ?? {};
   dg.update(s.diagramId, { dbml, layout }); // editors change the diagram itself, never its title, connection link or sharing
   return { ok: true };
 });
-app.post('/api/shared/:token/comments', (req) => dg.addComment(share(req, 'comment').diagramId, req.user, req.body ?? {}));
-app.delete('/api/shared/:token/comments/:cid', (req) => { const s = share(req, 'comment'); dg.deleteComment(s.diagramId, req.params.cid, req.user, req.user.id === s.ownerId); return { ok: true }; });
+app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));
+app.delete('/api/shared/:token/comments/:cid', async (req) => { const s = await share(req, 'comment'); dg.deleteComment(s.diagramId, req.params.cid, req.user, req.user.id === s.ownerId); return { ok: true }; });
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
-app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message })); // driver errors (bad password, TLS...) are meant to be shown
+app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : {}) })); // driver errors (bad password, TLS...) are meant to be shown
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 

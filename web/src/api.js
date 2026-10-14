@@ -1,7 +1,10 @@
+// password of a protected share link: kept for this browser tab only
+export const sharePassword = (token, v) => { try { if (v === undefined) return sessionStorage.getItem(`sp:${token}`); sessionStorage.setItem(`sp:${token}`, v); } catch { return null; } };
 export const api = async (path, body, method = body !== undefined ? 'POST' : 'GET') => {
-  const r = await fetch(`/api/${path}`, { method, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const sp = path.startsWith('shared/') ? sharePassword(path.split('/')[1]) : null;
+  const r = await fetch(`/api/${path}`, { method, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...(sp ? { 'x-share-password': encodeURIComponent(sp) } : {}) }, body: body !== undefined ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { status: r.status, code: j.code });
   return j;
 };
 

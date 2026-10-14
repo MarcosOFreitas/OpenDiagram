@@ -257,6 +257,38 @@ await A('DELETE', `/api/shares/${edit.id}`);
 r = await anon('GET', `/api/shared/${edit.token}`);
 check('revoked link stops working', r.status === 404);
 
+// ---------------- password-protected links
+r = await A('POST', `/api/diagrams/${dId}/shares`, { access: 'view', password: 'abc' });
+check('link password must have 6+ characters', r.status === 400);
+r = await A('POST', `/api/diagrams/${dId}/shares`, { access: 'comment', password: 'link-secret' }); const prot = r.json;
+check('a link can be created with a password (never returned)', r.status === 200 && prot.hasPassword === true && !JSON.stringify(prot).includes('link-secret') && !('passwordHash' in prot));
+r = await A('GET', `/api/diagrams/${dId}/shares`);
+check('share list shows hasPassword, no hash', r.json.find((s) => s.id === prot.id)?.hasPassword === true && !JSON.stringify(r.json).includes('scrypt'));
+r = await anon('GET', `/api/shared/${prot.token}`);
+check('protected link asks for the password', r.status === 401 && r.json.code === 'share_password');
+r = await anon('GET', `/api/shared/${prot.token}`, undefined, { 'x-share-password': 'wrong-one' });
+check('wrong password is refused', r.status === 401 && r.json.code === 'share_password');
+r = await anon('GET', `/api/shared/${prot.token}`, undefined, { 'x-share-password': encodeURIComponent('link-secret') });
+check('right password opens the diagram', r.status === 200 && r.json.dbml !== undefined && !('passwordHash' in r.json));
+r = await B('POST', `/api/shared/${prot.token}/comments`, { key: 'k', text: 'no password' });
+check('comments through a protected link also need the password', r.status === 401 && r.json.code === 'share_password');
+r = await B('POST', `/api/shared/${prot.token}/comments`, { key: 'k', text: 'with password' }, { 'x-share-password': 'link-secret' });
+check('...and work with it', r.status === 200);
+r = await A('PATCH', `/api/shares/${prot.id}`, { password: 'another-secret' });
+await anon('GET', `/api/shared/${prot.token}`, undefined, { 'x-share-password': 'link-secret' });
+r = await anon('GET', `/api/shared/${prot.token}`, undefined, { 'x-share-password': 'link-secret' });
+check('changing the password invalidates the old one', r.status === 401);
+r = await A('PATCH', `/api/shares/${prot.id}`, { password: '' });
+r = await anon('GET', `/api/shared/${prot.token}`);
+check('removing the password opens the link again', r.status === 200);
+await A('POST', `/api/diagrams/${dId}/shares`, { access: 'view', password: 'throttle-me' }).then(async (x) => {
+  let last;
+  for (let i = 0; i < 12; i++) last = await anon('GET', `/api/shared/${x.json.token}`, undefined, { 'x-share-password': `bad-${i}` });
+  check('repeated wrong passwords are throttled', last.status === 429);
+  await A('DELETE', `/api/shares/${x.json.id}`);
+});
+await A('DELETE', `/api/shares/${prot.id}`);
+
 // ---------------- delete a user
 r = await ADMIN('DELETE', `/api/admin/users/${carol.id}`);
 check('admin deletes a user', r.status === 200);

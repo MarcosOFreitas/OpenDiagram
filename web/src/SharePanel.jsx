@@ -19,6 +19,7 @@ export default function SharePanel({ diagramId, notify }) {
   const [who, setWho] = useState('user');
   const [level, setLevel] = useState('view');
   const [linkLevel, setLinkLevel] = useState('view');
+  const [linkPw, setLinkPw] = useState('');
   const timer = useRef(null);
 
   const load = useCallback(() => Promise.all([api(`diagrams/${diagramId}/access`), api(`diagrams/${diagramId}/shares`), api('directory/groups')])
@@ -78,13 +79,15 @@ export default function SharePanel({ diagramId, notify }) {
       <small className="hint">Anyone with a link can open the diagram; comment/edit links ask people to sign in first. Revoke a link at any time.</small>
       <div className="row">
         <Levels value={linkLevel} onChange={setLinkLevel} />
-        <button className="primary" onClick={act(() => api(`diagrams/${diagramId}/shares`, { access: linkLevel }), 'Link created')}>Create link</button>
+        <button className="primary" onClick={act(async () => { await api(`diagrams/${diagramId}/shares`, { access: linkLevel, ...(linkPw ? { password: linkPw } : {}) }); setLinkPw(''); }, 'Link created')}>Create link</button>
       </div>
+      <input type="password" autoComplete="new-password" placeholder="Password for the new link (optional, 6+ characters)" value={linkPw} onChange={(e) => setLinkPw(e.target.value)} />
       {links.map((s) => (
         <div key={s.id} className="share">
           <div className="row"><input readOnly value={url(s.token)} onFocus={(e) => e.target.select()} /><button onClick={() => copy(s.token)}>Copy</button></div>
           <div className="row">
             <Levels value={s.access} onChange={(v) => act(() => api(`shares/${s.id}`, { access: v }, 'PATCH'), 'Permission updated')()} />
+            <button onClick={() => { const p = window.prompt(s.hasPassword ? 'New password for this link (6+ characters). Leave empty to remove the password.' : 'Password for this link (6+ characters):', ''); if (p === null) return; act(() => api(`shares/${s.id}`, { password: p }, 'PATCH'), p ? 'Password set' : 'Password removed')(); }}>{s.hasPassword ? '🔒 Change password' : 'Add password'}</button>
             <button onClick={() => { if (window.confirm('Revoke this link? Anyone using it will lose access.')) act(() => api(`shares/${s.id}`, undefined, 'DELETE'), 'Link revoked')(); }}>Revoke</button>
           </div>
         </div>

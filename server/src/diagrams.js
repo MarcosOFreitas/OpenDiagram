@@ -83,15 +83,15 @@ export const remove = (actor, id) => db.prepare('delete from diagrams where id =
 // ---- share links: the owner decides what each link allows (view < comment < edit)
 export function listShares(actor, diagramId) {
   getOwned(actor, diagramId);
-  return db.prepare('select id, token, access, created_at from shares where diagram_id = ? order by created_at').all(diagramId)
-    .map((s) => ({ id: s.id, token: s.token, access: s.access, createdAt: s.created_at }));
+  return db.prepare('select id, token, access, created_at, password_hash from shares where diagram_id = ? order by created_at').all(diagramId)
+    .map((s) => ({ id: s.id, token: s.token, access: s.access, createdAt: s.created_at, hasPassword: !!s.password_hash }));
 }
-export function createShare(actor, diagramId, access) {
+export function createShare(actor, diagramId, access, passwordHash = null) {
   getOwned(actor, diagramId);
   if (!(access in RANK)) throw bad('access must be view, comment or edit');
   const id = randomUUID(), token = randomBytes(18).toString('base64url');
-  db.prepare('insert into shares (id, diagram_id, token, access, created_at) values (?, ?, ?, ?, ?)').run(id, diagramId, token, access, now());
-  return { id, token, access };
+  db.prepare('insert into shares (id, diagram_id, token, access, created_at, password_hash) values (?, ?, ?, ?, ?, ?)').run(id, diagramId, token, access, now(), passwordHash);
+  return { id, token, access, hasPassword: !!passwordHash };
 }
 function ownedShare(actor, shareId) {
   const s = db.prepare('select s.*, d.owner_id from shares s join diagrams d on d.id = s.diagram_id where s.id = ?').get(shareId);
@@ -103,11 +103,12 @@ export function setShareAccess(actor, shareId, access) {
   if (!(access in RANK)) throw bad('access must be view, comment or edit');
   db.prepare('update shares set access = ? where id = ?').run(access, shareId);
 }
+export function setSharePassword(actor, shareId, passwordHash) { ownedShare(actor, shareId); db.prepare('update shares set password_hash = ? where id = ?').run(passwordHash, shareId); }
 export function deleteShare(actor, shareId) { ownedShare(actor, shareId); db.prepare('delete from shares where id = ?').run(shareId); }
 
 export function shareByToken(token) {
   const s = db.prepare('select s.*, d.title, d.dbml, d.layout, d.owner_id, u.name owner_name from shares s join diagrams d on d.id = s.diagram_id join users u on u.id = d.owner_id where s.token = ?').get(String(token));
-  return s ? { id: s.id, diagramId: s.diagram_id, access: s.access, title: s.title, dbml: s.dbml, layout: json(s.layout, {}), ownerId: s.owner_id, ownerName: s.owner_name } : null;
+  return s ? { id: s.id, diagramId: s.diagram_id, access: s.access, title: s.title, dbml: s.dbml, layout: json(s.layout, {}), ownerId: s.owner_id, ownerName: s.owner_name, passwordHash: s.password_hash } : null;
 }
 
 // ---- comments: any number per target key ("schema.table", "schema.table.column" or "__project")

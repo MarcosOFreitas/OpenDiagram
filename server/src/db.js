@@ -84,5 +84,7 @@ const userCols = db.prepare('pragma table_info(users)').all().map((c) => c.name)
 for (const [name, ddl] of [['role', "text not null default 'member'"], ['disabled', 'integer not null default 0'], ['must_change_password', 'integer not null default 0']]) {
   if (!userCols.includes(name)) db.exec(`alter table users add column ${name} ${ddl}`);
 }
+const shareCols = db.prepare('pragma table_info(shares)').all().map((c) => c.name);
+if (!shareCols.includes('password_hash')) db.exec('alter table shares add column password_hash text'); // optional link password (scrypt)
 // the oldest account is the administrator when nobody is (databases created before roles existed)
 db.exec("update users set role = 'admin' where id = (select min(id) from users) and not exists (select 1 from users where role = 'admin')");
