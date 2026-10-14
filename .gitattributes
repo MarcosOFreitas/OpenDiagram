@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# shell scripts are bind-mounted into Linux containers: must stay LF even on Windows checkouts
+*.sh text eol=lf
