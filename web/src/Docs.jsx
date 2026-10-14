@@ -45,7 +45,7 @@ Ref fk_lines_order: order_lines.order_id > orders.id [delete: cascade]`,
   },
   {
     title: 'TableGroup with color',
-    text: 'Groups draw a dashed, colored box around related tables. No color codes needed: type `color: ` for a preset list, or click the small color square after a hex to open the color picker.',
+    text: 'Groups draw a dashed, colored box around related tables (you can also build them in the Database tab: Choose tables → Groups). No color codes needed: type `color: ` for a preset list, or click the small color square after a hex to open the color picker.',
     code: `Table invoices {
   id integer [pk]
 }

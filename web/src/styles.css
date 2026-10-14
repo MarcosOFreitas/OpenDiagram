@@ -229,9 +229,6 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tp-bar input[type=text], .tp-bar input:not([type]) { flex: 1; min-width: 200px; }
 .tp-actions { padding: 4px 16px 8px; font-size: 12px; color: var(--muted); }
 .tp-actions a { cursor: pointer; color: var(--accent); }
-.tp-list { flex: 1; overflow: auto; padding: 8px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); columns: 280px auto; column-gap: 24px; }
-.tp-list .chk { break-inside: avoid; padding: 3px 0; font-size: 13px; }
-.tp-list .chk span { overflow-wrap: anywhere; }
 .tp-foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
 .tp-bar select { width: auto; flex: 0 0 auto; }
 .tp-bar .chk { flex: 0 0 auto; width: auto; }
@@ -247,3 +244,26 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tbl.fixed .tbl-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 .react-flow__resize-control.line { border-color: #2563eb; }
 .react-flow__resize-control.handle { width: 9px; height: 9px; background: #fff; border: 1.5px solid #2563eb; border-radius: 2px; }
+
+/* table picker: cards spread over the dialog width, groups tab */
+.tp-list { flex: 1; overflow: auto; padding: 12px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; align-content: start; }
+.tp-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; min-width: 0; }
+.tp-card:hover { border-color: var(--accent); }
+.tp-card.on { border-color: var(--accent); background: rgba(37, 99, 235, .12); }
+.tp-card input { flex: none; width: auto; margin: 0; }
+.tp-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tp-txt b { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.tp-txt small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.tp-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.tp-groups { flex: 1; overflow: auto; padding: 14px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.tp-new, .tp-g { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.tp-g { border-left: 5px solid #6b7280; }
+.tp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tp-row input:not([type]), .tp-row input[type=text] { flex: 1; min-width: 160px; }
+.tp-row input[type=color] { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: transparent; flex: none; }
+.tp-sw { display: flex; gap: 6px; flex-wrap: wrap; }
+.tp-sw button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+.tp-sw button.on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, .3); }
+.tp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; max-width: 100%; overflow-wrap: anywhere; }
+.tp-chip a { cursor: pointer; color: var(--muted); }

@@ -161,15 +161,20 @@ const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'E
 
 const qid = (x) => (/^[A-Za-z_]\w*$/.test(x) ? x : `"${x.replaceAll('"', '\\"')}"`);
 // a refresh regenerates tables/refs from the database; keep the user's TableGroups (minus tables that no longer exist)
-function keepGroups(oldDbml, newDbml) {
-  const o = parse(oldDbml), n = parse(newDbml);
-  if (o.error || n.error || !o.groups?.length) return newDbml;
+// append TableGroup blocks (members that are not in the diagram are dropped)
+function withGroups(newDbml, groups) {
+  const n = parse(newDbml);
+  if (n.error || !groups?.length) return newDbml;
   const have = new Set(n.tables.map((t) => t.id));
-  const blocks = o.groups.map((g) => ({ ...g, tables: g.tables.filter((id) => have.has(id)) })).filter((g) => g.tables.length).map((g) => {
+  const blocks = groups.map((g) => ({ ...g, tables: g.tables.filter((id) => have.has(id)) })).filter((g) => g.tables.length).map((g) => {
     const members = g.tables.map((id) => { const [sc, ...rest] = id.split('.'); return `  ${qid(sc)}.${qid(rest.join('.'))}`; });
     return `TableGroup ${qid(g.name)}${g.color ? ` [color: ${g.color}]` : ''} {\n${members.join('\n')}\n}`;
   });
   return blocks.length ? `${newDbml.trimEnd()}\n\n${blocks.join('\n\n')}\n` : newDbml;
+}
+function keepGroups(oldDbml, newDbml) {
+  const o = parse(oldDbml);
+  return o.error ? newDbml : withGroups(newDbml, o.groups);
 }
 function diffSummary(oldDbml, newDbml) {
   const o = parse(oldDbml), n = parse(newDbml);
@@ -223,6 +228,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [tableSel, setTableSel] = useState([]); // 'schema.table' entries; empty = all tables
   const [tableList, setTableList] = useState(null); // null = not loaded
   const [picker, setPicker] = useState(false); // table picker dialog
+  const [tableGroups, setTableGroups] = useState(null); // TableGroups defined in the picker; null = keep the diagram's current ones
+  useEffect(() => { setTableGroups(null); }, [doc?.id]); // groups belong to the diagram they were edited for
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -430,7 +437,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const id = await persist({ schemas: picked, tables });
     const r = await api('import', { id, schemas: picked, tables });
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
-    setDbml(r.dbml); setWarnings(r.warnings || []);
+    setDbml(withGroups(r.dbml, tableGroups ?? parsed.groups)); setWarnings(r.warnings || []); // groups are re-applied: a new import must not lose them
     setSource({ connId: id, schemas: picked, tables, at: r.at });
     notify('ok', `Imported ${r.tables} tables, ${r.refs} relationships — linked for refresh`);
   });
@@ -454,7 +461,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setTableList(null); setWarnings([]); };
+  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setTableList(null); setTableGroups(null); setWarnings([]); };
   const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
   const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
 
@@ -607,7 +614,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   <span><a onClick={() => refresh(false)}>Refresh now</a> · <a onClick={() => setSource(null)}>Unlink</a></span>
                 </div>
               )}
-              <h4>Saved connections <a onClick={() => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableSel([]); setTableList(null); setWarnings([]); }}>+ new</a></h4>
+              <h4>Saved connections <a onClick={() => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableSel([]); setTableList(null); setTableGroups(null); setWarnings([]); }}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
               {conns.map((c) => (
                 <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
@@ -659,7 +666,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   ))}
                 </div>
                 <h4>Tables {tableSel.length > 0 && <a onClick={() => setTableSel([])}>clear</a>}</h4>
-                <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected — change…` : 'All tables — choose specific ones…'}</button>
+                <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected${tableGroups?.length ? ` · ${tableGroups.length} group(s)` : ''} — change…` : 'All tables — choose specific ones…'}</button>
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>
               </>)}
             </div>
@@ -725,7 +732,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </aside>
       </div>
 
-      {picker && tableList && <TablePicker items={tableList} selected={tableSel} onClose={() => setPicker(false)} onApply={(v) => { setTableSel(v); setPicker(false); }} />}
+      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} onClose={() => setPicker(false)} onApply={({ tables, groups }) => { setTableSel(tables); setTableGroups(groups); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>

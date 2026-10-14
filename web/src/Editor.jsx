@@ -54,7 +54,7 @@ const highlight = HighlightStyle.define([
 ]);
 
 // ---- color picking: a swatch after every `headercolor:`/`color:` hex opens the native color picker; typing `color: ` offers presets
-const PALETTE = [['#3498DB', 'blue'], ['#1E3A5F', 'navy'], ['#27AE60', 'green'], ['#1ABC9C', 'teal'], ['#E67E22', 'orange'], ['#E74C3C', 'red'],
+export const PALETTE = [['#3498DB', 'blue'], ['#1E3A5F', 'navy'], ['#27AE60', 'green'], ['#1ABC9C', 'teal'], ['#E67E22', 'orange'], ['#E74C3C', 'red'],
   ['#9B59B6', 'purple'], ['#E84393', 'pink'], ['#F1C40F', 'yellow'], ['#7F8C8D', 'gray'], ['#2C3E50', 'slate'], ['#8D6E63', 'brown']];
 const COLOR_RE = /\b(?:headercolor|color)\s*:\s*(#[0-9a-fA-F]{3,8})\b/g;
 const six = (h) => (h.length === 4 ? `#${[...h.slice(1)].map((c) => c + c).join('')}` : h.slice(0, 7));
