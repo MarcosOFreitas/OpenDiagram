@@ -69,6 +69,8 @@ Next steps, in the agreed order (details in `.specs/06-roadmap.md`):
 4. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
 Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
+Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.
+
 Starting on a new machine: clone, `cp .env.example .env` (set `APP_SECRET`), `docker compose up -d --build`, open http://localhost:3000 and create the first (administrator) account, or `docker compose exec app node src/cli.js create-admin <email> <password>`. For the tests create a throw-away administrator and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`. The `demo-pg` roles `reader` (select only) and `writer` (can write) exist for the guardrail tests; the Oracle demo needs `--profile oracle` (its `shop` user and tables are created automatically on first start, verified on a clean clone; `demo/oracle.sql` can be loaded by hand, see README). `roundtrip.mjs` needs `cd web && npm install` once.
 
 The REA reverse-engineering MCP was only used to study the public dbdiagram.io UI for feature ideas; it is not needed to build, run or test the project (to use it again: `npx.cmd -y rea-agents setup --client claude_code --yes`, then restart Claude Code).
