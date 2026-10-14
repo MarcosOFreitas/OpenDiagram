@@ -31,7 +31,7 @@ function parse(text) {
     const refs = db.schemas.flatMap((s) => s.refs).map((r) => {
       const [a, b] = r.endpoints;
       const [child, parent] = a.relation === '*' || b.relation === '1' ? [a, b] : [b, a];
-      return { id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
+      return { name: r.name || '', id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
     });
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
     return { tables, refs, groups, db };
@@ -119,8 +119,86 @@ function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
 
 // Many tables: dagre alone puts every table without relationships in one huge column. Lay out each connected
 // component on its own (dagre), tables without relationships in a grid, then pack the blocks in rows (~wide screen).
+// Snowflake: the most connected table in the center, its neighbours in rings (breadth-first levels) around it
+function snowflakeBlock(ts, cr) {
+  const byId = new Map(ts.map((t) => [t.id, t])), adj = new Map(ts.map((t) => [t.id, new Set()]));
+  cr.forEach((r) => { const a = tid(r.child.schemaName, r.child.tableName), b = tid(r.parent.schemaName, r.parent.tableName); if (a !== b && adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } });
+  const center = [...ts].sort((a, b) => adj.get(b.id).size - adj.get(a.id).size || a.id.localeCompare(b.id))[0];
+  const level = new Map([[center.id, 0]]), parentOf = new Map(), rings = [[center]];
+  let frontier = [center.id];
+  while (frontier.length) {
+    const next = [];
+    for (const id of frontier) for (const n of [...adj.get(id)].sort()) if (!level.has(n)) { level.set(n, level.get(id) + 1); parentOf.set(n, id); next.push(n); }
+    if (next.length) rings.push(next.map((i) => byId.get(i)));
+    frontier = next;
+  }
+  const rad = (t) => Math.hypot(tableWidth(t), tableHeight(t)) / 2; // circle around a table
+  const centers = new Map([[center.id, { x: 0, y: 0, a: 0 }]]);
+  let prevR = 0, prevHalf = rad(center);
+  for (let k = 1; k < rings.length; k++) {
+    const ring = [...rings[k]].sort((a, b) => (centers.get(parentOf.get(a.id))?.a ?? 0) - (centers.get(parentOf.get(b.id))?.a ?? 0) || a.id.localeCompare(b.id)); // children next to their parent
+    const half = Math.max(...ring.map(rad));
+    const R = Math.max(ring.reduce((sum, t) => sum + 2 * rad(t) + 50, 0) / (2 * Math.PI), prevR + prevHalf + half + 70);
+    ring.forEach((t, i) => { const a = (i / ring.length) * 2 * Math.PI - Math.PI / 2; centers.set(t.id, { x: R * Math.cos(a), y: R * Math.sin(a), a }); });
+    prevR = R; prevHalf = half;
+  }
+  const raw = ts.map((t) => { const c = centers.get(t.id); return [t.id, { x: c.x - tableWidth(t) / 2, y: c.y - tableHeight(t) / 2 }, t]; });
+  const minX = Math.min(...raw.map(([, p]) => p.x)), minY = Math.min(...raw.map(([, p]) => p.y));
+  const pos = new Map(raw.map(([id, p]) => [id, { x: p.x - minX, y: p.y - minY }]));
+  return { pos, w: Math.max(...raw.map(([, p, t]) => p.x - minX + tableWidth(t))), h: Math.max(...raw.map(([, p, t]) => p.y - minY + tableHeight(t))) };
+}
+
+// Pipeline: stages left to right by dependency (referenced tables first). With TableGroups every group is a stage (its box included);
+// without groups the stages are the dependency ranks. Tables are stacked vertically, wrapping into sub-columns when a stage gets too tall.
+function pipelinePositions(tables, refs, groups) {
+  const PAD = 22, HEAD = 18, MAXH = 2600;
+  const byId = new Map(tables.map((t) => [t.id, t]));
+  const edges = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => a !== b && byId.has(a) && byId.has(b));
+  const rankOf = (ids, deps) => { // longest dependency chain; cycles are cut where they are first met
+    const memo = new Map(), seen = new Set();
+    const rank = (id) => {
+      if (memo.has(id)) return memo.get(id);
+      if (seen.has(id)) return 0;
+      seen.add(id);
+      let r = 0;
+      for (const d of deps.get(id) || []) r = Math.max(r, rank(d) + 1);
+      seen.delete(id); memo.set(id, r);
+      return r;
+    };
+    ids.forEach(rank);
+    return memo;
+  };
+  const used = new Set(), units = [];
+  if (groups.length) {
+    for (const gr of groups) { const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); }); if (ts.length) units.push({ ts, box: true }); }
+    const rest = tables.filter((t) => !used.has(t.id));
+    if (rest.length) units.push({ ts: rest, box: false });
+  } else {
+    const deps = new Map(); edges.forEach(([a, b]) => { if (!deps.has(a)) deps.set(a, new Set()); deps.get(a).add(b); });
+    const rk = rankOf(tables.map((t) => t.id), deps), cols = new Map();
+    tables.forEach((t) => { const r = rk.get(t.id) || 0; if (!cols.has(r)) cols.set(r, []); cols.get(r).push(t); });
+    [...cols.keys()].sort((a, b) => a - b).forEach((r) => units.push({ ts: cols.get(r), box: false }));
+  }
+  if (groups.length) { // order the stages by the dependencies between units
+    const of = new Map(); units.forEach((u, i) => u.ts.forEach((t) => of.set(t.id, i)));
+    const deps = new Map(); edges.forEach(([a, b]) => { const x = of.get(a), y = of.get(b); if (x !== y) { if (!deps.has(x)) deps.set(x, new Set()); deps.get(x).add(y); } });
+    const rk = rankOf(units.map((_, i) => i), deps);
+    units.forEach((u, i) => { u.rank = rk.get(i) || 0; u.i = i; });
+    units.sort((a, b) => a.rank - b.rank || (a.box === b.box ? a.i - b.i : a.box ? -1 : 1));
+  }
+  const out = new Map(); let x = 0;
+  for (const u of units) {
+    const sorted = [...u.ts].sort((a, b) => a.id.localeCompare(b.id)), pad = u.box ? PAD : 0, top = u.box ? PAD + HEAD : 0;
+    const colW = Math.max(...sorted.map(tableWidth)), subs = [[]], hs = [0];
+    sorted.forEach((t) => { const h = tableHeight(t) + 36; if (hs[hs.length - 1] + h > MAXH && subs[subs.length - 1].length) { subs.push([]); hs.push(0); } subs[subs.length - 1].push([t, hs[hs.length - 1]]); hs[hs.length - 1] += h; });
+    subs.forEach((col, ci) => col.forEach(([t, y]) => out.set(t.id, { x: x + pad + ci * (colW + 36), y: top + y })));
+    x += subs.length * (colW + 36) - 36 + pad * 2 + 110;
+  }
+  return out;
+}
+
 // blocks of a set of tables: one per connected component (own dagre run) plus one grid for the tables without relationships
-function blocksOf(tables, refs) {
+function blocksOf(tables, refs, mode = 'auto') { // mode: auto (dagre per component) | snowflake | compact (everything in the balanced columns)
   const parent = new Map(tables.map((t) => [t.id, t.id]));
   const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
   const ends = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => parent.has(a) && parent.has(b));
@@ -129,9 +207,10 @@ function blocksOf(tables, refs) {
   tables.forEach((t) => { const r = find(t.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); });
   const blocks = [], loose = [];
   for (const ts of comps.values()) {
-    if (ts.length === 1) { loose.push(ts[0]); continue; }
+    if (mode === 'compact' || ts.length === 1) { loose.push(...ts); continue; }
     const ids = new Set(ts.map((t) => t.id));
     const cr = refs.filter((r) => ids.has(tid(r.child.schemaName, r.child.tableName)) && ids.has(tid(r.parent.schemaName, r.parent.tableName)));
+    if (mode === 'snowflake' && ts.length > 2) { blocks.push(snowflakeBlock(ts, cr)); continue; }
     const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x + tableWidth(t))), h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
     let best = size(dagrePositions(ts, cr));
     if (ts.length > 12) { // big component: left-to-right or top-to-bottom, whichever is closer to a wide screen
@@ -169,25 +248,37 @@ function shelfPack(blocks, gap = 60, aspect = 1.8) {
 
 // Groups: every TableGroup is laid out on its own and becomes one block with room for its box (22px padding + 18px title),
 // so boxes never overlap; ungrouped tables are blocks as usual; then all blocks are packed together.
-function groupedPositions(tables, refs, groups) {
+function groupedPositions(tables, refs, groups, mode = 'auto') {
   const byId = new Map(tables.map((t) => [t.id, t])), used = new Set(), PAD = 22, HEAD = 18, blocks = [];
   for (const gr of groups) {
     const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); });
     if (!ts.length) continue;
-    const inner = shelfPack(blocksOf(ts, refs), 36, 1.4);
+    const inner = shelfPack(blocksOf(ts, refs, mode), 36, 1.4);
     const pos = new Map([...inner.pos].map(([id, p]) => [id, { x: p.x + PAD, y: p.y + PAD + HEAD }]));
     blocks.push({ pos, w: inner.w + PAD * 2, h: inner.h + PAD * 2 + HEAD });
   }
-  blocks.push(...blocksOf(tables.filter((t) => !used.has(t.id)), refs));
+  blocks.push(...blocksOf(tables.filter((t) => !used.has(t.id)), refs, mode));
   return shelfPack(blocks, 70).pos;
 }
 
-function layout(tables, refs, old, groups = []) {
-  // groups -> one block per group; many tables -> packed components; few tables -> plain dagre
-  const pos = groups.length ? groupedPositions(tables, refs, groups) : tables.length < 25 ? dagrePositions(tables, refs) : shelfPack(blocksOf(tables, refs)).pos;
+// algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact
+function layout(tables, refs, old, groups = [], algo = 'auto') {
+  let pos;
+  if (algo === 'lr') pos = dagrePositions(tables, refs, groups);
+  else if (algo === 'pipeline') pos = pipelinePositions(tables, refs, groups);
+  else if (groups.length) pos = groupedPositions(tables, refs, groups, algo); // one block per group
+  else if (algo === 'auto' && tables.length < 25) pos = dagrePositions(tables, refs);
+  else pos = shelfPack(blocksOf(tables, refs, algo)).pos;
   return tables.map((t) => ({ id: t.id, type: 'table', position: old?.get(t.id) || pos.get(t.id), data: t }));
 }
 
+const ALGOS = [
+  { k: 'auto', name: 'Auto', desc: 'Packs each group and each connected cluster on its own. Best default, especially with many tables.' },
+  { k: 'lr', name: 'Left to right', desc: 'Layered layout following the relationships. Best for long relationship chains.' },
+  { k: 'pipeline', name: 'Pipeline', desc: 'Groups become stages from left to right by dependency, tables stacked vertically.' },
+  { k: 'snowflake', name: 'Snowflake', desc: 'The most connected table in the center, related tables in rings around it.' },
+  { k: 'compact', name: 'Compact', desc: 'Tables in a compact rectangle, ignoring relationships.' },
+];
 const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
 const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
 
@@ -275,7 +366,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [search, setSearch] = useState('');
   const [sqlFmt, setSqlFmt] = useState('postgres');
   const [paste, setPaste] = useState('');
-  const [view, setView] = useState(() => { try { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
+  const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
@@ -413,7 +504,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     setEdges(parsed.refs.map((r) => ({
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
       target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
-      label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0] },
+      label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0], name: r.name || '' },
     })));
     const key = parsed.tables.map((t) => t.id).sort().join('|');
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
@@ -450,15 +541,16 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     }
     const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
-    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on ? { stroke: '#2563eb', strokeWidth: 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
-    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, labelStyle: { fontSize: 10, fill: picked ? '#b45309' : '#64748b', fontWeight: picked ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
-  }); }, [edges, nodes, view.edgeType, activeId, activeEdge, canvasBg]);
+    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: '#2563eb', strokeWidth: 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
+    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, label: view.hiRefs && e.data.name ? e.data.name : e.label, labelStyle: { fontSize: view.hiRefs ? 11 : 10, fill: picked ? '#b45309' : view.hiRefs ? '#2563eb' : '#64748b', fontWeight: picked || view.hiRefs ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
+  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg]);
 
-  const relayout = () => { // two passes: estimated sizes, then the sizes the browser really measured (manual widths, wrapped text) so nothing overlaps
+  const [algoOpen, setAlgoOpen] = useState(false);
+  const relayout = (algo = view.algo) => { // two passes: estimated sizes, then the sizes the browser really measured (manual widths, wrapped text) so nothing overlaps
     const pass = (measured) => {
       setNodes((old) => {
         const sz = layoutRef.current['@sizes'];
-        const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, parsed.groups);
+        const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, parsed.groups, algo);
         layoutRef.current = { ...Object.fromEntries(next.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}) };
         return next;
       });
@@ -635,7 +727,20 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen">⤢</button>
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
-            <button onClick={relayout} title="Auto arrange">⚙ Arrange</button>
+            <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)">⌁</button>
+            <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
+            <button onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
+            {algoOpen && (<>
+              <div className="algo-bg" onClick={() => setAlgoOpen(false)} />
+              <div className="algo-pop" role="menu">
+                <b>Auto-arrange algorithm</b>
+                {ALGOS.map((a) => (
+                  <button key={a.k} role="menuitem" className={view.algo === a.k ? 'on' : ''} onClick={() => { setView({ ...view, algo: a.k }); setAlgoOpen(false); relayout(a.k); }}>
+                    <span>{a.name}</span><small>{a.desc}</small>
+                  </button>
+                ))}
+              </div>
+            </>)}
           </div>
         </main>
 
@@ -779,6 +884,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               </div>
               <h4>Tables</h4>
               <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
+              <label className="chk"><input type="checkbox" checked={view.hiRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
               <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>
               <label className="chk"><input type="checkbox" checked={view.snap} onChange={(e) => setView({ ...view, snap: e.target.checked })} /> Snap to grid</label>
               <small className="hint">Click a table to highlight its relationships. Header color: <code>Table t [headercolor: #3498DB]</code>.</small>
