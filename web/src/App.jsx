@@ -278,6 +278,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [activeEdge, setActiveEdge] = useState(null); // clicked relationship: focus it and its two tables
   const [drag, setDrag] = useState(false);
   const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
+  const editorShown = editorOpen && mode !== 'docs'; // the Docs view takes the whole width; the editor comes back with the Diagram view
   const [comments, setComments] = useState([]);
   const toastTimer = useRef(null);
   const idsKey = useRef('');
@@ -583,12 +584,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       </header>
 
       <div className="body">
-        <section className={`editor-pane ${editorOpen ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorOpen ? editorW : 0 }}>
+        <section className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? editorW : 0 }}>
           <Editor value={dbml} onChange={setDbml} diags={editorDiags} info={editorInfo} readOnly={readOnly} wrap={view.wrap} />
           <div className={`status ${error ? 'bad' : ''}`}>{error || stat}</div>
         </section>
-        {editorOpen && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: editorW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
-        <button className="edge-toggle" style={{ left: editorOpen ? editorW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>
+        {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: editorW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
+        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? editorW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
         <main className="canvas">
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} colorMode={view.theme}
