@@ -7,6 +7,7 @@ Open-source database diagramming tool in the spirit of dbdiagram.io: write [DBML
 - **Keep metadata fresh**: manual refresh or an automatic interval; your TableGroups and layout survive a refresh.
 - **DBML editor** (CodeMirror): syntax highlighting, autocomplete (keywords, types, tables, `table.column`), inline parser errors. Color settings (`headercolor`, `color`) get a clickable swatch that opens a color picker, plus a preset palette on `color: `.
 - **Diagram** (React Flow): auto layout, drag, search, relationship highlight, TableGroups with colors, light/dark theme.
+- **Generated documentation** (dbdocs-style): switch to *Docs* for a browsable, searchable page of tables, columns, constraints, notes and relationships. Tables collapse/expand, and you can add your own comments per table/column/project (stored only in the app, never in the database). Export as one standalone `.html` file or Markdown.
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML files; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - **TLS** for PostgreSQL and Oracle (TCPS), with optional custom CA.
 - Ships as a single Docker image; no external services needed.
@@ -45,9 +46,9 @@ To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its
 
 1. **Database** tab → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
 2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
-3. Edit the DBML on the left; the diagram updates live. **Docs** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
+3. Edit the DBML on the left; the diagram updates live. **Help** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
 4. **↻** in the top bar re-reads the metadata; set an interval in the connection for automatic refresh (runs while the page is open).
-5. **Export** tab: DBML, SQL per dialect, JSON, PNG, SVG. **View** tab: theme, grid, edge style, hide types/indexes.
+5. **Docs** (top bar) shows generated documentation for the DBML — click a table header to collapse it, click a comment area to add a note; **Export** tab: DBML, SQL per dialect, JSON, PNG, SVG, documentation (HTML / Markdown). **View** tab: theme, grid, edge style, hide types/indexes.
 
 ## Configuration
 

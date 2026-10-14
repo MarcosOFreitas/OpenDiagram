@@ -26,6 +26,8 @@ const checkPrivileges = (c, schemas) => privilegeWarnings(c, schemas).catch((e) 
 app.get('/api/health', () => ({ ok: true }));
 app.get('/api/connections', () => store.list());
 app.post('/api/connections', (req) => ({ id: store.upsert(req.body) }));
+app.get('/api/comments', () => store.getComments());
+app.put('/api/comments', (req) => store.setComments(req.body));
 app.delete('/api/connections/:id', (req) => (store.remove(req.params.id), { ok: true }));
 
 // test + list schemas; also reports credentials that can do more than read metadata

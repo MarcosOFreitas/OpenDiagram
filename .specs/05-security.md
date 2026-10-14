@@ -12,7 +12,7 @@
 | API | Anyone reaching the port can list/edit/delete connections and use their saved credentials | none | **No authentication/authorization** |
 | Oracle connect descriptor | Injection via host/service/DN | whitelist validation (`SAFE`, DN quote/paren rejection) | — |
 | Transport | Sniffing / MITM to the DB | TLS modes with certificate verification, custom CA | `noverify` allowed (UI warns); Oracle TCPS success path unverified |
-| Browser | XSS stealing localStorage (DBML, source link) | React escaping; no `dangerouslySetInnerHTML` | No CSP, no auth cookies yet |
+| Browser | XSS stealing localStorage (DBML, source link) | React escaping; no `dangerouslySetInnerHTML`; standalone docs HTML is built with `renderToStaticMarkup` (escaped) and makes no network requests | No CSP, no auth cookies yet |
 | Supply chain | Vulnerable deps | lockfiles committed | no automated audit in CI |
 
 ## Pre-deployment checklist (public / multi-user)

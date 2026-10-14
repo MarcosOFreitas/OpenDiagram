@@ -47,6 +47,7 @@ All JSON. Errors: `{error}` with HTTP status.
 | `GET /api/connections` | → connection list without secrets |
 | `POST /api/connections` | connection fields (+ optional `id` to edit) → `{id}` |
 | `DELETE /api/connections/:id` | → `{ok:true}` |
+| `GET /api/comments` / `PUT /api/comments` | documentation comments, `{key: text}` (see [08](08-documentation.md)) |
 | `POST /api/schemas` | `{id}` or draft fields (draft overrides saved) → `{schemas, warnings, readOnly:true}` |
 | `POST /api/import` | `{id\|draft, schemas[], tables?[]}` → `{dbml, tables, refs, warnings, at}`; `400` no schema; `403` strict block |
 

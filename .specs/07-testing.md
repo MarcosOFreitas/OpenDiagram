@@ -23,9 +23,10 @@ Both exit non-zero on failure (`roundtrip.mjs` only prints; read its output). De
 - Import from demo-pg via the drawer → 4+ tables, edges visible, toast shown.
 - Test with `writer` → amber warning banner; with `reader` → none.
 - Edit DBML with a syntax error → underline + status; fix → clears.
-- Insert all Docs examples → no error. Toggle dark theme and grid.
+- Insert all Help-tab examples → no error. Toggle dark theme and grid.
 - Alter the demo DB, press `↻` → toast with diff, TableGroup kept; press again → "Already up to date".
 - Set refresh 1 min, alter DB, wait → editor updates without interaction.
+- Switch to Docs: sidebar, search, relationship links; collapse/expand a table (chevron), Collapse all / Expand all, reload keeps collapsed state; add a table and a column comment, reload keeps them; export Docs `.html`/`.md` includes the comments and the `.html` opens standalone with working search.
 - Export each format; open PNG/SVG and confirm all tables are present (**not yet automated**).
 
 ## Known gaps

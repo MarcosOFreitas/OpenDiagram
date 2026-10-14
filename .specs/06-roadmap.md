@@ -4,7 +4,7 @@ Ordered by recommended sequence. Move an item to its own numbered spec when work
 
 ## Next
 
-1. **dbdocs-style documentation** — read-only HTML docs generated from DBML: table/column pages, notes, relationships, search, shareable page. Pure client/server rendering from DBML; no auth needed for local use.
+1. **Hosted/shareable documentation** — publish the generated docs ([08](08-documentation.md)) behind a link; needs accounts. Local generation + standalone export already exist.
 2. **Accounts + saved diagrams + share links** — replaces JSON store and `localStorage` source link; per-user connections; unlocks server-side refresh. Prerequisite for public hosting ([05](05-security.md)).
 3. **Server-side scheduled refresh** — runs without an open page; stores last metadata snapshot and diff history.
 4. **Public deployment** — HTTPS, allowlist for DB hosts, rate limits, free hosted instance.
@@ -22,4 +22,4 @@ Ordered by recommended sequence. Move an item to its own numbered spec when work
 
 ## Done (see git history)
 
-DBML editor + diagram · live import PG/Oracle · TableGroups/colors/themes · multi-format import/export · Docs tab · read-only guardrails, privilege checks, TLS, manual/auto refresh.
+DBML editor + diagram · live import PG/Oracle · TableGroups/colors/themes · multi-format import/export · Help tab · generated documentation (view + HTML/Markdown export) · read-only guardrails, privilege checks, TLS, manual/auto refresh.

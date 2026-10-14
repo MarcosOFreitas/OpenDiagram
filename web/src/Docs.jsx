@@ -1,4 +1,4 @@
-// Documentation tab: how to use the app + DBML feature cheat-sheet. Each example can be inserted into the editor.
+// Help tab: how to use the app + DBML feature cheat-sheet. Each example can be inserted into the editor.
 const STEPS = [
   ['Connect', 'Open Database, fill host/port/database (Oracle: service name), user and password, then Test connection. Save keeps it for later (password stored encrypted).'],
   ['Import', 'Tick the schemas to read (optionally list table names) and press Import. Tables, columns, PK, FK, indexes and comments become DBML in the editor and a diagram on the canvas.'],
@@ -7,6 +7,7 @@ const STEPS = [
   ['Stay safe', 'Every session is opened read-only and only reads catalog metadata (never table data). If the credential has write/admin privileges the app warns you; tick "Block credentials with write privileges" to refuse them. Prefer a dedicated user with SELECT only.'],
   ['Keep fresh', 'After an import the connection stays linked: use the ↻ button in the top bar to re-read metadata, or set an automatic interval in the connection (runs while the page is open). Refresh keeps TableGroups and positions.'],
   ['TLS', 'PostgreSQL and Oracle (TCPS) support TLS. "Verify certificate" validates the chain and host name; paste the CA PEM for a private/self-signed CA. "Skip verification" encrypts without checking the certificate — avoid on untrusted networks.'],
+  ['Docs', 'Switch Diagram → Docs in the top bar for a browsable page of your tables (search, constraints, notes, relationships). Click a table header to collapse/expand it (or use Collapse all). Click a dashed box to add your own comment on the project, a table or a column: comments are kept only in this app, never written to the database, and are included in the exported docs.'],
   ['Export', 'Export downloads DBML, SQL (PostgreSQL / MySQL / SQL Server / Oracle), JSON, PNG or SVG. The diagram title is used as the file name.'],
 ];
 

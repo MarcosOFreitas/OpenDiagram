@@ -14,6 +14,7 @@
 | Oracle SQL | ❌ parser returns empty | ✅ | use live Oracle import |
 | JSON | ❌ does not round-trip | ✅ | `@dbml/core` json/jsonv2 import is unusable for its own export |
 | PNG / SVG | — | ✅ | background follows theme; file name = diagram title |
+| Documentation | — | ✅ `.html` standalone, `.md` | see [08](08-documentation.md) |
 | Live DB | PostgreSQL, Oracle | — | see [03](03-connections-import.md) |
 
 ## Round-trip results (demo DBs, `web/roundtrip.mjs`)

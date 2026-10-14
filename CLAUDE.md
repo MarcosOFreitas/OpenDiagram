@@ -23,7 +23,7 @@ There is no unit-test framework and no linter configured. Verification = the two
 - `server/src/introspect.js` — per-engine catalog queries (`pg_catalog`, `ALL_*` views) → neutral model `{tables, refs}`; read-only session setup; TLS; privilege checks.
 - `server/src/dbml.js` — neutral model → DBML text.
 - `server/src/store.js` — `connections.json` in `DATA_DIR`; secrets AES-256-GCM encrypted with `APP_SECRET`.
-- `web/src/App.jsx` — whole workspace (topbar, drawer tabs, canvas, refresh logic). `Editor.jsx` CodeMirror DBML editor. `Docs.jsx` in-app docs tab.
+- `web/src/App.jsx` — whole workspace (topbar, drawer tabs, canvas, refresh logic). `Editor.jsx` CodeMirror DBML editor. `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
 - `demo/` — sample DBs for manual/e2e testing. `.specs/` — specs. `server/public` is a build artifact (gitignored).
 
 ## Conventions
@@ -53,6 +53,6 @@ There is no unit-test framework and no linter configured. Verification = the two
 
 ## Working agreements
 
-- Smallest change that solves the problem; reuse what exists. Keep specs, README and the in-app Docs tab consistent when behaviour changes.
+- Smallest change that solves the problem; reuse what exists. Keep specs, README and the in-app Help tab consistent when behaviour changes.
 - Report honestly what was and was not tested (e.g. Oracle TLS is unverified end-to-end).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.

@@ -16,5 +16,6 @@ Living specifications for OpenDiagram. Rules:
 | 05 | [Security](05-security.md) — threat model, pre-deploy checklist | **blocking for public hosting** |
 | 06 | [Roadmap](06-roadmap.md) | living |
 | 07 | [Testing](07-testing.md) — what is verified and how | living |
+| 08 | [Generated documentation](08-documentation.md) — dbdocs-style view + HTML/Markdown export | implemented (local) |
 
 Origin: behaviour of comparable tools was studied from their public web UI with [REA](https://github.com/morluto/rea) (static bundle analysis + screenshots) to pick features; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.

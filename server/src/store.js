@@ -43,3 +43,14 @@ export function upsert(c) {
   return rec.id;
 }
 export const remove = (id) => save(load().filter((x) => x.id !== id));
+
+// documentation comments: { "<table id>" | "<table id>.<column>" | "__project": text }. App-only, never sent to the databases.
+const CFILE = `${DIR}/comments.json`;
+export const getComments = () => { try { return JSON.parse(readFileSync(CFILE, 'utf8')); } catch { return {}; } };
+export function setComments(c) {
+  const clean = {};
+  for (const [k, v] of Object.entries(c ?? {})) if (typeof v === 'string' && v.trim() && k.length < 500) clean[k] = v.slice(0, 5000);
+  mkdirSync(DIR, { recursive: true });
+  writeFileSync(CFILE, JSON.stringify(clean, null, 2));
+  return clean;
+}

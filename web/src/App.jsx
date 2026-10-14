@@ -5,6 +5,8 @@ import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
 import Docs from './Docs.jsx';
+import { DocsView, standaloneHtml } from './DocsPage.jsx';
+import { buildModel, toMarkdown } from './docsModel.js';
 
 const api = async (path, body, method = body ? 'POST' : 'GET') => {
   const r = await fetch(`/api/${path}`, { method, headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
@@ -58,7 +60,7 @@ function parse(text) {
       return { id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
     });
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
-    return { tables, refs, groups };
+    return { tables, refs, groups, db };
   } catch (e) {
     return { error: errMsg(e), diags: e?.diags?.map((d) => ({ line: d.location?.start?.line ?? 1, col: d.location?.start?.column ?? 1, endLine: d.location?.end?.line, endCol: d.location?.end?.column, message: d.message ?? 'syntax error' })) ?? [] };
   }
@@ -149,6 +151,7 @@ const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 
 const EXPORTS = [
   ['dbml', 'DBML', '.dbml'], ['postgres', 'PostgreSQL', '.sql'], ['mysql', 'MySQL', '.sql'], ['mssql', 'SQL Server', '.sql'],
   ['oracle', 'Oracle', '.sql'], ['json', 'JSON', '.json'], ['png', 'PNG image', '.png'], ['svg', 'SVG image', '.svg'],
+  ['docs-html', 'Documentation', '.html (standalone)'], ['docs-md', 'Documentation', '.md'],
 ];
 
 function Workspace() {
@@ -182,6 +185,9 @@ function Workspace() {
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
   const [drag, setDrag] = useState(false);
+  const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
+  const [comments, setComments] = useState({});
+  const commentTimer = useRef(null);
   const toastTimer = useRef(null);
   const idsKey = useRef('');
 
@@ -192,6 +198,17 @@ function Workspace() {
   }, []);
   const loadConns = useCallback(() => api('connections').then(setConns).catch((e) => notify('err', e.message)), [notify]);
   useEffect(() => { loadConns(); }, [loadConns]);
+  useEffect(() => { api('comments').then(setComments).catch(() => {}); }, []);
+  // documentation comments live only in this app (server file), never in the database
+  const saveComment = useCallback((key, text) => {
+    setComments((c) => {
+      const next = { ...c };
+      if (text) next[key] = text; else delete next[key];
+      clearTimeout(commentTimer.current);
+      commentTimer.current = setTimeout(() => api('comments', next, 'PUT').catch((e) => notify('err', `Comment not saved: ${errMsg(e)}`)), 400);
+      return next;
+    });
+  }, [notify]);
   useEffect(() => { store('title', title); }, [title]);
   useEffect(() => { store('source', JSON.stringify(source)); }, [source]);
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
@@ -205,6 +222,7 @@ function Workspace() {
   const parsed = useMemo(() => parse(dbml), [dbml]);
   const lastGood = useRef(null);
   if (!parsed.error) lastGood.current = parsed;
+  const docModel = useMemo(() => (mode === 'docs' && lastGood.current?.db ? buildModel(lastGood.current.db) : null), [mode, parsed]); // eslint-disable-line react-hooks/exhaustive-deps
   const editorDiags = useMemo(() => {
     const lines = dbml.split('\n');
     const off = (l, c) => { let o = 0; for (let i = 0; i < Math.min(l - 1, lines.length); i++) o += lines[i].length + 1; return o + Math.max(0, (c || 1) - 1); };
@@ -310,7 +328,12 @@ function Workspace() {
   const exportAs = async (fmt) => {
     const base = title.trim().replace(/[^\w.-]+/g, '_') || 'diagram';
     try {
-      if (fmt === 'dbml') download(`${base}.dbml`, dbml);
+      if (fmt === 'docs-html' || fmt === 'docs-md') {
+        if (parsed.error) throw new Error('fix the DBML errors first');
+        const m = buildModel(parsed.db);
+        if (fmt === 'docs-html') download(`${base}-docs.html`, standaloneHtml(m, title, comments));
+        else download(`${base}-docs.md`, toMarkdown(m, title, comments));
+      } else if (fmt === 'dbml') download(`${base}.dbml`, dbml);
       else if (fmt === 'json') download(`${base}.json`, exporter.export(dbml, 'json'));
       else if (fmt === 'png' || fmt === 'svg') {
         const b = getNodesBounds(nodes.map((n) => ({ ...n, measured: n.measured ?? { width: 220, height: tableHeight(n.data) } })));
@@ -324,7 +347,7 @@ function Workspace() {
   };
   const copyDbml = () => navigator.clipboard.writeText(dbml).then(() => notify('ok', 'DBML copied'), () => notify('err', 'Clipboard blocked'));
 
-  const tabs = [['connect', 'Database'], ['import', 'Import'], ['export', 'Export'], ['view', 'View'], ['docs', 'Docs']];
+  const tabs = [['connect', 'Database'], ['import', 'Import'], ['export', 'Export'], ['view', 'View'], ['docs', 'Help']];
   const insertExample = (code) => { setDbml((d) => `${d.replace(/\s+$/, '')}\n\n${code}\n`); notify('ok', 'Example added to the editor'); };
   const copyText = (t) => navigator.clipboard.writeText(t).then(() => notify('ok', 'Copied'), () => notify('err', 'Clipboard blocked'));
   const open = (t) => setDrawer(drawer === t ? null : t);
@@ -335,6 +358,14 @@ function Workspace() {
       <header className="top">
         <div className="brand"><span className="logo">◆</span> OpenDiagram</div>
         <input className="title" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="diagram title" />
+        <div className="mode" role="tablist" aria-label="View mode">
+          <button role="tab" aria-selected={mode === 'diagram'} className={mode === 'diagram' ? 'on' : ''} onClick={() => setMode('diagram')}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><rect x="9.5" y="10" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M4 6v4h5.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>Diagram
+          </button>
+          <button role="tab" aria-selected={mode === 'docs'} className={mode === 'docs' ? 'on' : ''} onClick={() => setMode('docs')}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2h7l3 3v9H3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M5.5 8h5M5.5 10.5h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>Docs
+          </button>
+        </div>
         <div className="grow" />
         <input className="search" placeholder="Search tables / columns…" value={search} onChange={(e) => setSearch(e.target.value)} />
         {source && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
@@ -356,6 +387,7 @@ function Workspace() {
             <MiniMap pannable zoomable className="mini" nodeColor="#1e3a5f" maskColor="rgba(244,245,247,.7)" />
           </ReactFlow>
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
+          {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} comments={comments} onComment={saveComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
           <div className="dock">
             <button onClick={() => zoomOut()} title="Zoom out">−</button>
             <span>{Math.round(zoom * 100)}%</span>
