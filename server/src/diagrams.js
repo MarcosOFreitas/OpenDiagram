@@ -14,7 +14,7 @@ function check({ title, dbml, layout }) {
   if (layout !== undefined && JSON.stringify(layout).length > MAX_LAYOUT) throw bad('layout too large');
 }
 
-const shape = (r) => ({ id: r.id, title: r.title, dbml: r.dbml, source: json(r.source, null), layout: json(r.layout, {}), createdAt: r.created_at, updatedAt: r.updated_at });
+const shape = (r) => ({ id: r.id, title: r.title, dbml: r.dbml, source: json(r.source, null), layout: json(r.layout, {}), createdAt: r.created_at, updatedAt: r.updated_at, version: r.version });
 
 // effective level of `user` on diagram row `d`: 'owner'; 'admin' (administrators manage every diagram of the organisation, but never see its connection link or credentials); or the highest of direct and group grants; or null
 export function roleFor(user, d) {
@@ -66,17 +66,95 @@ export function getOwned(actor, id) {
   return shape(r);
 }
 
-// partial update; `source` (link to a saved connection) is only ever set by the owner
-export function update(id, patch, { includeSource = false } = {}) {
-  check(patch);
-  const sets = [], vals = [];
-  if (patch.title !== undefined) { sets.push('title = ?'); vals.push(patch.title.trim()); }
-  if (patch.dbml !== undefined) { sets.push('dbml = ?'); vals.push(patch.dbml); }
-  if (patch.layout !== undefined) { sets.push('layout = ?'); vals.push(JSON.stringify(patch.layout)); }
-  if (includeSource && patch.source !== undefined) { sets.push('source = ?'); vals.push(JSON.stringify(patch.source)); }
-  if (!sets.length) return;
-  db.prepare(`update diagrams set ${sets.join(', ')}, updated_at = ? where id = ?`).run(...vals, now(), id);
+// ---- versions: every content save bumps diagrams.version; a client that saves with a stale `baseVersion` gets 409 instead of silently overwriting someone else's work
+const conflict = (version) => Object.assign(bad('this diagram was saved by someone else in the meantime', 409), { code: 'conflict', version });
+const COALESCE = 600, KEEP = 60; // edits by the same person within 10 minutes share one history entry; keep the newest 60 unnamed entries (named ones are never pruned)
+
+const tableNames = (t) => new Set([...t.matchAll(/^\s*Table\s+("[^"]+"|[\w.]+)/gim)].map((m) => m[1].replace(/"/g, '').toLowerCase()));
+const few = (a) => (a.length > 3 ? `${a.slice(0, 3).join(', ')} +${a.length - 3} more` : a.join(', '));
+// one line describing what changed between two DBML texts (tables by name, other changes by lines)
+export function summarize(before, after, layoutChanged = false) {
+  const a = tableNames(before), b = tableNames(after);
+  const added = [...b].filter((x) => !a.has(x)), removed = [...a].filter((x) => !b.has(x));
+  const count = new Map();
+  for (const l of before.split('\n')) count.set(l.trim(), (count.get(l.trim()) || 0) + 1);
+  let plus = 0;
+  for (const l of after.split('\n')) { const k = l.trim(), n = count.get(k) || 0; if (n > 0) count.set(k, n - 1); else plus++; }
+  const minus = [...count.values()].reduce((x, y) => x + y, 0);
+  const parts = [];
+  if (added.length) parts.push(`added ${few(added)}`);
+  if (removed.length) parts.push(`removed ${few(removed)}`);
+  if (plus + minus) parts.push(`+${plus} / -${minus} lines`);
+  if (!parts.length && layoutChanged) parts.push('layout only');
+  return parts.join('; ') || 'title or settings';
 }
+
+const recent = (id) => db.prepare('select id, dbml, layout, label, author_id, created_at from diagram_versions where diagram_id = ? order by version desc limit 2').all(id);
+
+// records the new state in the history (called after every content save)
+function snapshot(id, version, st, actor) {
+  let rows = recent(id);
+  const t = now();
+  if (!rows.length) { // first save since history exists: keep what was there before as the starting point
+    db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, st.before.version, st.before.title, st.before.dbml, st.before.layout, null, 'starting point', st.before.updated_at, st.before.updated_at);
+    rows = recent(id);
+  }
+  const last = rows[0];
+  if (actor && last.author_id === actor.id && !last.label && t - last.created_at < COALESCE && rows.length > 1) { // same person, still working: update the entry
+    db.prepare('update diagram_versions set version = ?, title = ?, dbml = ?, layout = ?, summary = ?, saved_at = ? where id = ?')
+      .run(version, st.title, st.dbml, st.layout, summarize(rows[1].dbml, st.dbml, rows[1].layout !== st.layout), t, last.id);
+  } else {
+    db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, summarize(last.dbml, st.dbml, last.layout !== st.layout), t, t);
+  }
+  db.prepare(`delete from diagram_versions where diagram_id = ? and label is null and id not in
+    (select id from diagram_versions where diagram_id = ? and label is null order by version desc limit ?)`).run(id, id, KEEP);
+}
+
+// partial update; `source` (link to a saved connection) is only ever set by the owner.
+// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. A save that changes nothing does not bump it.
+export function update(id, patch, { includeSource = false, baseVersion, actor } = {}) {
+  check(patch);
+  const cur = db.prepare('select version, title, dbml, layout, source, updated_at from diagrams where id = ?').get(id);
+  if (!cur) throw bad('diagram not found', 404);
+  if (baseVersion !== undefined && baseVersion !== cur.version) throw conflict(cur.version);
+  const next = { title: cur.title, dbml: cur.dbml, layout: cur.layout, source: cur.source };
+  if (patch.title !== undefined) next.title = patch.title.trim();
+  if (patch.dbml !== undefined) next.dbml = patch.dbml;
+  if (patch.layout !== undefined) next.layout = JSON.stringify(patch.layout);
+  if (includeSource && patch.source !== undefined) next.source = JSON.stringify(patch.source);
+  if (next.title === cur.title && next.dbml === cur.dbml && next.layout === cur.layout && next.source === cur.source) return cur.version;
+  const version = cur.version + 1;
+  db.prepare('update diagrams set title = ?, dbml = ?, layout = ?, source = ?, version = ?, updated_at = ? where id = ?').run(next.title, next.dbml, next.layout, next.source, version, now(), id);
+  if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor);
+  return version;
+}
+
+// ---- history (people who can edit)
+export function listVersions(id) {
+  const cur = db.prepare('select version from diagrams where id = ?').get(id)?.version;
+  return db.prepare('select id, version, label, author, summary, saved_at from diagram_versions where diagram_id = ? order by version desc').all(id)
+    .map((r) => ({ id: r.id, version: r.version, label: r.label, author: r.author, summary: r.summary, savedAt: r.saved_at, current: r.version === cur }));
+}
+export function getVersion(id, vid) {
+  const r = db.prepare('select * from diagram_versions where diagram_id = ? and id = ?').get(id, vid);
+  if (!r) throw bad('version not found', 404);
+  return { id: r.id, version: r.version, label: r.label, author: r.author, savedAt: r.saved_at, title: r.title, dbml: r.dbml, layout: json(r.layout, {}) };
+}
+// gives the current state a name (it is then never pruned); if the latest entry already has a name, the name goes on a fresh copy
+export function nameVersion(id, label, actor) {
+  label = typeof label === 'string' ? label.trim().slice(0, 80) : '';
+  if (!label) throw bad('give the version a name');
+  const d = db.prepare('select version, title, dbml, layout, updated_at from diagrams where id = ?').get(id);
+  if (!d) throw bad('diagram not found', 404);
+  const last = db.prepare('select id, version, label from diagram_versions where diagram_id = ? order by version desc limit 1').get(id);
+  if (last && last.version === d.version && !last.label) { db.prepare('update diagram_versions set label = ? where id = ?').run(label, last.id); return; }
+  const t = now();
+  db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, label, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, d.version, d.title, d.dbml, d.layout, label, actor.id, actor.name || actor.email, last ? 'named' : 'starting point', t, t);
+}
+export function deleteVersion(id, vid) { db.prepare('delete from diagram_versions where diagram_id = ? and id = ?').run(id, vid); }
 
 export const remove = (actor, id) => db.prepare('delete from diagrams where id = ? and (owner_id = ? or ?)').run(id, actor.id, actor.role === 'admin' ? 1 : 0);
 
@@ -107,8 +185,8 @@ export function setSharePassword(actor, shareId, passwordHash) { ownedShare(acto
 export function deleteShare(actor, shareId) { ownedShare(actor, shareId); db.prepare('delete from shares where id = ?').run(shareId); }
 
 export function shareByToken(token) {
-  const s = db.prepare('select s.*, d.title, d.dbml, d.layout, d.owner_id, u.name owner_name from shares s join diagrams d on d.id = s.diagram_id join users u on u.id = d.owner_id where s.token = ?').get(String(token));
-  return s ? { id: s.id, diagramId: s.diagram_id, access: s.access, title: s.title, dbml: s.dbml, layout: json(s.layout, {}), ownerId: s.owner_id, ownerName: s.owner_name, passwordHash: s.password_hash } : null;
+  const s = db.prepare('select s.*, d.title, d.dbml, d.layout, d.version, d.owner_id, u.name owner_name from shares s join diagrams d on d.id = s.diagram_id join users u on u.id = d.owner_id where s.token = ?').get(String(token));
+  return s ? { id: s.id, diagramId: s.diagram_id, access: s.access, title: s.title, dbml: s.dbml, layout: json(s.layout, {}), version: s.version, ownerId: s.owner_id, ownerName: s.owner_name, passwordHash: s.password_hash } : null;
 }
 
 // ---- comments: any number per target key ("schema.table", "schema.table.column" or "__project")

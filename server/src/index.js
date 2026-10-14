@@ -135,13 +135,28 @@ const can = (role, min) => LEVEL[role] >= LEVEL[min];
 app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));
 app.get('/api/diagrams/:id', (req) => dg.getForUser(req.user, req.params.id));
+const baseVersion = (b) => (Number.isInteger(b?.baseVersion) ? b.baseVersion : undefined); // the version the client last saw; a stale one is answered with 409
 app.put('/api/diagrams/:id', (req) => {
   const d = dg.getForUser(req.user, req.params.id);
-  if (d.role === 'owner') dg.update(d.id, req.body ?? {}, { includeSource: true });
-  else if (d.role === 'admin') dg.update(d.id, { title: req.body?.title, dbml: req.body?.dbml, layout: req.body?.layout }); // never the owner's connection link
-  else if (can(d.role, 'edit')) dg.update(d.id, { dbml: req.body?.dbml, layout: req.body?.layout }); // editors change content only: never title, connection link or sharing
+  const o = { baseVersion: baseVersion(req.body), actor: req.user };
+  let version;
+  if (d.role === 'owner') version = dg.update(d.id, req.body ?? {}, { includeSource: true, ...o });
+  else if (d.role === 'admin') version = dg.update(d.id, { title: req.body?.title, dbml: req.body?.dbml, layout: req.body?.layout }, o); // never the owner's connection link
+  else if (can(d.role, 'edit')) version = dg.update(d.id, { dbml: req.body?.dbml, layout: req.body?.layout }, o); // editors change content only: never title, connection link or sharing
   else throw bad('this diagram is read-only for you', 403);
-  return { ok: true };
+  return { ok: true, version };
+});
+
+// history: people who can edit (it holds earlier content). Restoring saves the old content as a new version, so nothing is ever lost.
+const editable = (req) => { const d = dg.getForUser(req.user, req.params.id); if (!can(d.role, 'edit')) throw bad('history is available to people who can edit', 403); return d; };
+app.get('/api/diagrams/:id/versions', (req) => dg.listVersions(editable(req).id));
+app.get('/api/diagrams/:id/versions/:vid', (req) => dg.getVersion(editable(req).id, +req.params.vid));
+app.post('/api/diagrams/:id/versions', (req) => { dg.nameVersion(editable(req).id, req.body?.label, req.user); return { ok: true }; });
+app.delete('/api/diagrams/:id/versions/:vid', (req) => { dg.deleteVersion(editable(req).id, +req.params.vid); return { ok: true }; });
+app.post('/api/diagrams/:id/versions/:vid/restore', (req) => {
+  const d = editable(req), v = dg.getVersion(d.id, +req.params.vid);
+  const patch = { dbml: v.dbml, layout: v.layout, ...(d.role === 'owner' || d.role === 'admin' ? { title: v.title } : {}) }; // editors never change the title
+  return { ok: true, version: dg.update(d.id, patch, { actor: req.user }) };
 });
 app.delete('/api/diagrams/:id', (req) => {
   if (!can(dg.getForUser(req.user, req.params.id).role, 'admin')) throw bad('only the owner or an administrator can delete a diagram', 403);
@@ -197,19 +212,19 @@ async function share(req, need) {
 }
 app.get('/api/shared/:token', async (req) => {
   const s = await share(req);
-  return { title: s.title, dbml: s.dbml, layout: s.layout, access: s.access, owner: s.ownerName, isOwner: req.user?.id === s.ownerId, comments: dg.listComments(s.diagramId) };
+  return { title: s.title, dbml: s.dbml, layout: s.layout, version: s.version, access: s.access, owner: s.ownerName, isOwner: req.user?.id === s.ownerId, comments: dg.listComments(s.diagramId) };
 });
 app.put('/api/shared/:token', async (req) => {
   const s = await share(req, 'edit');
   const { dbml, layout } = req.body ?? {};
-  dg.update(s.diagramId, { dbml, layout }); // editors change the diagram itself, never its title, connection link or sharing
-  return { ok: true };
+  const version = dg.update(s.diagramId, { dbml, layout }, { baseVersion: baseVersion(req.body), actor: req.user }); // editors change the diagram itself, never its title, connection link or sharing
+  return { ok: true, version };
 });
 app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));
 app.delete('/api/shared/:token/comments/:cid', async (req) => { const s = await share(req, 'comment'); dg.deleteComment(s.diagramId, req.params.cid, req.user, req.user.id === s.ownerId); return { ok: true }; });
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
-app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : {}) })); // driver errors (bad password, TLS...) are meant to be shown
+app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) })); // driver errors (bad password, TLS...) are meant to be shown
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 

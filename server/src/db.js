@@ -42,6 +42,18 @@ create table if not exists shares (
   access text not null check (access in ('view','comment','edit')),
   created_at integer not null
 );
+create table if not exists diagram_versions (
+  id integer primary key autoincrement,
+  diagram_id text not null references diagrams(id) on delete cascade,
+  version integer not null,
+  title text not null, dbml text not null, layout text,
+  label text,
+  author_id integer references users(id) on delete set null,
+  author text,
+  summary text not null default '',
+  created_at integer not null, saved_at integer not null
+);
+create index if not exists diagram_versions_by_diagram on diagram_versions (diagram_id, version);
 create table if not exists comments (
   id text primary key,
   diagram_id text not null references diagrams(id) on delete cascade,
@@ -84,6 +96,8 @@ const userCols = db.prepare('pragma table_info(users)').all().map((c) => c.name)
 for (const [name, ddl] of [['role', "text not null default 'member'"], ['disabled', 'integer not null default 0'], ['must_change_password', 'integer not null default 0']]) {
   if (!userCols.includes(name)) db.exec(`alter table users add column ${name} ${ddl}`);
 }
+const diagramCols = db.prepare('pragma table_info(diagrams)').all().map((c) => c.name);
+if (!diagramCols.includes('version')) db.exec('alter table diagrams add column version integer not null default 1'); // +1 on every content save: edit-conflict detection and history
 const shareCols = db.prepare('pragma table_info(shares)').all().map((c) => c.name);
 if (!shareCols.includes('password_hash')) db.exec('alter table shares add column password_hash text'); // optional link password (scrypt)
 // the oldest account is the administrator when nobody is (databases created before roles existed)
