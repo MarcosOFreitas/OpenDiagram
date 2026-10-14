@@ -62,7 +62,12 @@ Everything below is implemented, committed and covered by the e2e scripts unless
 
 Not verified yet: Oracle TLS success path (needs an Oracle with TCPS); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
-Next steps, in order (`.specs/06-roadmap.md`): group-owned database connections (members use a read-only connection without seeing the secret, with an audit log), server-side scheduled refresh, account hardening (SSO, e-mail verification/reset, link expiry), public-deployment hardening.
+Next steps, in the agreed order (details in `.specs/06-roadmap.md`):
+1. **A1** import more metadata objects: views, enums, sequences, triggers, comments on non-table objects (today: tables, columns, PK/FK, indexes, table/column comments only). Decide the DBML representation first; `toDbml` stays the single generator; update specs 03/04.
+2. **A2** table picker inside a schema (today a comma-separated text filter in the Database tab → needs a read-only "list tables" endpoint and a checkbox list).
+3. **A3** verify Oracle TLS (TCPS) end to end — needs an Oracle with a TCPS listener; the success path has never been exercised.
+4. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
+Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
 Starting on a new machine: clone, `cp .env.example .env` (set `APP_SECRET`), `docker compose up -d --build`, open http://localhost:3000 and create the first (administrator) account, or `docker compose exec app node src/cli.js create-admin <email> <password>`. For the tests create a throw-away administrator and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`. The `demo-pg` roles `reader` (select only) and `writer` (can write) exist for the guardrail tests; the Oracle demo needs `--profile oracle` (its `shop` user and tables are created automatically on first start, verified on a clean clone; `demo/oracle.sql` can be loaded by hand, see README). `roundtrip.mjs` needs `cd web && npm install` once.
 
