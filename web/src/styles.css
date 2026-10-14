@@ -222,3 +222,16 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .editor-pane.resizing { transition: none; }
 .resizer { position: absolute; top: 0; bottom: 0; width: 9px; margin-left: -4px; cursor: col-resize; z-index: 7; }
 .resizer:hover, .resizer.active { background: rgba(79, 140, 255, .45); }
+
+/* table picker dialog (reuses the .admin overlay) */
+.admin-card.tp { max-width: 980px; height: min(760px, 100%); }
+.tp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px 4px; }
+.tp-bar input[type=text], .tp-bar input:not([type]) { flex: 1; min-width: 200px; }
+.tp-actions { padding: 4px 16px 8px; font-size: 12px; color: var(--muted); }
+.tp-actions a { cursor: pointer; color: var(--accent); }
+.tp-list { flex: 1; overflow: auto; padding: 8px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); columns: 280px auto; column-gap: 24px; }
+.tp-list .chk { break-inside: avoid; padding: 3px 0; font-size: 13px; }
+.tp-list .chk span { overflow-wrap: anywhere; }
+.tp-foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+.tp-bar select { width: auto; flex: 0 0 auto; }
+.tp-bar .chk { flex: 0 0 auto; width: auto; }

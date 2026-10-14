@@ -14,6 +14,7 @@ import Admin from './Admin.jsx';
 import Menu from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
+import TablePicker from './TablePicker.jsx';
 import { BLANK, TEMPLATES } from './templates.js';
 
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
@@ -75,8 +76,9 @@ function GroupNode({ data: g }) {
 }
 const nodeTypes = { table: TableNode, grp: GroupNode };
 
-function layout(tables, refs, old, groups = []) {
-  const g = new dagre.graphlib.Graph({ compound: true }).setGraph({ rankdir: 'LR', nodesep: 36, ranksep: 90 }).setDefaultEdgeLabel(() => ({}));
+// dagre on a set of tables -> Map id -> top-left position
+function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
+  const g = new dagre.graphlib.Graph({ compound: true }).setGraph({ rankdir, nodesep: 36, ranksep: 90 }).setDefaultEdgeLabel(() => ({}));
   tables.forEach((t) => g.setNode(t.id, { width: 220, height: tableHeight(t) }));
   const grouped = new Set();
   groups.forEach((gr) => {
@@ -88,10 +90,56 @@ function layout(tables, refs, old, groups = []) {
     if (g.hasNode(a) && g.hasNode(b)) g.setEdge(a, b);
   });
   dagre.layout(g);
-  return tables.map((t) => {
-    const p = g.node(t.id);
-    return { id: t.id, type: 'table', position: old?.get(t.id) || { x: p.x - 110, y: p.y - tableHeight(t) / 2 }, data: t };
+  return new Map(tables.map((t) => { const p = g.node(t.id); return [t.id, { x: p.x - 110, y: p.y - tableHeight(t) / 2 }]; }));
+}
+
+// Many tables: dagre alone puts every table without relationships in one huge column. Lay out each connected
+// component on its own (dagre), tables without relationships in a grid, then pack the blocks in rows (~wide screen).
+function packedPositions(tables, refs) {
+  const parent = new Map(tables.map((t) => [t.id, t.id]));
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const ends = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => parent.has(a) && parent.has(b));
+  ends.forEach(([a, b]) => parent.set(find(a), find(b)));
+  const comps = new Map();
+  tables.forEach((t) => { const r = find(t.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); });
+  const GAP = 60, blocks = [];
+  const loose = [];
+  for (const ts of comps.values()) {
+    if (ts.length === 1) { loose.push(ts[0]); continue; }
+    const ids = new Set(ts.map((t) => t.id));
+    const cr = refs.filter((r) => ids.has(tid(r.child.schemaName, r.child.tableName)) && ids.has(tid(r.parent.schemaName, r.parent.tableName)));
+    const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x)) + 220, h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
+    let best = size(dagrePositions(ts, cr));
+    if (ts.length > 12) { // big component: left-to-right or top-to-bottom, whichever is closer to a wide screen
+      const alt = size(dagrePositions(ts, cr, [], 'TB')), off = (b) => Math.abs(Math.log(b.w / b.h / 1.6));
+      if (off(alt) < off(best)) best = alt;
+    }
+    blocks.push(best);
+  }
+  if (loose.length) { // grid, in name order, ~square
+    const avgH = loose.reduce((s, t) => s + tableHeight(t), 0) / loose.length;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / 256)));
+    const pos = new Map(), colH = Array(cols).fill(0); // each table goes to the shortest column: tall tables do not stretch a whole row
+    loose.sort((a, b) => a.id.localeCompare(b.id)).forEach((t) => {
+      const c = colH.indexOf(Math.min(...colH));
+      pos.set(t.id, { x: c * 256, y: colH[c] }); colH[c] += tableHeight(t) + 36;
+    });
+    blocks.push({ w: cols * 256 - 36, h: Math.max(...colH) - 36, pos });
+  }
+  const area = blocks.reduce((s, b) => s + (b.w + GAP) * (b.h + GAP), 0);
+  const maxW = Math.max(Math.sqrt(area) * 1.8, ...blocks.map((b) => b.w));
+  const out = new Map(); let x = 0, y = 0, rowH = 0;
+  blocks.sort((a, b) => b.h - a.h).forEach((b) => {
+    if (x && x + b.w > maxW) { y += rowH + GAP; x = 0; rowH = 0; }
+    b.pos.forEach((p, id) => out.set(id, { x: x + p.x, y: y + p.y }));
+    x += b.w + GAP; rowH = Math.max(rowH, b.h);
   });
+  return out;
+}
+
+function layout(tables, refs, old, groups = []) {
+  const pos = groups.length || tables.length < 25 ? dagrePositions(tables, refs, groups) : packedPositions(tables, refs); // groups keep their boxes: dagre compound
+  return tables.map((t) => ({ id: t.id, type: 'table', position: old?.get(t.id) || pos.get(t.id), data: t }));
 }
 
 const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
@@ -151,8 +199,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [picked, setPicked] = useState([]);
   const [tableSel, setTableSel] = useState([]); // 'schema.table' entries; empty = all tables
   const [tableList, setTableList] = useState(null); // null = not loaded
-  const [tableQ, setTableQ] = useState('');
-  const [tableViews, setTableViews] = useState(new Set());
+  const [picker, setPicker] = useState(false); // table picker dialog
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -342,7 +389,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   });
   const loadTables = run('tables', async () => {
     const r = await api('tables', { ...body(), schemas: picked });
-    setTableList(r.tables.map((t) => `${t.schema}.${t.name}`)); setTableViews(new Set(r.tables.filter((t) => t.view).map((t) => `${t.schema}.${t.name}`))); setTableQ('');
+    setTableList(r.tables.map((t) => ({ name: `${t.schema}.${t.name}`, view: t.view }))); setPicker(true);
   });
   const persist = async (extra = {}) => {
     const { id } = await api('connections', body(extra));
@@ -582,17 +629,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                     <label key={s} className="chk"><input type="checkbox" checked={picked.includes(s)} onChange={(e) => setPicked(e.target.checked ? [...picked, s] : picked.filter((x) => x !== s))} /> {s}</label>
                   ))}
                 </div>
-                <h4>Tables {tableList && <><a onClick={() => setTableSel(tableList.filter((t) => t.toLowerCase().includes(tableQ.toLowerCase())))}>all shown</a> · <a onClick={() => setTableSel([])}>none</a></>}</h4>
-                {!tableList && <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected — change…` : 'All tables — choose specific ones…'}</button>}
-                {tableList && (<>
-                  <input placeholder="Search tables…" value={tableQ} onChange={(e) => setTableQ(e.target.value)} />
-                  <div className="schemas">
-                    {tableList.filter((t) => t.toLowerCase().includes(tableQ.toLowerCase())).map((t) => (
-                      <label key={t} className="chk"><input type="checkbox" checked={tableSel.includes(t)} onChange={(e) => setTableSel(e.target.checked ? [...tableSel, t] : tableSel.filter((x) => x !== t))} /> {t}{tableViews.has(t) && <i className="hint"> · view</i>}</label>
-                    ))}
-                  </div>
-                  <small className="hint">{tableSel.length ? `${tableSel.length} selected` : 'Nothing selected = import all tables of the schemas.'}</small>
-                </>)}
+                <h4>Tables {tableSel.length > 0 && <a onClick={() => setTableSel([])}>clear</a>}</h4>
+                <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected — change…` : 'All tables — choose specific ones…'}</button>
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>
               </>)}
             </div>
@@ -658,6 +696,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </aside>
       </div>
 
+      {picker && tableList && <TablePicker items={tableList} selected={tableSel} onClose={() => setPicker(false)} onApply={(v) => { setTableSel(v); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>
