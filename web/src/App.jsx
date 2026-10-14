@@ -45,9 +45,9 @@ const ROW = 22;
 const tableWidth = (t) => {
   const head = t.name.length * 7.5 + (t.schema !== 'public' ? t.schema.length * 5.5 + 12 : 0) + 44;
   const rows = t.fields.map((f) => f.name.length * 7 + Math.min(String(f.type || '').length, 24) * 6 + 74);
-  return Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
+  return t.w || Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
 };
-const tableHeight = (t) => (t.collapsed ? 30 : 30 + t.fields.length * ROW + t.indexes.length * 20);
+const tableHeight = (t) => (t.collapsed ? 30 : t.h || 30 + t.fields.length * ROW + t.indexes.length * 20);
 
 function TableNode({ data: t, selected }) {
   const fk = new Set(t.fkCols);
@@ -64,6 +64,8 @@ function TableNode({ data: t, selected }) {
           <span key={f.name} style={{ display: 'contents' }}>
             <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
             <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
+            <Handle type="source" position={Position.Left} id={`sl:${f.name}`} className="hdl" />
+            <Handle type="target" position={Position.Right} id={`tr:${f.name}`} className="hdl" />
           </span>
         ))}
       </div>
@@ -77,6 +79,8 @@ function TableNode({ data: t, selected }) {
           </span>
           <span className="ty"><span className="tyt">{!t.hideTypes && f.type}</span>{(f.notNull || f.pk) && <b className="nn">NN</b>}</span>
           <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
+          <Handle type="source" position={Position.Left} id={`sl:${f.name}`} className="hdl" />
+          <Handle type="target" position={Position.Right} id={`tr:${f.name}`} className="hdl" />
         </div>
       ))}
       {!t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
@@ -409,7 +413,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     setEdges(parsed.refs.map((r) => ({
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
       target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
-      label: `${r.child.relation}:${r.parent.relation}`,
+      label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0] },
     })));
     const key = parsed.tables.map((t) => t.id).sort().join('|');
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
@@ -433,13 +437,35 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     });
     return [...boxes, ...tables];
   }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shownEdges = useMemo(() => edges.map((e) => {
+  const shownEdges = useMemo(() => {
+    const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
+    return edges.map((e) => {
+    // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
+    const a = geo.get(e.source), b = geo.get(e.target);
+    let sp = 'right', tp = 'left';
+    if (a && b) {
+      if (b.x >= a.x + a.w) { sp = 'right'; tp = 'left'; }
+      else if (b.x + b.w <= a.x) { sp = 'left'; tp = 'right'; }
+      else sp = tp = b.x + b.w / 2 >= a.x + a.w / 2 ? 'right' : 'left';
+    }
+    const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
     const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on ? { stroke: '#2563eb', strokeWidth: 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
-    return { ...e, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, labelStyle: { fontSize: 10, fill: picked ? '#b45309' : '#64748b', fontWeight: picked ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
-  }), [edges, view.edgeType, activeId, activeEdge, canvasBg]);
+    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, labelStyle: { fontSize: 10, fill: picked ? '#b45309' : '#64748b', fontWeight: picked ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
+  }); }, [edges, nodes, view.edgeType, activeId, activeEdge, canvasBg]);
 
-  const relayout = () => { setNodes((old) => { const sz = layoutRef.current['@sizes']; const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c })), parsed.refs, null, parsed.groups); layoutRef.current = { ...Object.fromEntries(next.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}) }; return next; }); setLayoutTick((n) => n + 1); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 80); };
+  const relayout = () => { // two passes: estimated sizes, then the sizes the browser really measured (manual widths, wrapped text) so nothing overlaps
+    const pass = (measured) => {
+      setNodes((old) => {
+        const sz = layoutRef.current['@sizes'];
+        const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, parsed.groups);
+        layoutRef.current = { ...Object.fromEntries(next.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}) };
+        return next;
+      });
+      setLayoutTick((n) => n + 1);
+    };
+    pass(false); setTimeout(() => pass(true), 350); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 700);
+  };
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const run = (label, fn) => async () => { setBusy(label); try { await fn(); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); } };
 
