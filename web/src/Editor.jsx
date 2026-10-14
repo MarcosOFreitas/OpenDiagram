@@ -16,7 +16,7 @@ const BLOCK_RE = new RegExp(`^(${BLOCK.join('|')})\\b`);
 const SET_RE = new RegExp(`^(${[...SETTINGS].sort((a, b) => b.length - a.length).join('|')})\\b`, 'i');
 
 // minimal DBML tokenizer: comments, strings, `expr`, numbers, #colors, block keywords, [settings], types
-const dbml = StreamLanguage.define({
+export const dbml = StreamLanguage.define({
   startState: () => ({ block: false, depth: 0 }),
   token(stream, st) {
     if (st.block) { if (stream.skipTo('*/')) { stream.match('*/'); st.block = false; } else stream.skipToEnd(); return 'comment'; }

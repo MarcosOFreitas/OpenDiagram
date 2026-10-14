@@ -56,3 +56,9 @@ html, body { margin: 0; }
   .ds-side { position: fixed; top: 60px; left: 0; z-index: 15; transform: translateX(-102%); transition: transform .15s; box-shadow: 4px 0 20px rgba(0, 0, 0, .2); }
   .ds-side.open { transform: none; } .ds-main { padding: 20px 18px 60px; }
 }
+
+/* DBML syntax colours (same families as the editor) */
+.ds { --t-kw: #1d5fd1; --t-type: #0f8a5f; --t-str: #b4601a; --t-sstr: #8a6a10; --t-atom: #8a3fc4; --t-num: #c2255c; --t-com: #7a8699; --t-op: #596579; }
+.ds[data-theme="dark"] { --t-kw: #7cb7ff; --t-type: #6ee7b7; --t-str: #f0b27a; --t-sstr: #e6c17a; --t-atom: #d7a8ff; --t-num: #f78fb3; --t-com: #5f7391; --t-op: #8ea0bd; }
+.ds-code .tok-keyword { color: var(--t-kw); } .ds-code .tok-typeName { color: var(--t-type); } .ds-code .tok-string { color: var(--t-str); } .ds-code .tok-string2 { color: var(--t-sstr); }
+.ds-code .tok-atom { color: var(--t-atom); } .ds-code .tok-number { color: var(--t-num); } .ds-code .tok-comment { color: var(--t-com); font-style: italic; } .ds-code .tok-operator, .ds-code .tok-bracket { color: var(--t-op); }

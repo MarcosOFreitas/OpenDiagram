@@ -30,7 +30,7 @@ One `.md` file per page, first line `# Title`. Pages: introduction, getting-star
 
 - **Text written from memory**: the pages describe what was built, and only the editor shortcuts (`Ctrl+F`/`Ctrl+H`, `Ctrl+Space`) were cross-checked in the code. Someone who knows each area should read the pages and correct inaccuracies (Administration, Self-hosting and Share links are the ones to double-check first).
 - **No images**: dbdiagram's docs use screenshots and GIFs; ours are text and code only. Capture screens of the app (Tables panel, Arrange menu, table picker with groups, saved views, detail levels, Docs view) and add them to the pages (a small `![alt](src)` rule in `md.jsx` plus files under `web/public/docs/`).
-- **Code blocks have no syntax colours**: DBML blocks are plain text. Options: reuse the CodeMirror DBML highlighting of the editor for read-only blocks, or a tiny tokenizer.
+- Code blocks: `dbml` blocks are coloured with the editor's tokenizer (`dbml` exported from `Editor.jsx`, `.tok-*` colours in `docsite.css`); other languages are plain.
 - **Narrow screens**: the burger/sidebar layout was only checked in a desktop browser, not on a real phone. Print styles are missing.
-- **Release notes / changelog page** (docs.dbdiagram.io has one) and an **API** tab do not exist yet; add them when the API/CLI/MCP work starts.
+- The `release-notes` page is written by hand from the git history (no version numbers yet); keep it updated per release. An **API** tab does not exist yet; add it when the API/CLI/MCP work starts.
 - **Keep it current**: every behaviour change updates its page in the same commit (rule in `CLAUDE.md`).

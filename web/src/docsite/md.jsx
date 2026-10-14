@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { highlightCode, classHighlighter } from '@lezer/highlight';
+import { dbml } from '../Editor.jsx';
 
 // Tiny Markdown renderer for the documentation pages (no dependency): headings, paragraphs, lists, tables,
 // fenced code (with a Copy button), blockquote callouts (> **Note** ...), rules and inline code / bold / italic / links.
@@ -23,6 +25,13 @@ function inline(text, key = 'i') {
   return out;
 }
 
+// DBML blocks reuse the editor's tokenizer; the .tok-* classes are coloured in docsite.css
+function colored(code) {
+  const out = [];
+  highlightCode(code, dbml.parser.parse(code), classHighlighter, (t, cls) => out.push(cls ? <span key={out.length} className={cls}>{t}</span> : t), () => out.push('\n'));
+  return out;
+}
+
 function Code({ code, lang }) {
   const [done, setDone] = useState(false);
   const copy = () => navigator.clipboard.writeText(code).then(() => { setDone(true); setTimeout(() => setDone(false), 1200); }, () => {});
@@ -30,7 +39,7 @@ function Code({ code, lang }) {
     <div className="ds-code">
       {lang && <span className="ds-lang">{lang}</span>}
       <button type="button" className="ds-copy" onClick={copy}>{done ? 'Copied' : 'Copy'}</button>
-      <pre><code>{code}</code></pre>
+      <pre><code>{lang === 'dbml' ? colored(code) : code}</code></pre>
     </div>
   );
 }

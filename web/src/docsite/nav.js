@@ -19,6 +19,7 @@ export const NAV = [
   'administration',
   'self-hosting',
   'shortcuts-faq',
+  'release-notes',
 ];
 
 export const ORDER = NAV.flatMap((n) => (typeof n === 'string' ? [n] : n.items)).filter((s) => PAGES[s]);
