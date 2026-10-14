@@ -41,16 +41,31 @@ function parse(text) {
 }
 
 const ROW = 22;
-const tableHeight = (t) => 30 + t.fields.length * ROW + t.indexes.length * 20;
+const tableHeight = (t) => (t.collapsed ? 30 : 30 + t.fields.length * ROW + t.indexes.length * 20);
 
 function TableNode({ data: t }) {
   const fk = new Set(t.fkCols);
+  const { zoom } = useViewport();
+  const startResize = (e) => { // drag the right edge: width only, saved with the layout
+    e.stopPropagation(); e.preventDefault();
+    const x0 = e.clientX, w0 = t.w || 220;
+    const move = (ev) => t.onSize(t.id, Math.max(160, Math.min(700, Math.round(w0 + (ev.clientX - x0) / zoom))));
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
   return (
-    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''}`} title={t.note || ''}>
-      <div className="tbl-h" style={t.headerColor ? { background: t.headerColor } : undefined}>
-        <span>{t.name}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
+    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''}`} style={{ width: t.w || 220 }} title={t.note || ''}>
+      <div className="tbl-h" style={t.headerColor ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
+        <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>
+        <span className="tbl-n">{t.name}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
+        {t.collapsed && t.fields.map((f) => ( // a collapsed table keeps its relationship lines: connect them to the header
+          <span key={f.name} style={{ display: 'contents' }}>
+            <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
+            <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
+          </span>
+        ))}
       </div>
-      {t.fields.map((f) => (
+      {!t.collapsed && t.fields.map((f) => (
         <div key={f.name} className="tbl-c" title={f.note || ''}>
           <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
           <span className="nm">
@@ -61,7 +76,8 @@ function TableNode({ data: t }) {
           <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
         </div>
       ))}
-      {!t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
+      {!t.collapsed && !t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
+      <div className="tbl-rs nodrag nopan" title="Drag to resize (double-click to reset)" onPointerDown={startResize} onDoubleClick={() => t.onSize(t.id, undefined)} />
     </div>
   );
 }
@@ -186,6 +202,15 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [resizing, setResizing] = useState(false);
   const [saveState, setSaveState] = useState('saved'); // saved | saving | error
   const [layoutTick, setLayoutTick] = useState(0);
+  // per-table width / collapsed state lives in the saved layout under '@sizes' ({ id: { w, c } })
+  const setSize = useCallback((patch) => {
+    const cur = layoutRef.current['@sizes'] || {}, next = { ...cur };
+    for (const [id, v] of Object.entries(patch)) { const o = { ...cur[id], ...v }; if (!o.w) delete o.w; if (!o.c) delete o.c; if (Object.keys(o).length) next[id] = o; else delete next[id]; }
+    layoutRef.current = { ...layoutRef.current, '@sizes': next };
+    setLayoutTick((k) => k + 1);
+  }, []);
+  const onSize = useCallback((id, w) => setSize({ [id]: { w } }), [setSize]);
+  const onToggle = useCallback((id) => setSize({ [id]: { c: !(layoutRef.current['@sizes']?.[id]?.c) } }), [setSize]);
   const layoutRef = useRef({});
   const savedRef = useRef('');
   const [dbml, setDbml] = useState('');
@@ -217,6 +242,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
+  const [activeEdge, setActiveEdge] = useState(null); // clicked relationship: focus it and its two tables
   const [drag, setDrag] = useState(false);
   const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
   const [comments, setComments] = useState([]);
@@ -357,9 +383,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const sz = layoutRef.current['@sizes'] || {};
+    const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
     const tables = nodes.map((n) => ({
       ...n,
-      data: { ...n.data, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId, dim: !!q && !(n.data.name.toLowerCase().includes(q) || n.data.fields.some((f) => f.name.toLowerCase().includes(q))) },
+      data: { ...n.data, w: sz[n.id]?.w, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !(n.data.name.toLowerCase().includes(q) || n.data.fields.some((f) => f.name.toLowerCase().includes(q))) },
     }));
     const byId = new Map(nodes.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
@@ -370,13 +398,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h }, width: w, height: h, draggable: false, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
-  }, [nodes, search, parsed, view.hideIndexes, view.hideTypes, activeId]);
+  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => edges.map((e) => {
-    const on = activeId && (e.source === activeId || e.target === activeId);
-    return { ...e, type: view.edgeType, zIndex: on ? 10 : 0, style: { stroke: on ? '#2563eb' : '#94a3b8', strokeWidth: on ? 2 : 1.3 }, labelStyle: { fontSize: 10, fill: '#64748b' }, labelBgStyle: { fill: canvasBg } };
-  }), [edges, view.edgeType, activeId, canvasBg]);
+    const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
+    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on ? { stroke: '#2563eb', strokeWidth: 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
+    return { ...e, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, labelStyle: { fontSize: 10, fill: picked ? '#b45309' : '#64748b', fontWeight: picked ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
+  }), [edges, view.edgeType, activeId, activeEdge, canvasBg]);
 
-  const relayout = () => { setNodes((old) => { const next = layout(old.map((n) => n.data), parsed.refs, null, parsed.groups); layoutRef.current = Object.fromEntries(next.map((n) => [n.id, n.position])); return next; }); setLayoutTick((n) => n + 1); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 80); };
+  const relayout = () => { setNodes((old) => { const sz = layoutRef.current['@sizes']; const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c })), parsed.refs, null, parsed.groups); layoutRef.current = { ...Object.fromEntries(next.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}) }; return next; }); setLayoutTick((n) => n + 1); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 80); };
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const run = (label, fn) => async () => { setBusy(label); try { await fn(); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); } };
 
@@ -531,7 +560,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         <main className="canvas">
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-            onNodeClick={(_, n) => setActiveId(n.type === 'table' ? n.id : null)} onPaneClick={() => setActiveId(null)} nodesConnectable={false} nodesDraggable={canEdit}
+            onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); }} nodesConnectable={false} nodesDraggable={canEdit}
             onNodeDragStop={(_, n) => { if (n.type === 'table') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
             {view.grid && <Background gap={22} size={1.2} color={view.theme === 'dark' ? '#27324a' : '#cfd4dc'} />}
             <MiniMap pannable zoomable className="mini" nodeColor="#1e3a5f" maskColor="rgba(244,245,247,.7)" />
@@ -544,6 +573,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => zoomIn()} title="Zoom in">+</button>
             <i className="sep" />
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen">⤢</button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
             <button onClick={relayout} title="Auto arrange">⚙ Arrange</button>
           </div>
         </main>

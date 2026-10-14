@@ -235,3 +235,13 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tp-foot { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
 .tp-bar select { width: auto; flex: 0 0 auto; }
 .tp-bar .chk { flex: 0 0 auto; width: auto; }
+
+/* table node: collapse toggle, name ellipsis, width handle */
+.tbl { position: relative; }
+.tbl-h { position: relative; }
+.tbl-t { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 4px 0 0; font-size: 12px; line-height: 1; opacity: .85; }
+.tbl-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbl-h small { flex: 0 0 auto; }
+.tbl-rs { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.tbl-rs:hover { background: rgba(37, 99, 235, .35); }
+.react-flow__edge { cursor: pointer; }

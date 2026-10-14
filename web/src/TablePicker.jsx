@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 
+// search text -> predicate on 'schema.table': plain text = contains, `*`/`?` = wildcards (VW_*), /regex/ = regular expression
+function matcher(text) {
+  const n = text.trim();
+  if (!n) return () => true;
+  try {
+    const rx = /^\/(.+)\/$/.exec(n);
+    const src = rx ? rx[1] : /[*?]/.test(n) ? `^${n.replace(/[.+^${}()|[\]\\]/g, (c) => `\\${c}`).replace(/\*/g, '.*').replace(/\?/g, '.')}$` : null;
+    if (src) { const re = new RegExp(src, 'i'); return (name) => re.test(name) || re.test(name.slice(name.indexOf('.') + 1)); }
+  } catch { return () => false; } // incomplete regex while typing
+  const l = n.toLowerCase();
+  return (name) => name.toLowerCase().includes(l);
+}
+
 // Centered dialog to choose which tables/views to import. items: [{ name: 'schema.table', view }]; selection: array of names (empty = all)
 export default function TablePicker({ items, selected, onApply, onClose }) {
   const [sel, setSel] = useState(() => new Set(selected));
@@ -9,8 +22,8 @@ export default function TablePicker({ items, selected, onApply, onClose }) {
   const [only, setOnly] = useState(false);
   const schemas = useMemo(() => [...new Set(items.map((i) => i.name.split('.')[0]))], [items]);
   const shown = useMemo(() => {
-    const n = q.trim().toLowerCase();
-    return items.filter((i) => (!n || i.name.toLowerCase().includes(n)) && (!schema || i.name.startsWith(`${schema}.`)) && (!kind || (kind === 'view') === !!i.view) && (!only || sel.has(i.name)));
+    const m = matcher(q);
+    return items.filter((i) => m(i.name) && (!schema || i.name.startsWith(`${schema}.`)) && (!kind || (kind === 'view') === !!i.view) && (!only || sel.has(i.name)));
   }, [items, q, schema, kind, only, sel]);
 
   useEffect(() => { // capture: Escape closes this dialog only, not the drawer behind it
@@ -28,7 +41,7 @@ export default function TablePicker({ items, selected, onApply, onClose }) {
       <div className="admin-card tp" role="dialog" aria-label="Choose tables">
         <div className="admin-head"><h2>Choose tables to import</h2><span style={{ flex: 1 }} /><button className="x" onClick={onClose} title="Close (Esc)">✕</button></div>
         <div className="tp-bar">
-          <input autoFocus placeholder="Search tables…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input autoFocus placeholder="Search: text, VW_* or /regex/" title="Plain text = contains · * and ? = wildcards (VW_*, LOG_??) · /regex/" value={q} onChange={(e) => setQ(e.target.value)} />
           {schemas.length > 1 && <select value={schema} onChange={(e) => setSchema(e.target.value)}><option value="">All schemas</option>{schemas.map((s) => <option key={s}>{s}</option>)}</select>}
           <select value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Tables and views</option><option value="table">Tables only</option><option value="view">Views only</option></select>
           <label className="chk"><input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} /> Selected only</label>
