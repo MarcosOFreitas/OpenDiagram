@@ -1,10 +1,17 @@
-// e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls up)
+// e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
 import { execSync } from 'node:child_process';
 
+let cookie = '';
 const post = async (path, body) => {
-  const r = await fetch(`http://localhost:3000/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch(`http://localhost:3000/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  const set = r.headers.get('set-cookie');
+  if (set) cookie = set.split(';')[0];
   return { status: r.status, ...(await r.json()) };
 };
+// the API requires an account: sign in with the test administrator (docker compose exec app node src/cli.js create-admin <email> <password>)
+if (!process.env.TEST_ADMIN_EMAIL || !process.env.TEST_ADMIN_PASSWORD) { console.error('set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD'); process.exit(2); }
+const login = await post('auth/login', { email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD });
+if (login.status !== 200) { console.error('admin sign-in failed:', login.error); process.exit(2); }
 const pg = (user, password, extra = {}) => ({ type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user, password, ...extra });
 let fail = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`); if (!ok) fail++; };
