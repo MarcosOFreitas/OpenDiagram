@@ -1122,7 +1122,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                 <option value="verify">TLS: on — verify certificate{form.type === 'oracle' ? ' (TCPS)' : ''}</option>
                 <option value="noverify">TLS: on — {form.type === 'oracle' ? 'skip server name check (chain still validated)' : 'do not verify certificate (not recommended)'}</option>
               </select>
-              {form.tls === 'verify' && (<>
+              {form.tls === 'verify' && form.type === 'oracle' && <small className="hint">The server certificate is checked against the certificate authorities the server trusts (a public CA such as OCI's works as is). Wallets are not supported.</small>}
+              {form.tls === 'verify' && form.type === 'postgres' && (<>
                 <textarea className="pem" placeholder={form.hasCa && !form.clearCa ? '(CA certificate saved — paste a new PEM to replace)' : 'CA certificate (PEM) — only needed for a private/self-signed CA'} value={form.caPem} onChange={set('caPem')} />
                 <div className="hint"><label className="link">Load .pem file<input type="file" accept=".pem,.crt,.cer" hidden onChange={(e) => { loadPem(e.target.files[0]); e.target.value = ''; }} /></label>{form.hasCa && !form.clearCa && <> · <a onClick={() => setForm({ ...form, clearCa: true, caPem: '' })}>Remove saved CA</a></>}{form.clearCa && ' · saved CA will be removed on Save'}</div>
               </>)}

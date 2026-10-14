@@ -7,12 +7,12 @@
 | Asset | Threat | Mitigation today | Gap |
 |-------|--------|------------------|-----|
 | Connected databases | Accidental/malicious writes through the app | Read-only sessions; catalog-only queries; privilege warnings; strict block option | None for writes via the app; credential itself is still powerful if leaked |
-| Saved secrets (password, CA PEM, wallet password) | Disclosure from disk/API | AES-256-GCM at rest keyed by `APP_SECRET`; never returned by API; `hasCa` flag only | Key is one env var (no rotation); default dev key if unset |
+| Saved secrets (password, CA PEM) | Disclosure from disk/API | AES-256-GCM at rest keyed by `APP_SECRET`; never returned by API; `hasCa` flag only | Key is one env var (no rotation); default dev key if unset |
 | Network position of the server | **SSRF**: any user can make the server connect to any host/port (internal services, metadata endpoints) | `DB_HOST_POLICY` = `open` (default) / `public-only` / `allowlist`; 8 s connect timeout | `open` is the default (local use); DNS is resolved separately by the driver (rebinding window); no per-user egress limits |
 | API | Unauthorised access to connections/diagrams | e-mail+password accounts (scrypt), roles + administrator-only admin API, sign-up closed by default, forced password change for temporary passwords, server-side sessions in HttpOnly SameSite cookies, 404 for other accounts' resources, CSRF Origin guard, login/sign-up throttling, per-person/group/link access levels, last-administrator guard | No e-mail verification, self-service reset, MFA, SSO or session list; throttling is in memory and per process; administrators can reset any password and open/edit/delete any diagram (by design; no audit log yet) |
 | Share links | A leaked link grants its level to whoever has it | random 144-bit tokens, per-link level, instant downgrade/revoke, anonymous = read-only, `no-referrer`, payload excludes source/credentials | Links are bearer secrets stored in clear in SQLite; no expiry yet |
 | Oracle connect descriptor | Injection via host/service/DN | whitelist validation (`SAFE`, DN quote/paren rejection) | — |
-| Transport | Sniffing / MITM to the DB | TLS modes with certificate verification, custom CA | `noverify` allowed (UI warns); Oracle TCPS verified for `verify` without wallet only |
+| Transport | Sniffing / MITM to the DB | TLS modes with certificate verification, custom CA | `noverify` allowed (UI warns); Oracle TCPS: `verify`, `serverDn` and `noverify` tested against a TLS proxy and `verify` against OCI; no wallets |
 | Browser | XSS | CSP (`default-src 'self'`, no framing), `nosniff`; React escaping; no `dangerouslySetInnerHTML`; standalone docs HTML is built with `renderToStaticMarkup` (escaped) and makes no network requests | No CSP, no auth cookies yet |
 | Supply chain | Vulnerable deps | lockfiles committed | no automated audit in CI |
 

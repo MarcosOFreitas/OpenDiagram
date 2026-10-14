@@ -33,6 +33,7 @@ Open <http://localhost:3000> and **create the first account — it becomes the a
 | Postgres | `demo-pg` | 5432 | `demo` | `postgres`/`demo` (superuser → triggers guardrail warnings), `writer`/`writer` (can write → warning), `reader`/`reader` (select only → clean) |
 | Postgres + TLS (self-signed) | `demo-pg-tls` | 5432 | `demo` | `postgres`/`demo` |
 | Oracle | `demo-oracle` | 1521 | `FREEPDB1` | `shop`/`shop` |
+| Oracle over TLS | `demo-oracle-tls` (alias `oracle.demo.test`) | 2484 | `FREEPDB1` | `shop`/`shop`; self-signed certificate CN `oracle.demo.test` trusted by the app (`demo/oracle-tls`), used by `server/test-oracle-tls.mjs` |
 
 Schema to import: `shop` (Postgres) / `SHOP` (Oracle).
 
@@ -117,7 +118,7 @@ Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](
 - Exporting SQL for a different engine than the source needs manual edits (e.g. `nextval(...)` defaults, `character varying`).
 - Auto-refresh runs in the browser; it stops when the page is closed.
 - Sharing works with people, groups and links, but accounts are only created by administrators (no e-mail invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; saved database connections cannot be shared with a group yet.
-- Oracle TLS (TCPS): `verify` without wallet checked against an OCI Autonomous DB; wallet/CA PEM, `noverify` and `serverDn` are not verified yet (see spec).
+- Oracle TLS (TCPS): `verify` checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` also tested against the `demo-oracle-tls` proxy (`node server/test-oracle-tls.mjs`). Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS`.
 
 ## Credits and disclaimer
 

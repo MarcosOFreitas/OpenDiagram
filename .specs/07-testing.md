@@ -17,6 +17,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 |--------|-------|-------------|
 | `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-auth.mjs` | app + an administrator (`docker compose exec app node src/cli.js create-admin <email> <password>`) | 91: closed sign-up, admin creates users/temporary passwords/forced change, roles and 403s, last-admin guard (isolated DB), disable/enable/reset/delete, flat groups with multi-membership, directory, per-account isolation, administrator access to every diagram (no connection link, no borrowed connections), sharing with people and groups (highest level, leave/delete group, revoke), link levels, settings, CSRF, logout, headers, SSRF policy functions. Creates and removes throw-away users/groups |
 | `node server/test-guardrails.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-pg-tls`, (optional `demo-oracle`) | privilege warnings (superuser/writer/reader); strict mode blocks writer, allows reader; read-only txn rejects DDL (via `psql`); PG TLS: off, verify w/o CA (fails), verify + CA PEM, noverify, verify vs non-TLS (fails); Oracle descriptor injection rejected; Oracle TCPS vs plain listener fails cleanly |
+| `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-oracle-tls.mjs` | app + `--profile oracle` (`demo-oracle`, `demo-oracle-tls`) | Oracle TLS modes: verify, host-name mismatch, `serverDn` accepted/refused, `noverify`, TLS off against TCPS, DN injection |
 | `node server/test-lineage.mjs` | nothing (pure) | view column lineage: SQL parsing into output column -> source column (joins, aliases, expressions, aggregates, `*`, sub-selects, CTE, UNION, view on view, Oracle upper case, unreadable SQL gives null) |
 | `node web/lineage-check.mjs` | nothing (pure) | the `// lineage:` comment parser (table and column level, `(auto)` marker, merging, unknown names) and the upstream/downstream closure |
 | `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
@@ -39,7 +40,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 ## Known gaps
 
-- Oracle TLS: only `verify` without wallet is verified (by hand, OCI Autonomous DB); wallet/CA PEM, `noverify`, `serverDn` and any automated TCPS test are not.
+- Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `server/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported. A real Oracle with a private CA was not tried.
 - `DB_HOST_POLICY=public-only` / `allowlist` verified only through the policy functions, not through `/api/schemas`.
 - A comment-level / edit-level member exercising the UI (the API is covered); opening a downloaded docs `.html` from disk.
 - Read-only enforcement proven with `psql`, not through the app's own pool.

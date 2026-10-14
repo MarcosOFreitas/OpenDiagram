@@ -12,6 +12,7 @@ docker compose up -d --build app             # rebuild after code changes (web i
 cd web && npx vite build                     # quick syntax check of the UI (outputs to ../server/public)
 node --check server/src/*.js                 # quick syntax check of the API
 node server/test-auth.mjs                    # e2e: accounts, roles, groups, sharing, links, SSRF policy (stack up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD of an admin: `docker compose exec app node src/cli.js create-admin <email> <password>`)
+TEST_ADMIN_*=… node server/test-oracle-tls.mjs  # e2e: Oracle TLS modes against demo-oracle-tls (needs --profile oracle)
 node server/test-guardrails.mjs              # e2e: read-only/privilege guardrails + PG TLS (stack up; also needs TEST_ADMIN_*)
 cd web && node roundtrip.mjs                 # e2e: import → export → re-import per format (needs oracle profile + TEST_ADMIN_*)
 ```
@@ -38,7 +39,7 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 ## Security invariants (do not weaken)
 
 1. Every DB session must stay read-only: Postgres `BEGIN READ ONLY` + `default_transaction_read_only=on`; Oracle `SET TRANSACTION READ ONLY`. Only catalog queries; never read user table data.
-2. Never return or log secrets (`password`, `caPem`, `walletPassword`). `store.list()`/`listFor()` strip them; `get()`/`getForUse()` decrypt only server-side. A **shared** connection (registered by an administrator) is used exactly as registered: `resolve()` must keep ignoring request fields for it, and every use goes through `audited()` into the audit log (never log secrets or request bodies).
+2. Never return or log secrets (`password`, `caPem`). `store.list()`/`listFor()` strip them; `get()`/`getForUse()` decrypt only server-side. A **shared** connection (registered by an administrator) is used exactly as registered: `resolve()` must keep ignoring request fields for it, and every use goes through `audited()` into the audit log (never log secrets or request bodies).
 3. Oracle connect descriptor is built from user input — keep the `SAFE` validation in `oraConnectString`.
 4. A failed privilege check is reported as a warning, never treated as "safe".
 5. Authorization lives in the server, never in the UI: roles are `admin`/`member`; `/api/admin/*` requires admin; a diagram's effective level is owner > admin (administrators on others' diagrams: everything except the owner's `source`/connections) > edit > comment > view (`roleFor` in `diagrams.js`); the instance must keep one active admin (`guardLastAdmin`); accounts with `mustChangePassword` can only call `/api/auth/*`; every `/api` route except `health`, `auth/*`, `shared/*` requires a session; resources of other accounts answer 404; share-link routes must check the link's access level (`view < comment < edit`) and require login for `comment`/`edit`. Never put `source`, connections or secrets in a `/api/shared` payload.
@@ -60,7 +61,7 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 
 Everything below is implemented, committed and covered by the e2e scripts unless marked otherwise (details and acceptance criteria in `.specs/`): DBML editor + diagram, live import from PostgreSQL/Oracle (read-only sessions, privilege guardrails, TLS, manual/auto refresh), generated documentation with comments, accounts and administration (first account = administrator, groups, settings), private diagrams with autosave, sharing with people/groups/links, administrators manage every diagram (never others' connections), SSRF host policy.
 
-Not verified yet: Oracle TLS `noverify` and `serverDn` (plain `verify` against an OCI Autonomous DB works, checked by hand; wallets are not supported on purpose); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
+Oracle TLS (`verify`, `serverDn`, `noverify`) is tested by `server/test-oracle-tls.mjs`; wallets are not supported on purpose and a real server with a private CA was not tried. Not verified yet: `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
 Also implemented since: table picker with TableGroups, views/enums/sequences/triggers in the import, five Arrange algorithms (group-aware), Tables panel with hide + saved views, detail levels, draggable ref labels and group boxes, resizable/collapsible tables, password-protected share links, Export menu, English sample model, and the public documentation site at `/docs` (`web/src/docsite/`, spec [10](.specs/10-documentation-site.md)). Dropped on purpose: embedding diagrams in an iframe.
 
@@ -70,7 +71,7 @@ Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/1
 3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Lineage also feeds Arrange and the Docs view/exports. Column lineage of views is read from their SQL (`server/src/lineage.js`, `pgsql-ast-parser`).
 4. ~~Sticky notes~~ **done** (`NoteNode` in `App.jsx`, top-level `Note` blocks; spec 02). **Presence done** (`server/src/presence.js`, heartbeat per tab; spec 09); real-time co-editing (Yjs) only if needed. Decided not to build: sticky note colours, drawing lineage links by dragging.
 5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
-6. Still open from before: ~~B1~~ **done** (shared connections + audit log, spec 09); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets.
+6. Still open from before: ~~B1~~ **done** (shared connections + audit log, spec 09); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets; the modes are tested (`test-oracle-tls.mjs`).
 Afterwards: server-side scheduled refresh (decided: after B1, which provides the audit log; plan in `.specs/06-roadmap.md`), account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.
@@ -82,5 +83,5 @@ The REA reverse-engineering MCP was only used to study the public dbdiagram.io U
 ## Working agreements
 
 - Smallest change that solves the problem; reuse what exists. Keep specs, README and the documentation pages (`web/src/docsite/pages/*.md`) consistent when behaviour changes.
-- Report honestly what was and was not tested (e.g. Oracle TLS `noverify`/`serverDn` are unverified).
+- Report honestly what was and was not tested (e.g. no Oracle with a real private CA was tried).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.

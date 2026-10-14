@@ -1,6 +1,6 @@
 # 03 — Connections & live import
 
-**Status:** implemented. Oracle TLS `verify` verified by hand against an OCI Autonomous DB; wallet/`noverify`/`serverDn` pending (see Acceptance). Code: `server/src/{index,introspect,store,dbml}.js`, drawer *Database* tab in `web/src/App.jsx`.
+**Status:** implemented. Oracle TLS `verify` verified by hand against an OCI Autonomous DB, and `verify` / `serverDn` / `noverify` verified by `server/test-oracle-tls.mjs` against a TLS proxy; wallets are not supported. Code: `server/src/{index,introspect,store,dbml}.js`, drawer *Database* tab in `web/src/App.jsx`.
 
 ## Connection model
 
@@ -9,7 +9,7 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 | Field | Notes |
 |-------|-------|
 | `id`, `name`, `type` (`postgres`\|`oracle`), `host`, `port`, `database` (Oracle: service name), `user` | |
-| `password`, `caPem`, `walletPassword` | **secrets**, AES-256-GCM with `APP_SECRET`. On save: empty/undefined keeps stored value, `null` clears. Never returned by the API (`hasCa` flag instead). |
+| `password`, `caPem` | **secrets**, AES-256-GCM with `APP_SECRET`. On save: empty/undefined keeps stored value, `null` clears. Never returned by the API (`hasCa` flag instead). |
 | `tls` | `off` \| `verify` (chain + host name; optional `caPem`) \| `noverify` (PG: no certificate check; Oracle: skips DN/host match, chain still validated). Legacy `ssl:true` ⇒ `noverify`. |
 | `serverDn` | Oracle `SSL_SERVER_CERT_DN` (optional, with `verify`). |
 | `blockWritable` | strict guardrail (below). |
@@ -71,5 +71,6 @@ All JSON. Errors: `{error}` with HTTP status.
 - [x] Oracle connect descriptor rejects injection in host/service name; `tcps` against a plain listener fails fast with `NJS-506`.
 - [x] Refresh: added column/table detected, TableGroup preserved, second refresh is a no-op; auto-refresh applied a change within ~1 minute.
 - [x] Oracle TLS `verify` without wallet/CA PEM verified manually (2026-10-14) against an Oracle Autonomous Database (OCI, TCPS 1522, public CA, hostname match): test, schema list and import worked. Gotcha: with TLS left on `off` against a TCPS port the server just closes the connection (`NJS-521 end-of-file`).
-- [ ] Oracle TLS with wallet/CA PEM (mTLS), `noverify`, `serverDn` — **not verified**.
+- [x] Oracle TLS `verify` (chain + host name), `verify` + `serverDn` (accepted / refused), `noverify` (name check skipped, chain still validated), TLS `off` against a TCPS port and a descriptor-injection DN: `node server/test-oracle-tls.mjs` against `demo-oracle-tls` (a `socat` TLS proxy with a throw-away self-signed certificate, `demo/oracle-tls`; the app trusts it through `NODE_EXTRA_CA_CERTS`). The driver has no per-connection CA, so the Oracle form has no CA field. **Wallets / mTLS are not supported** (decision).
+- Not verified: a real server whose certificate comes from a private CA other than the demo one.
 - [ ] Read-only enforcement is asserted by a direct `psql` check, not by instrumenting the app's own connection; add a test hook if stronger proof is needed.

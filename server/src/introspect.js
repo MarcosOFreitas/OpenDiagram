@@ -1,8 +1,5 @@
 import pg from 'pg';
 import oracledb from 'oracledb';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { ACTION } from './dbml.js';
 import { viewColumnLineage } from './lineage.js';
 
@@ -126,21 +123,17 @@ function oraConnectString(c) {
 
 // guardrail 1: SET TRANSACTION READ ONLY — the session cannot change data even if the user could
 async function oraWith(c, fn) {
+  // Oracle is reached through a connection string only (TCPS with the server certificate checked against the system trust store, plus the optional DN):
+  // no wallets. A private CA is trusted by the server process itself (NODE_EXTRA_CA_CERTS), not per connection.
   const cfg = { user: c.user, password: c.password, connectString: oraConnectString(c), connectTimeout: 8 };
-  let dir, conn;
-  if (c.tls !== 'off' && c.caPem) { // custom CA / wallet in PEM form -> thin-mode walletLocation (ewallet.pem)
-    dir = mkdtempSync(join(tmpdir(), 'ora-wallet-'));
-    writeFileSync(join(dir, 'ewallet.pem'), c.caPem, { mode: 0o600 });
-    cfg.walletLocation = dir;
-    if (c.walletPassword) cfg.walletPassword = c.walletPassword;
-  }
+  let conn;
   try {
     conn = await oracledb.getConnection(cfg);
     conn.callTimeout = 30000;
     await conn.execute('SET TRANSACTION READ ONLY');
     return await fn(conn);
   } finally {
-    try { await conn?.close(); } finally { if (dir) rmSync(dir, { recursive: true, force: true }); }
+    await conn?.close();
   }
 }
 

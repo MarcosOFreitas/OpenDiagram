@@ -25,7 +25,8 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 | **on, do not verify** | encrypts but does not check the certificate (not recommended) |
 
 - **Private or self-signed CA**: paste its PEM in the **CA certificate** field.
-- **Oracle** is reached through a **connection string over TLS** (TCPS): host, port, service name and the TLS mode. **Wallets are not supported.** A private CA can be pasted in the **CA certificate** field, and the **expected server certificate DN** field is optional (the DN check is not verified yet).
+- **Oracle** is reached through a **connection string over TLS** (TCPS): host, port, service name and the TLS mode. **Wallets are not supported.** The server certificate is always validated against the certificate authorities that the **server** (the OpenDiagram process) trusts; there is no per-connection CA for Oracle. For a private CA, the administrator adds it to the server with `NODE_EXTRA_CA_CERTS=/path/ca.pem`.
+- **Oracle TLS modes:** *verify* checks the chain **and** that the certificate matches the host name; the optional **expected server certificate DN** (for example `CN=db.example.com`) replaces the host-name check with that DN. *Do not verify* skips only the name check: the chain is still validated, so a self-signed or unknown CA is still refused.
 - **Oracle Autonomous Database without wallet** works with *on, verify certificate*, using the host, the TLS port (usually 1522) and the service name.
 
 > **Warning** With TLS set to *off* against a TCPS port, the server just closes the connection and the error looks like `NJS-521 ... end-of-file`. If you see it, check the TLS mode first.

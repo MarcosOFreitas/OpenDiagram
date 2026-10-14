@@ -1,12 +1,12 @@
-// Saved database connections, one set per account. Secrets (password, CA/wallet PEM, wallet password) are
+// Saved database connections, one set per account. Secrets (password, CA PEM) are
 // encrypted with AES-256-GCM keyed by APP_SECRET; they never leave the server (list() strips them).
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, renameSync } from 'node:fs';
 import { db, DIR } from './db.js';
 
 const KEY = scryptSync(process.env.APP_SECRET || 'dev-secret-change-me', 'dbdiagram-open', 32);
-const SECRETS = ['password', 'caPem', 'walletPassword'];
-const COL = { password: 'password', caPem: 'ca_pem', walletPassword: 'wallet_password' };
+const SECRETS = ['password', 'caPem'];
+const COL = { password: 'password', caPem: 'ca_pem' }; // (the old wallet_password column is no longer used: wallets are not supported)
 
 const enc = (s) => { const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', KEY, iv); const d = Buffer.concat([c.update(s, 'utf8'), c.final()]); return Buffer.concat([iv, c.getAuthTag(), d]).toString('base64'); };
 const dec = (s) => { if (!s) return ''; const b = Buffer.from(s, 'base64'), d = createDecipheriv('aes-256-gcm', KEY, b.subarray(0, 12)); d.setAuthTag(b.subarray(12, 28)); return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8'); };
@@ -64,12 +64,12 @@ export function upsert(owner, c, { shared = false } = {}) { // shared: an admini
   const row = [
     old?.owner_id ?? owner, c.name, c.type, c.host, +c.port, c.database, c.user, c.tls ?? 'off', c.serverDn || '', c.blockWritable ? 1 : 0,
     JSON.stringify(Array.isArray(c.schemas) ? c.schemas : json(old?.schemas, [])), JSON.stringify(Array.isArray(c.tables) ? c.tables : json(old?.tables, [])),
-    Math.max(0, +c.refreshMinutes || 0), secret('password'), secret('caPem'), secret('walletPassword'),
+    Math.max(0, +c.refreshMinutes || 0), secret('password'), secret('caPem'),
   ];
   if (old) {
-    db.prepare(`update connections set owner_id=?, name=?, type=?, host=?, port=?, database=?, db_user=?, tls=?, server_dn=?, block_writable=?, schemas=?, tables=?, refresh_minutes=?, password=?, ca_pem=?, wallet_password=? where id = ?`).run(...row, id);
+    db.prepare(`update connections set owner_id=?, name=?, type=?, host=?, port=?, database=?, db_user=?, tls=?, server_dn=?, block_writable=?, schemas=?, tables=?, refresh_minutes=?, password=?, ca_pem=? where id = ?`).run(...row, id);
   } else {
-    db.prepare(`insert into connections (owner_id, name, type, host, port, database, db_user, tls, server_dn, block_writable, schemas, tables, refresh_minutes, password, ca_pem, wallet_password, id, shared) values (${'?,'.repeat(17)}?)`).run(...row, id, shared ? 1 : 0);
+    db.prepare(`insert into connections (owner_id, name, type, host, port, database, db_user, tls, server_dn, block_writable, schemas, tables, refresh_minutes, password, ca_pem, id, shared) values (${'?,'.repeat(16)}?)`).run(...row, id, shared ? 1 : 0);
   }
   return id;
 }
@@ -104,8 +104,8 @@ export function adoptLegacy(owner) {
   for (const c of json(readFileSync(f, 'utf8'), [])) {
     const tls = c.tls ?? (c.ssl ? 'noverify' : 'off');
     const row = [randomUUID(), owner, c.name, c.type, c.host, +c.port, c.database, c.user, tls, c.serverDn || '', c.blockWritable ? 1 : 0,
-      JSON.stringify(c.schemas ?? []), JSON.stringify(c.tables ?? []), c.refreshMinutes || 0, c.password || enc(''), c.caPem || enc(''), c.walletPassword || enc('')];
-    db.prepare(`insert into connections (id, owner_id, name, type, host, port, database, db_user, tls, server_dn, block_writable, schemas, tables, refresh_minutes, password, ca_pem, wallet_password) values (${'?,'.repeat(16)}?)`).run(...row);
+      JSON.stringify(c.schemas ?? []), JSON.stringify(c.tables ?? []), c.refreshMinutes || 0, c.password || enc(''), c.caPem || enc('')];
+    db.prepare(`insert into connections (id, owner_id, name, type, host, port, database, db_user, tls, server_dn, block_writable, schemas, tables, refresh_minutes, password, ca_pem) values (${'?,'.repeat(15)}?)`).run(...row);
     n++;
   }
   renameSync(f, `${f}.migrated`);
