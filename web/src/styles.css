@@ -11,7 +11,7 @@ input, select, textarea { border: 1px solid #d5dbe5; border-radius: 6px; padding
 input:focus, select:focus, textarea:focus { outline: 2px solid #bfd3ff; border-color: var(--accent); }
 
 .shell { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex; align-items: center; gap: 8px; padding: 0 12px; flex: none; }
+header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex; align-items: center; gap: 8px; padding: 0 12px; flex: none; }
 .brand { font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
 .logo { color: #4f8cff; margin-right: 4px; }
 .top .title { width: 220px; background: transparent; border: 1px solid transparent; color: #aab4c8; padding: 5px 8px; }
