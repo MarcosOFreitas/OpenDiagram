@@ -17,7 +17,7 @@ Flat groups (no hierarchy). Create a group, add or remove members. A person can 
 
 | Setting | Effect |
 |---------|--------|
-| **Organization name** | shown in the top bar instead of "OpenDiagram" |
+| **Organisation name** | shown in the top bar instead of "OpenDiagram" |
 | **Allow public sign-up** | lets anybody create a member account. Keep it off unless the instance is for an open community. |
 
 The environment can force these (`ALLOW_SIGNUP`), see [Self-hosting](self-hosting).

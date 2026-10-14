@@ -36,7 +36,7 @@ Today only tables, columns, PK/FK and indexes are imported.
 
 ## Next session: documentation follow-ups
 
-Details in [10](10-documentation-site.md): proofread the pages written from memory, add screenshots/GIFs, syntax colours for DBML blocks, check the narrow-screen layout on a phone, a release-notes page.
+Details in [10](10-documentation-site.md): add screenshots/GIFs (pages were proofread against the UI labels and server limits; DBML colours, release notes and a 375 px layout check are done).
 
 ## Next: ideas taken from dbdiagram's paid plan (agreed order)
 

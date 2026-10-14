@@ -63,9 +63,9 @@ Project shop {
 }
 ```
 
-## Sticky notes
+## Standalone notes
 
-A top-level `Note` is a free text block that is not attached to a table. The importer uses it for database sequences.
+A top-level `Note` is a free text block that is not attached to a table. It stays in the DBML text and is not drawn on the diagram (movable sticky notes on the canvas are planned). The importer uses it to record database sequences.
 
 ```dbml
 Note reminder {

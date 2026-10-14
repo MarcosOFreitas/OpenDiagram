@@ -14,7 +14,7 @@ OpenDiagram can read the structure of a **PostgreSQL** or **Oracle** database an
 
 ## Choose what to import
 
-Tick the **schemas** to read. Below them, **Choose specific tables…** opens a dialog:
+Tick the **schemas** to read. Below them, the **All tables — choose specific ones…** button opens a dialog:
 
 - **Search** by text, with wildcards (`VW_*`, `LOG_??`) or as a regular expression (`/^vision_/`).
 - Filter by **schema** and by **tables / views**, or show **selected only**.
@@ -30,7 +30,7 @@ Press **Import**. The DBML appears in the editor and the diagram is drawn. The c
 - **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE` / `ON UPDATE`) and indexes.
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark; the SQL definition is kept in the table note. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
 - **Enums** (PostgreSQL) as `Enum` blocks.
-- **Sequences** (those that are not owned by a column) as sticky notes.
+- **Sequences** (those that are not owned by a column) as standalone `Note` blocks.
 - **Triggers** as text in the note of their table.
 - Multi-line comments are kept (they are written as multi-line notes).
 

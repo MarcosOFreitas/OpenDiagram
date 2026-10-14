@@ -52,7 +52,7 @@ Table orders {
 Several columns can be referenced together:
 
 ```dbml
-Ref: compat_comgas.(id_os, cd_tss_wfm) > solicitacoes.(id_os, cd_tss_wfm)
+Ref: order_items.(order_id, product_id) > stock.(order_id, product_id)
 ```
 
 ## Working with relationship lines

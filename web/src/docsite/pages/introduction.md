@@ -23,4 +23,4 @@ OpenDiagram is an open-source tool to draw database diagrams (ERDs) by typing co
 
 ## Feature requests and bug reports
 
-OpenDiagram is developed in the open. Use the issue tracker of the project repository to request features or report bugs.
+Send feature requests and bug reports to the people who run your OpenDiagram installation; they can raise them with the project maintainers.

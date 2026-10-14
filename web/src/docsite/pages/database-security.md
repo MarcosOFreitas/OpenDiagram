@@ -25,7 +25,7 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 | **on, do not verify** | encrypts but does not check the certificate (not recommended) |
 
 - **Private or self-signed CA**: paste its PEM in the **CA certificate** field.
-- **Oracle** uses TCPS. For a database behind a **wallet**, load the PEM in the same field (and the wallet password if it has one); the **expected server certificate DN** field is optional.
+- **Oracle** uses TCPS. A wallet in PEM form (`ewallet.pem`) can be pasted in the same **CA certificate** field; the **expected server certificate DN** field is optional. Wallet and DN setups are not verified yet.
 - **Oracle Autonomous Database without wallet** works with *on, verify certificate*, using the host, the TLS port (usually 1522) and the service name.
 
 > **Warning** With TLS set to *off* against a TCPS port, the server just closes the connection and the error looks like `NJS-521 ... end-of-file`. If you see it, check the TLS mode first.

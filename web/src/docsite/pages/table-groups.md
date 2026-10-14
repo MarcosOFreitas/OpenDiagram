@@ -29,7 +29,7 @@ TableGroup billing [color: #E67E22] {
 
 ## Build groups while importing
 
-In **More → Database**, the **Choose specific tables…** dialog has a **Groups** tab:
+In **More → Database**, the **All tables — choose specific ones…** dialog has a **Groups** tab:
 
 1. Type a **name** and pick a **color** (the palette or any color).
 2. Mark the tables of the group in its own list (search, wildcards and *Select shown* work here too).

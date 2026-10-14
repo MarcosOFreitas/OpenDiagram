@@ -24,11 +24,11 @@ One `.md` file per page, first line `# Title`. Pages: introduction, getting-star
 - [x] Search finds a page by title and by body text; Ctrl+K opens it, Esc closes it.
 - [x] Light/dark toggle, sidebar sections, pager and browser back/forward work.
 - [x] **More → Documentation** opens `/docs` in a new tab.
-- [ ] Narrow-screen (burger) layout checked on a real phone; print styles.
+- [x] Burger layout checked in a 375 px emulated viewport (no page-level horizontal scroll; code and tables scroll inside their block). [ ] Real phone and print styles still open.
 
 ## Known limitations and follow-ups (for the next session)
 
-- **Text written from memory**: the pages describe what was built, and only the editor shortcuts (`Ctrl+F`/`Ctrl+H`, `Ctrl+Space`) were cross-checked in the code. Someone who knows each area should read the pages and correct inaccuracies (Administration, Self-hosting and Share links are the ones to double-check first).
+- **Text proofread once** against the UI labels, shortcuts, limits and server code (found and fixed: a wallet-password field that does not exist, sequences called sticky notes, an issue-tracker line for a repository that is not public). Behaviour that is only described (not clicked through) can still drift; re-check a page when its feature changes.
 - **No images**: dbdiagram's docs use screenshots and GIFs; ours are text and code only. Capture screens of the app (Tables panel, Arrange menu, table picker with groups, saved views, detail levels, Docs view) and add them to the pages (a small `![alt](src)` rule in `md.jsx` plus files under `web/public/docs/`).
 - Code blocks: `dbml` blocks are coloured with the editor's tokenizer (`dbml` exported from `Editor.jsx`, `.tok-*` colours in `docsite.css`); other languages are plain.
 - **Narrow screens**: the burger/sidebar layout was only checked in a desktop browser, not on a real phone. Print styles are missing.
