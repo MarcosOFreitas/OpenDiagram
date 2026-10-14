@@ -13,12 +13,14 @@ const tid = (s, n) => `${s || 'public'}.${n}`;
 
 // Right-hand panel of the diagram: search, group by schema / TableGroup, show or hide tables on the canvas, jump to a table.
 // hidden: Set of table ids; onHide(ids, hide); onOnly(ids) = show only these; onFocus(id) = select + center.
-export default function TablesPanel({ right = 0, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
+export default function TablesPanel({ right = 0, views = [], activeView = '', onView, onCreateView, onDeleteView, onRenameView, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
   const [by, setBy] = useState(groups.length ? 'group' : 'schema'); // schema | group
   const [open, setOpen] = useState(() => new Set());
   const [fOpen, setFOpen] = useState(false);
   const [vis, setVis] = useState('all'); // all | visible | hidden
   const [connectedOnly, setConnectedOnly] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState('');
 
   const groupOf = useMemo(() => new Map(groups.flatMap((g) => g.tables.map((t) => [t, g]))), [groups]);
   const adj = useMemo(() => {
@@ -56,6 +58,21 @@ export default function TablesPanel({ right = 0, tables, groups, refs, hidden, o
   return (
     <aside className="tpn" aria-label="Tables panel" style={{ right }}>
       <div className="tpn-head"><b>Tables</b><small>{tables.length - hidden.size}/{tables.length} visible</small><button className="tpn-x" onClick={onClose} title="Close">✕</button></div>
+      <div className="tpn-bar tpn-views">
+        <select value={activeView} onChange={(e) => onView(e.target.value)} aria-label="Diagram view" title="Saved views: which tables are visible and where, detail level, highlights">
+          <option value="">Main view</option>
+          {views.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
+        <button className="tpn-ic" onClick={() => setNaming((n) => !n)} title="Save what you see now as a new view"><Ico><path d="M12 5v14M5 12h14" /></Ico></button>
+        {activeView && <button className="tpn-ic" onClick={() => { const n = window.prompt('Rename view', activeView); if (n) onRenameView(activeView, n); }} title="Rename this view"><Ico><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Ico></button>}
+        {activeView && <button className="tpn-ic" onClick={() => { if (window.confirm(`Delete the view "${activeView}"? The tables are not touched.`)) onDeleteView(activeView); }} title="Delete this view"><Ico><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Ico></button>}
+      </div>
+      {naming && (
+        <div className="tpn-bar">
+          <input autoFocus placeholder="Name of the new view" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newName.trim()) { onCreateView(newName); setNewName(''); setNaming(false); } }} />
+          <button className="tpn-chip" onClick={() => { if (newName.trim()) { onCreateView(newName); setNewName(''); setNaming(false); } }}>Save</button>
+        </div>
+      )}
       <div className="tpn-bar">
         <input ref={searchRef} placeholder="Search table, schema, column or group…" title="Plain text, VW_* wildcards or /regex/ (Ctrl+K)" value={search} onChange={(e) => setSearch(e.target.value)} />
         <button className={`tpn-ic ${filtered ? 'on' : ''}`} onClick={() => setFOpen((o) => !o)} title="Filters"><Funnel /></button>

@@ -50,20 +50,23 @@ const tableWidth = (t) => {
   const rows = t.fields.map((f) => f.name.length * 7 + Math.min(String(f.type || '').length, 24) * 6 + 74);
   return t.w || Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
 };
-const tableHeight = (t) => (t.collapsed ? 30 : t.h || 30 + t.fields.length * ROW + t.indexes.length * 20);
+// detail level: full (all) | names (no types/indexes) | keys (only primary/foreign key columns) | tables (header only)
+const shownFields = (t) => (t.detail === 'keys' ? t.fields.filter((f) => f.pk || (t.keyCols || []).includes(f.name)) : t.fields);
+const lessDetail = (t) => !!t.detail && t.detail !== 'full';
+const tableHeight = (t) => (t.collapsed || t.detail === 'tables' ? 30 : t.h || 30 + shownFields(t).length * ROW + (t.hideIndexes || lessDetail(t) ? 0 : t.indexes.length * 20));
 
 function TableNode({ data: t, selected }) {
   const fk = new Set(t.fkCols);
-  const natural = 32 + t.fields.length * ROW + (t.hideIndexes ? 0 : t.indexes.length * 20); // height without a manual size
+  const rows = shownFields(t), natural = 32 + rows.length * ROW + (t.hideIndexes ? 0 : t.indexes.length * 20); // height without a manual size
   const onResize = (_, p) => t.onSize(t.id, { w: Math.round(p.width), h: t.h || Math.abs(p.height - natural) > 4 ? Math.round(p.height) : undefined }); // a width-only drag keeps the height automatic
   return (
     <>
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
     <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
       <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
-        <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>
+        {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
         <span className="tbl-n">{t.name}{t.viewKind && <em className="tbl-kind"> · {t.viewKind}</em>}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
-        {t.collapsed && t.fields.map((f) => ( // a collapsed table keeps its relationship lines: connect them to the header
+        {(t.collapsed ? t.fields : t.fields.filter((f) => !rows.includes(f))).map((f) => ( // columns that are not drawn (collapsed table, keys-only level) keep their relationship lines: connect them to the header
           <span key={f.name} style={{ display: 'contents' }}>
             <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
             <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
@@ -73,7 +76,7 @@ function TableNode({ data: t, selected }) {
         ))}
       </div>
       {!t.collapsed && <div className="tbl-body">
-      {t.fields.map((f) => (
+      {rows.map((f) => (
         <div key={f.name} className="tbl-c" title={`${f.name}: ${f.type}${f.note ? ` — ${f.note}` : ''}`}>
           <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
           <span className="nm">
@@ -387,6 +390,52 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     if (Object.keys(cur).length) next['@labels'] = cur; else delete next['@labels'];
     layoutRef.current = next; setLayoutTick((k) => k + 1);
   }, []);
+  // A named view = which tables are visible, where they are, sizes, line labels, detail level and relationship highlight.
+  // The live state always sits at the root of the layout; leaving a view stores it back (so switching never loses changes).
+  const snapView = () => ({
+    pos: Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) }])),
+    sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs,
+  });
+  const applySnap = (sn, views, base, active) => {
+    const keep = Object.keys(views).length ? { '@views': views } : {};
+    layoutRef.current = { ...sn.pos, ...(sn.sizes ? { '@sizes': sn.sizes } : {}), ...(sn.hidden ? { '@hidden': sn.hidden } : {}), ...(sn.labels ? { '@labels': sn.labels } : {}), ...keep, ...(base ? { '@base': base } : {}), ...(active ? { '@view': active } : {}) };
+    setNodes((old) => old.map((n) => (sn.pos[n.id] ? { ...n, position: sn.pos[n.id] } : n)));
+    setView((v) => ({ ...v, detail: sn.detail || 'full', hiRefs: !!sn.hiRefs }));
+    setLayoutTick((k) => k + 1);
+    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 200);
+  };
+  const viewNames = Object.keys(layoutRef.current['@views'] || {}), activeView = layoutRef.current['@view'] || '';
+  const switchView = (name) => {
+    const lr = layoutRef.current, views = { ...(lr['@views'] || {}) }, cur = lr['@view'] || '';
+    if (name === cur) return;
+    const now = snapView(); let base = lr['@base'];
+    if (cur) views[cur] = now; else base = now;
+    const target = name ? views[name] : base;
+    if (target) applySnap(target, views, base, name);
+  };
+  const createView = (raw) => {
+    const name = String(raw || '').trim().slice(0, 60), lr = layoutRef.current, views = { ...(lr['@views'] || {}) };
+    if (!name || views[name]) return notify('err', name ? 'A view with this name already exists' : 'Give the view a name');
+    const now = snapView(), cur = lr['@view'] || '';
+    views[name] = now;
+    layoutRef.current = { ...lr, '@views': views, ...(cur ? {} : { '@base': now }), '@view': name }; // what is on screen is the new view now
+    setLayoutTick((k) => k + 1); notify('ok', `View "${name}" saved`);
+  };
+  const deleteView = (name) => {
+    const lr = layoutRef.current, views = { ...(lr['@views'] || {}) };
+    delete views[name];
+    if ((lr['@view'] || '') === name) { const base = lr['@base']; if (base) applySnap(base, views, base, ''); else { layoutRef.current = { ...lr, '@views': views, '@view': undefined }; delete layoutRef.current['@view']; setLayoutTick((k) => k + 1); } return; }
+    layoutRef.current = { ...lr, ...(Object.keys(views).length ? { '@views': views } : {}) }; if (!Object.keys(views).length) delete layoutRef.current['@views'];
+    setLayoutTick((k) => k + 1);
+  };
+  const renameView = (old, raw) => {
+    const name = String(raw || '').trim().slice(0, 60), lr = layoutRef.current, views = { ...(lr['@views'] || {}) };
+    if (!name || name === old) return;
+    if (views[name]) return notify('err', 'A view with this name already exists');
+    views[name] = views[old]; delete views[old];
+    layoutRef.current = { ...lr, '@views': views, ...(lr['@view'] === old ? { '@view': name } : {}) };
+    setLayoutTick((k) => k + 1);
+  };
   const showOnly = (ids) => { const keep = new Set(ids); setHidden(parsed.tables.map((t) => t.id).filter((id) => !keep.has(id)), true); setHidden(ids, false); };
   const savedRef = useRef('');
   const [dbml, setDbml] = useState('');
@@ -420,7 +469,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => { store('tablesPanel', panelOpen ? '1' : '0'); }, [panelOpen]);
   const [sqlFmt, setSqlFmt] = useState('postgres');
   const [paste, setPaste] = useState('');
-  const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
+  const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
+  useEffect(() => { // while a named view is active, its detail level and highlight travel with the diagram (not only with this browser)
+    const lr = layoutRef.current;
+    if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs)) return;
+    layoutRef.current = { ...lr, '@detail': view.detail || 'full', '@hiRefs': !!view.hiRefs }; setLayoutTick((k) => k + 1);
+  }, [view.detail, view.hiRefs, doc, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
@@ -456,6 +510,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const startDoc = useCallback((d, list) => {
     lastGen.current = (d.id && store(`gen:${d.id}`)) || '';
     layoutRef.current = d.layout ?? {};
+    const lr0 = layoutRef.current, sn0 = lr0['@views']?.[lr0['@view']];
+    if (lr0['@view']) setView((v) => ({ ...v, detail: lr0['@detail'] ?? sn0?.detail ?? v.detail, hiRefs: lr0['@hiRefs'] ?? sn0?.hiRefs ?? v.hiRefs })); // a named view carries its detail level / highlight
     idsKey.current = '';
     savedRef.current = JSON.stringify(payloadOf(d));
     setNodes([]); setEdges([]);
@@ -556,7 +612,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     setError('');
     const fkCols = {};
     parsed.refs.forEach((r) => (fkCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames));
-    const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [] }));
+    const keyCols = {};
+    parsed.refs.forEach((r) => { (keyCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames); (keyCols[tid(r.parent.schemaName, r.parent.tableName)] ||= []).push(...r.parent.fieldNames); });
+    const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [] }));
     setNodes((old) => layout(tables, parsed.refs, new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]), parsed.groups));
     setEdges(parsed.refs.map((r) => ({
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
@@ -575,7 +633,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const visible = nodes.filter((n) => !hidden.has(n.id));
     const tables = visible.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !hit(n.data) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !hit(n.data) },
     }));
     const byId = new Map(visible.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
@@ -586,7 +644,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
-  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const labels = layoutRef.current['@labels'] || {};
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
@@ -620,9 +678,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       setNodes((old) => {
         const sz = layoutRef.current['@sizes'], hid = new Set(layoutRef.current['@hidden'] || []);
         const vis = old.filter((n) => !hid.has(n.id));
-        const next = layout(vis.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo);
+        const next = layout(vis.map((n) => ({ ...n.data, detail: view.detail || 'full', hideIndexes: view.hideIndexes, collapsed: !!sz?.[n.id]?.c || view.detail === 'tables', w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo);
         const fresh = new Map(next.map((n) => [n.id, n])), merged = old.map((n) => fresh.get(n.id) || n); // hidden tables keep their place
-        layoutRef.current = { ...Object.fromEntries(merged.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}), ...(hid.size ? { '@hidden': [...hid] } : {}) };
+        layoutRef.current = { ...Object.fromEntries(merged.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}), ...(hid.size ? { '@hidden': [...hid] } : {}), ...Object.fromEntries(['@views', '@base', '@view'].filter((k) => layoutRef.current[k]).map((k) => [k, layoutRef.current[k]])) };
         return merged;
       });
       setLayoutTick((n) => n + 1);
@@ -814,7 +872,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </ReactFlow>
           {mode === 'diagram' && (<>
             <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title="Tables panel (Ctrl+K)" aria-label="Tables panel">{panelOpen ? '›' : '‹'}</button>
-            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
+            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
@@ -979,6 +1037,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <div className="seg">
                 {[['default', 'Curved'], ['smoothstep', 'Rounded'], ['step', 'Step'], ['straight', 'Straight']].map(([v, l]) => (
                   <button key={v} className={view.edgeType === v ? 'on' : ''} onClick={() => setView({ ...view, edgeType: v })}>{l}</button>
+                ))}
+              </div>
+              <h4>Detail level</h4>
+              <div className="seg">
+                {[['full', 'Full'], ['names', 'Names'], ['keys', 'Keys'], ['tables', 'Tables']].map(([v, l]) => (
+                  <button key={v} className={(view.detail || 'full') === v ? 'on' : ''} onClick={() => setView({ ...view, detail: v })} title={{ full: 'All columns, types and indexes', names: 'All columns, without types and indexes', keys: 'Only primary and foreign key columns', tables: 'Only table names' }[v]}>{l}</button>
                 ))}
               </div>
               <h4>Tables</h4>

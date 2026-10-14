@@ -34,6 +34,16 @@ Today only tables, columns, PK/FK and indexes are imported.
 - Realtime collaboration.
 - Mobile/narrow layout.
 
+## Ideas taken from dbdiagram's paid plan (agreed order)
+
+1. **Versions + changelog** of diagrams/docs, with a version number on save to detect edit conflicts (autosave currently overwrites silently when two people edit).
+2. **Data lineage**: table level and column level; Postgres gives it exactly from `pg_depend`/`pg_rewrite` (views), Oracle `ALL_DEPENDENCIES` at table level; a DBML syntax to declare it by hand.
+3. **Sticky notes** (DBML `Note` blocks as movable notes on the canvas).
+4. Small ones: *named views* (done), *detail levels* (done), *password on share links* (done). Embed/iframe was dropped on purpose.
+5. Presence, then real-time co-editing (Yjs) only if the use asks for it.
+6. API tokens, CLI and an **MCP connector** (an agent user whose permissions per diagram/group are the existing grants; audit log; diagram text is untrusted input for the agent) — last step before making the repository public; review `05-security.md` first.
+Not planned: data samples (they would read table data, against the catalog-only invariant).
+
 ## Done (see git history)
 
 Accounts with roles, administration (users, flat groups, settings), operator CLI, private diagrams (autosave), sharing with people/groups/links with owner-chosen permissions, multi-author comments, administrators manage every diagram, SSRF host policy, sample shop model · DBML editor + diagram · live import PG/Oracle (tables, columns, PK/FK, indexes, table/column comments) · TableGroups/colors/themes · multi-format import/export · Help tab · generated documentation (view, comments, HTML/Markdown export; shareable through links) · read-only guardrails, privilege checks, TLS (PostgreSQL verified; Oracle partly), manual/auto refresh.
