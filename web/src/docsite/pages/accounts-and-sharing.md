@@ -20,6 +20,8 @@ Open the diagram and press **Share**. You can give access to:
 - a **group** (everybody in it),
 - or create a **link** (see [Share links](share-links)).
 
+![The Share panel: people and groups on top, links below.](share-panel.jpg)
+
 Levels, from least to most:
 
 | Level | Can |

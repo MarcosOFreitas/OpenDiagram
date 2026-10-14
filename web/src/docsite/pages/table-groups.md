@@ -31,6 +31,8 @@ TableGroup billing [color: #E67E22] {
 
 In **More → Database**, the **All tables — choose specific ones…** dialog has a **Groups** tab:
 
+![The Groups tab: a new group on top and the groups of the diagram below.](table-picker-groups.jpg)
+
 1. Type a **name** and pick a **color** (the palette or any color).
 2. Mark the tables of the group in its own list (search, wildcards and *Select shown* work here too).
 3. **Create group.** Repeat for the other groups.

@@ -9,6 +9,8 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 - **Enums** with their values.
 - The sidebar lists the tables **by table group** (with the group color), then ungrouped tables and enums.
 
+![The Docs view: overview with counts and relationships; the sidebar lists tables by group.](docs-view.jpg)
+
 ## Reading it
 
 - **Search** in the sidebar filters by table name, schema or any column name.

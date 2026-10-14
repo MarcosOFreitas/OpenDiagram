@@ -65,7 +65,7 @@ Not verified yet: Oracle TLS with a wallet/CA PEM, `noverify` and `serverDn` (pl
 Also implemented since: table picker with TableGroups, views/enums/sequences/triggers in the import, five Arrange algorithms (group-aware), Tables panel with hide + saved views, detail levels, draggable ref labels and group boxes, resizable/collapsible tables, password-protected share links, Export menu, English sample model, and the public documentation site at `/docs` (`web/src/docsite/`, spec [10](.specs/10-documentation-site.md)). Dropped on purpose: embedding diagrams in an iframe.
 
 Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/10-documentation-site.md`):
-1. **Documentation follow-ups**: add screenshots. (Done: DBML syntax colours, release-notes page, phone layout check, proofreading of every page against the UI labels and server limits.)
+1. **Documentation follow-ups**: none pending except more screenshots as features change. (Done: screenshots, DBML syntax colours, release-notes page, phone layout check, proofreading of every page against the UI labels and server limits.)
 2. **Versions + changelog** of diagrams/docs, with a version number on save to detect edit conflicts (autosave silently overwrites when two people edit today).
 3. **Data lineage** (table and column level; Postgres from `pg_depend`/`pg_rewrite`, Oracle `ALL_DEPENDENCIES`; DBML syntax to declare it).
 4. **Sticky notes** (movable `Note` blocks on the canvas), then presence and, only if needed, real-time co-editing (Yjs).

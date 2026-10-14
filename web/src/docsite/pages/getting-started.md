@@ -7,6 +7,8 @@
 - **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export** and **More** (Diagrams, Database, Import, View, Documentation).
 - **Right edge** of the diagram: the **Tables panel** (search, group, hide and jump to tables).
 
+![The sample model: tables, table groups (colored boxes) and relationship lines. The dock at the bottom has zoom, fit, collapse, highlight and Arrange.](diagram-overview.jpg)
+
 Everything **autosaves** a moment after you change it ("Saved" appears next to the title). Your diagrams are private to your account until you share them.
 
 ## Your first diagram

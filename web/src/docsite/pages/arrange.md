@@ -2,6 +2,8 @@
 
 **Arrange** in the dock lays the tables out again. The **▾** next to it chooses the algorithm; your choice is remembered.
 
+![The Arrange button and the ▾ menu with the five algorithms.](arrange-menu.jpg)
+
 | Algorithm | What it does | Best for |
 |-----------|--------------|----------|
 | **Auto** | Packs each table group and each connected cluster on its own, tables without relationships in balanced columns, and arranges the blocks in rows. | The default. Large diagrams. |

@@ -12,6 +12,8 @@ OpenDiagram can read the structure of a **PostgreSQL** or **Oracle** database an
 4. Press **Test connection**. You get the list of schemas and any warnings about the privileges of the user.
 5. **Save** keeps the connection for later. The password is stored encrypted and is never shown again.
 
+![The connection form. A successful test lists the schemas of the database.](connection-form.jpg)
+
 ## Choose what to import
 
 Tick the **schemas** to read. Below them, the **All tables — choose specific ones…** button opens a dialog:
@@ -20,6 +22,8 @@ Tick the **schemas** to read. Below them, the **All tables — choose specific o
 - Filter by **schema** and by **tables / views**, or show **selected only**.
 - **Select shown** and **Clear shown** act on the filtered list, so `VW_*` plus *Select shown* picks every view of a family.
 - Nothing selected means **all tables** of the chosen schemas.
+
+![The table picker: a wildcard search (`*order*`) finds tables and views.](table-picker.jpg)
 
 The **Groups** tab of the same dialog lets you build [Table groups](table-groups) before importing. Each group has its own list of tables, independent from the import selection. Tables you put in a group are imported too.
 

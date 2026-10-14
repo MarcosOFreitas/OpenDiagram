@@ -6,6 +6,8 @@ Large databases are hard to read all at once. These tools help you show only wha
 
 Open it with the **‹** button on the right edge of the diagram, or with `Ctrl+K` (`⌘+K` on macOS). A badge on the button shows how many tables are hidden.
 
+![The Tables panel grouped by table group; the search "order" dims the tables that do not match.](tables-panel.jpg)
+
 - **Search** by table name, schema, column name or group name. Plain text, wildcards (`VW_*`) and `/regex/` work. The diagram dims the tables that do not match.
 - **Group by** schema or by table group. Each group shows `visible/total`.
 - **Eye** icons hide or show a table, a whole group, or everything listed.
@@ -19,6 +21,8 @@ Hidden tables leave their relationship lines and group boxes. They are still in 
 ## Detail levels
 
 **More → View → Detail level** shrinks every table:
+
+![More → View: the detail level (here Keys) and the other display options.](detail-levels.jpg)
 
 | Level | Shows |
 |-------|-------|
