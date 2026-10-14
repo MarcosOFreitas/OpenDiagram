@@ -40,11 +40,11 @@ Details in [10](10-documentation-site.md): add screenshots/GIFs (pages were proo
 
 ## Next: ideas taken from dbdiagram's paid plan (agreed order)
 
-1. ~~**Versions + changelog**~~ **done**: version number + 409 on conflict, history with names, compare and restore (see [09](09-accounts-sharing.md)). Open: notice a newer version while editing (polling) and a visible per-diagram changelog in the Docs view.
+1. ~~**Versions + changelog**~~ **done**: version number + 409 on conflict, history with names, compare and restore (see [09](09-accounts-sharing.md)). A newer version is noticed through presence; open: a visible per-diagram changelog in the Docs view.
 2. ~~**Data lineage**~~ **done** (see [02](02-editor-diagram.md) and [03](03-connections-import.md)): `// lineage:` comment syntax, import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows, focus, filters. Lineage also feeds Arrange and the Docs view/exports. Column mapping of views is automatic (`pgsql-ast-parser`, spec 03). Decided not to build drawing a lineage link by dragging.
 3. ~~**Sticky notes**~~ **done** (DBML `Note` blocks as movable, editable notes on the canvas; see [02](02-editor-diagram.md)). Open: colours, Docs view, presence.
 4. Small ones: *named views* (done), *detail levels* (done), *password on share links* (done). Embed/iframe was dropped on purpose.
-5. Presence, then real-time co-editing (Yjs) only if the use asks for it.
+5. ~~Presence~~ **done** (who has the diagram open, selection, editing, newer-version bar; spec 09). Real-time co-editing (Yjs) only if the use asks for it.
 6. API tokens, CLI and an **MCP connector** (an agent user whose permissions per diagram/group are the existing grants; audit log; diagram text is untrusted input for the agent) — last step before making the repository public; review `05-security.md` first.
 Not planned: data samples (they would read table data, against the catalog-only invariant).
 

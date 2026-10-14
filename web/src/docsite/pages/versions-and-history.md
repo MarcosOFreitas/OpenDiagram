@@ -13,6 +13,14 @@ While the dialog is open, autosave is paused and the status next to the title sa
 
 > **Note** The conflict is detected when you save, not while the other person types. There is still no real-time co-editing: two people can work on the same diagram, but the second one to save is asked what to do.
 
+## Who has the diagram open
+
+Next to the title, round **avatars** show the other people who have the same diagram open right now (up to four, then *+N*). Hover one to see the name and what the person is doing: **looking at** a table (the table gets an outline in the person's color with their name) or **editing** (the avatar gets an amber ring while their changes are not saved yet). Visitors of a share link appear as *Guest*.
+
+When someone else saves while you have nothing unsaved, a bar says **Someone saved a newer version of this diagram** with **Load it** and **Dismiss**. If you do have unsaved changes, you are asked what to do when you save (see above).
+
+> **Note** Presence is a heartbeat every few seconds from each open tab, kept in the server's memory only: nothing is stored, and a restart empties it. It shows what people are looking at, not their cursors or text, and edits are still not merged live.
+
 ## History
 
 Open **More → History** (people who can **edit**, administrators and the owner). It lists the saved versions, newest first:

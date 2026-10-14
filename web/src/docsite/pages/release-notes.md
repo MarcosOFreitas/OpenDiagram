@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Presence
+
+- Avatars of the people who have the diagram open, with what they look at or edit, an outline on the table they selected, and a bar when someone saved a newer version.
+
 ## Sticky notes
 
 - Top-level `Note` blocks are drawn as **sticky notes** on the diagram: add, edit by double-click, move, resize, delete and hide them; they live in the DBML text.

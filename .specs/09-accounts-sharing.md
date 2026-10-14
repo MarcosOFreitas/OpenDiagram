@@ -68,6 +68,12 @@ Everything under `/api` except `health`, `auth/*` and `shared/*` requires a sess
 - UI: **More → History** (`History.jsx`: list, name, Compare = line diff against the editor, Restore) and the conflict dialog in `App.jsx` (autosave pauses while it is open; status shows "Conflict").
 - Not done: detecting a newer version without saving (no polling, no push), a per-entry delete button, diff of the layout, history for edit-link visitors.
 
+## Presence
+- `POST /api/diagrams/:id/presence` and `POST /api/shared/:token/presence` (any access level; link visitors, anonymous ones as `Guest`): body `{ tab, sel?, editing?, leave? }` (`tab` = random id of the browser tab, `[\w-]{6,40}`). Answer `{ viewers: [{ id, name, color, sel, editing }], version }`: the other people with the diagram open (several tabs of one person count once; the caller is never listed) and the current diagram version. Never returns e-mails.
+- `server/src/presence.js`: in-memory map diagram -> tab -> entry; entries expire after 15 s without a heartbeat, at most 200 per diagram, a cleanup timer every minute. Nothing is persisted. The client beats every 4 s while the tab is visible, at once when the selection or the saved state changes, and with `leave` on page hide.
+- UI (`App.jsx`): avatars next to the title (colour from the account id, amber ring while editing), the selected table of others outlined with a name tag (`peers` in `shown`), and the "newer version" bar when `version` from a beat is above the loaded one and nothing is unsaved.
+- Not done: cursors, live text, presence in the Docs view, a list of everybody (only 4 avatars + a count).
+
 ## Comments
 
 Any number per target key (`"<schema>.<table>"`, `"<schema>.<table>.<column>"`, `"__project"`) with author, date and text (≤ 2000 chars), stored in the app — **never** in DBML or a database; included (with author) in the `.html`/`.md` documentation exports. The Docs view refetches them when opened.
