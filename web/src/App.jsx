@@ -4,7 +4,6 @@ import dagre from '@dagrejs/dagre';
 import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
-import Docs from './Docs.jsx';
 import { DocsView, standaloneHtml } from './DocsPage.jsx';
 import { buildModel, toMarkdown } from './docsModel.js';
 
@@ -775,16 +774,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const copyDbml = () => navigator.clipboard.writeText(dbml).then(() => notify('ok', 'DBML copied'), () => notify('err', 'Clipboard blocked'));
 
   const tabs = shared
-    ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ['docs', 'Help']]
+    ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View']]
     : owner
-      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['view', 'View'], ['share', 'Share'], ['docs', 'Help']]
-      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : []), ['docs', 'Help']];
+      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['view', 'View'], ['share', 'Share']]
+      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : [])];
   const tabName = Object.fromEntries(tabs);
-  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', share: 'Share', docs: 'Help', account: 'Account' };
+  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', share: 'Share', account: 'Account' };
   const primary = ['share'].filter((k) => tabName[k]); // everything else lives under "Export" / "More"
   const LABEL = { view: 'view only', comment: 'can comment', edit: 'can edit', admin: 'administrator access' };
-  const insertExample = (code) => { if (readOnly) return notify('err', 'This diagram is read-only for you'); setDbml((d) => `${d.replace(/\s+$/, '')}\n\n${code}\n`); notify('ok', 'Example added to the editor'); };
-  const copyText = (t) => navigator.clipboard.writeText(t).then(() => notify('ok', 'Copied'), () => notify('err', 'Clipboard blocked'));
   const open = (t) => setDrawer(drawer === t ? null : t);
   useEffect(() => { store('editorW', String(editorW)); }, [editorW]);
   useEffect(() => { document.title = doc ? `${title || 'Untitled'} — ${org || 'OpenDiagram'}` : (org || 'OpenDiagram'); }, [doc, title, org]);
@@ -833,8 +830,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             { header: 'SQL' }, ...EXPORTS.filter(([k]) => ['postgres', 'mysql', 'mssql', 'oracle'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
             { header: 'Other' }, ...EXPORTS.filter(([k]) => ['dbml', 'json', 'docs-html', 'docs-md'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
             { sep: true }, { key: 'copy', label: 'Copy DBML to clipboard', onClick: copyDbml }]} />
-        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'view', 'docs'].includes(drawer)} title="Diagrams, Database, Import, View, Help"
-          items={['diagrams', 'connect', 'import', 'view', 'docs'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) }))} />
+        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'view'].includes(drawer)} title="Diagrams, Database, Import, View, Documentation"
+          items={[...['diagrams', 'connect', 'import', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
+            { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
         {user
           ? <Menu align="right" title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
             items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
@@ -1015,8 +1013,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <small className="hint">Oracle SQL files are not supported by the parser — use Database → Oracle to import live.</small>
             </div>
           )}
-
-          {drawer === 'docs' && <Docs onInsert={insertExample} onCopy={copyText} />}
 
           {drawer === 'view' && (
             <div className="dbody">

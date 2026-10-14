@@ -62,7 +62,7 @@ docker compose cp ./backup/. app:/data && docker compose restart app
 0. **Diagrams** tab: your diagrams (new accounts start with the sample shop model; *Start from a template* or *New blank diagram* for more) and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
 1. **More → Database** → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
 2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
-3. Edit the DBML on the left; the diagram updates live. **Help** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
+3. Edit the DBML on the left; the diagram updates live. **More → Documentation** opens the full documentation (also at `/docs`) with DBML examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
 4. **↻** in the top bar re-reads the metadata; set an interval in the connection for automatic refresh (runs while the page is open).
 5. **Docs** (top bar) shows generated documentation for the DBML — click a table header to collapse it, click a comment area to add a note; **Export**: DBML, SQL per dialect, JSON, PNG, SVG, documentation (HTML / Markdown). **More → View**: theme, grid, edge style, hide types/indexes, editor line wrapping. Drag the edge of the editor to resize it; Ctrl+F searches and replaces.
 

@@ -1,0 +1,55 @@
+# Getting started
+
+## The screen
+
+- **Left**: the DBML editor. It is the **single source of truth**: the diagram is always drawn from this text.
+- **Center**: the diagram. Drag tables, zoom with the wheel or the dock at the bottom, and click things to focus them.
+- **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export** and **More** (Diagrams, Database, Import, View, Documentation).
+- **Right edge** of the diagram: the **Tables panel** (search, group, hide and jump to tables).
+
+Everything **autosaves** a moment after you change it ("Saved" appears next to the title). Your diagrams are private to your account until you share them.
+
+## Your first diagram
+
+Every new account starts with a sample, **Online store - sample**. To start from scratch use **More → Diagrams → New blank diagram** and type:
+
+```dbml
+Table users {
+  id integer [pk, increment]
+  email varchar(255) [unique, not null]
+  created_at timestamp [default: `now()`]
+}
+
+Table posts {
+  id integer [pk, increment]
+  user_id integer [not null]
+  title varchar(200)
+}
+
+Ref: posts.user_id > users.id
+```
+
+The two tables appear with a line between them. Click a table to highlight its relationships, drag it to move it, double-click its header to collapse it.
+
+## The editor
+
+| What | How |
+|------|-----|
+| Autocomplete (keywords, types, tables, `table.column`) | `Ctrl+Space` |
+| Syntax errors | underlined in the code and listed in the status bar |
+| Colors | after a `headercolor:` or `color:` value a small square opens a color picker; typing `color: ` offers presets |
+| Find and replace | `Ctrl+F` (find) and `Ctrl+H` (replace) |
+| Wrap long lines | **More → View → Wrap long lines** |
+| Resize the editor | drag the edge between the editor and the diagram (double-click resets) |
+
+> **Tip** Collapse the editor with the **‹** button on its edge when you only want to look at the diagram. It is hidden automatically in the **Docs** view.
+
+## Diagrams, templates and deleting
+
+**More → Diagrams** lists your diagrams and the ones shared with you, lets you start from a template and delete a diagram. Deleting a diagram also removes its share links and comments.
+
+## Next steps
+
+- Learn the [DBML syntax](dbml).
+- [Import a database](database-import) instead of typing it.
+- [Share](share-links) the diagram.

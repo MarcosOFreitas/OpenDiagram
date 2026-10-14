@@ -1,0 +1,49 @@
+# Diagram basics
+
+## Navigating
+
+- **Zoom** with the mouse wheel, the **− / +** buttons or the zoom box in the dock; **⤢** fits everything on the screen.
+- **Pan** by dragging the empty canvas. The **minimap** in the corner shows where you are.
+- The dock also has **⊟ / ⊞** (collapse or expand every table), the relationship highlight button and **Arrange** (see [Arrange](arrange)).
+
+## Selecting and focusing
+
+| Click | Result |
+|-------|--------|
+| A **table** | The table and its relationship lines are highlighted. |
+| A **relationship line** | The line turns orange; only its two tables stay in focus. |
+| A **table group title** | The group box becomes solid and glows; other tables and unrelated lines dim. |
+| The empty canvas | Clears the focus. |
+
+## Moving things
+
+- **Tables**: drag by the header.
+- **A whole table group**: drag the **title** of its box. The tables keep their relative positions.
+- **A relationship line**: drag its **label** to bend the line; double-click the label to reset.
+- Positions are saved with the diagram. Table positions survive a [refresh](database-import#keep-it-fresh).
+
+## Collapsing and resizing tables
+
+- The **▾** in a header (or a double-click on it) collapses the table to its title. Relationship lines stay attached.
+- **Select** a table and drag the handles on its edges and corners to change its **width and height**. A manual height makes the rows scroll inside the table. A width-only change keeps the height automatic.
+- The default width follows the content, so the longest column name always fits. Column names are on the left and keep priority; types are on the right and are the first to be shortened.
+
+## Header colors
+
+```dbml
+Table products [headercolor: #3498DB] {
+  id integer [pk]
+}
+```
+
+Next to the color a small square opens a color picker, and typing `headercolor: ` offers a preset palette.
+
+## Views, tables and the detail
+
+Tables that come from a database view are drawn like the others, marked **· View** or **· Mat. view** after the name.
+
+## Theme and lines
+
+**More → View** switches **light / dark**, the background grid, snap to grid, line style, the relationship highlight and the detail level.
+
+> **Tip** Press the **Docs** switch in the top bar for a browsable page of the same model, see [Generated documentation](generated-documentation).

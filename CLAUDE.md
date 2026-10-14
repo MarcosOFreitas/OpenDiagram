@@ -25,7 +25,7 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 - `server/src/introspect.js` — per-engine catalog queries (`pg_catalog`, `ALL_*` views) → neutral model `{tables, refs}`; read-only session setup; TLS; privilege checks.
 - `server/src/dbml.js` — neutral model → DBML text.
 - `server/src/store.js` — saved connections per account (SQLite); secrets AES-256-GCM encrypted with `APP_SECRET`.
-- `web/src/App.jsx` — root (auth gate, `/s/<token>` route) + `Workspace` (topbar, drawer tabs, canvas, autosave, refresh). `Auth.jsx` sign-in/up + password form, `Admin.jsx` administration overlay, `Library.jsx` diagrams tab, `SharePanel.jsx` people/groups/links, `templates.js` starter diagrams (blank + the sample "Online store - sample", used for a new account's first diagram and the Diagrams tab), `Menu.jsx` top-bar dropdown, `api.js` fetch helper. `Editor.jsx` CodeMirror DBML editor (highlighting, autocomplete, diagnostics, color swatches, find/replace bar, read-only/wrap compartments). `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
+- `web/src/App.jsx` — root (auth gate, `/s/<token>` route) + `Workspace` (topbar, drawer tabs, canvas, autosave, refresh). `Auth.jsx` sign-in/up + password form, `Admin.jsx` administration overlay, `Library.jsx` diagrams tab, `SharePanel.jsx` people/groups/links, `templates.js` starter diagrams (blank + the sample "Online store - sample", used for a new account's first diagram and the Diagrams tab), `Menu.jsx` top-bar dropdown, `api.js` fetch helper. `Editor.jsx` CodeMirror DBML editor (highlighting, autocomplete, diagnostics, color swatches, find/replace bar, read-only/wrap compartments). `docsite/` the public documentation site at `/docs` (`DocsSite.jsx` layout + search, `md.jsx` mini Markdown renderer, `nav.js` page order, `pages/*.md` the content; opened from **More → Documentation**). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
 - `demo/` — sample DBs for manual/e2e testing. `.specs/` — specs. `server/public` is a build artifact (gitignored).
 
 ## Conventions
@@ -75,6 +75,6 @@ The REA reverse-engineering MCP was only used to study the public dbdiagram.io U
 
 ## Working agreements
 
-- Smallest change that solves the problem; reuse what exists. Keep specs, README and the in-app Help tab consistent when behaviour changes.
+- Smallest change that solves the problem; reuse what exists. Keep specs, README and the documentation pages (`web/src/docsite/pages/*.md`) consistent when behaviour changes.
 - Report honestly what was and was not tested (e.g. Oracle TLS wallet/`noverify`/`serverDn` are unverified).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.

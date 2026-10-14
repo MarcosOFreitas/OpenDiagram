@@ -29,7 +29,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 - Import from demo-pg via the drawer → 4+ tables, edges visible, toast shown.
 - Test with `writer` → amber warning banner; with `reader` → none.
 - Edit DBML with a syntax error → underline + status; fix → clears.
-- Insert all Help-tab examples → no error. Toggle dark theme and grid.
+- Toggle dark theme and grid. Open **More → Documentation**: every page opens, no broken internal link, search finds a page, anchors scroll.
 - Alter the demo DB, press `↻` → toast with diff, TableGroup kept; press again → "Already up to date".
 - Set refresh 1 min, alter DB, wait → editor updates without interaction.
 - Switch to Docs: sidebar, search, relationship links; collapse/expand a table (chevron), Collapse all / Expand all, reload keeps collapsed state; add a table and a column comment, reload keeps them; export Docs `.html`/`.md` includes the comments and the `.html` opens standalone with working search.

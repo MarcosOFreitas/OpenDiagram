@@ -1,0 +1,82 @@
+# DBML: tables, fields and notes
+
+DBML (Database Markup Language) is a simple, readable language to describe a database structure. The editor understands the full language of [`@dbml/core`](https://dbml.dbdiagram.io/docs); this page covers what you will use most.
+
+## Tables and columns
+
+A table is a block with one column per line: name, type, and optional **settings** in square brackets.
+
+```dbml
+Table users {
+  id integer [pk, increment]
+  email varchar(255) [unique, not null, note: 'Login e-mail']
+  status varchar [default: 'active']
+  created_at timestamp [default: `now()`]
+}
+```
+
+| Setting | Meaning |
+|---------|---------|
+| `pk` | primary key |
+| `not null` / `null` | nullability |
+| `unique` | unique constraint |
+| `increment` | auto-increment / serial |
+| `default: value` | default; wrap an expression in backticks, as in the example above (`now()`) |
+| `note: 'text'` | a note, shown as a tooltip and in the documentation |
+| `ref: > other.id` | inline relationship, see [Relationships](relationships) |
+
+Types are free text: `varchar(255)`, `decimal(10,2)`, `timestamp with time zone`. A type that is not a single word is quoted automatically by the importer.
+
+## Table settings and notes
+
+Settings for the whole table go after its name.
+
+```dbml
+Table products [headercolor: #3498DB, note: 'Items for sale'] {
+  id integer [pk]
+  sku varchar [unique]
+  price decimal(10,2)
+}
+```
+
+- `headercolor` changes the title bar. See [Table groups](table-groups) for the color picker.
+- A multi-line note uses triple quotes:
+
+```dbml
+Table orders {
+  id integer [pk]
+  Note: '''
+    One row per order.
+    Totals are recalculated by a trigger.
+  '''
+}
+```
+
+## Project
+
+A `Project` block holds metadata and a note for the whole diagram.
+
+```dbml
+Project shop {
+  database_type: 'PostgreSQL'
+  Note: 'Shop schema overview'
+}
+```
+
+## Sticky notes
+
+A top-level `Note` is a free text block that is not attached to a table. The importer uses it for database sequences.
+
+```dbml
+Note reminder {
+  'Review the payments model before the release'
+}
+```
+
+## Comments
+
+`// like this` is ignored by the parser. Use it freely to organize the file.
+
+## Views from a database
+
+Views are drawn as normal tables, marked **· View** (or **· Mat. view**) next to the name. Their SQL definition is kept in the table note. See [Import from a database](database-import#what-is-imported).
