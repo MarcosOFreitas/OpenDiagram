@@ -242,6 +242,8 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tbl-t { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 4px 0 0; font-size: 12px; line-height: 1; opacity: .85; }
 .tbl-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tbl-h small { flex: 0 0 auto; }
-.tbl-rs { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: ew-resize; }
-.tbl-rs:hover { background: rgba(37, 99, 235, .35); }
 .react-flow__edge { cursor: pointer; }
+.tbl.fixed { display: flex; flex-direction: column; }
+.tbl.fixed .tbl-body { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.react-flow__resize-control.line { border-color: #2563eb; }
+.react-flow__resize-control.handle { width: 9px; height: 9px; background: #fff; border: 1.5px solid #2563eb; border-radius: 2px; }

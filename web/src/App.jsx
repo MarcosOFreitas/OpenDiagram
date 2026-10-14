@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ReactFlow, ReactFlowProvider, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, getViewportForBounds } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, NodeResizer, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, getViewportForBounds } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
@@ -43,18 +43,14 @@ function parse(text) {
 const ROW = 22;
 const tableHeight = (t) => (t.collapsed ? 30 : 30 + t.fields.length * ROW + t.indexes.length * 20);
 
-function TableNode({ data: t }) {
+function TableNode({ data: t, selected }) {
   const fk = new Set(t.fkCols);
-  const { zoom } = useViewport();
-  const startResize = (e) => { // drag the right edge: width only, saved with the layout
-    e.stopPropagation(); e.preventDefault();
-    const x0 = e.clientX, w0 = t.w || 220;
-    const move = (ev) => t.onSize(t.id, Math.max(160, Math.min(700, Math.round(w0 + (ev.clientX - x0) / zoom))));
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-  };
+  const natural = 32 + t.fields.length * ROW + (t.hideIndexes ? 0 : t.indexes.length * 20); // height without a manual size
+  const onResize = (_, p) => t.onSize(t.id, { w: Math.round(p.width), h: t.h || Math.abs(p.height - natural) > 4 ? Math.round(p.height) : undefined }); // a width-only drag keeps the height automatic
   return (
-    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''}`} style={{ width: t.w || 220 }} title={t.note || ''}>
+    <>
+    <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
+    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || 220, ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
       <div className="tbl-h" style={t.headerColor ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>
         <span className="tbl-n">{t.name}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
@@ -65,7 +61,8 @@ function TableNode({ data: t }) {
           </span>
         ))}
       </div>
-      {!t.collapsed && t.fields.map((f) => (
+      {!t.collapsed && <div className="tbl-body">
+      {t.fields.map((f) => (
         <div key={f.name} className="tbl-c" title={f.note || ''}>
           <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
           <span className="nm">
@@ -76,9 +73,10 @@ function TableNode({ data: t }) {
           <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
         </div>
       ))}
-      {!t.collapsed && !t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
-      <div className="tbl-rs nodrag nopan" title="Drag to resize (double-click to reset)" onPointerDown={startResize} onDoubleClick={() => t.onSize(t.id, undefined)} />
+      {!t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
+      </div>}
     </div>
+    </>
   );
 }
 
@@ -205,11 +203,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   // per-table width / collapsed state lives in the saved layout under '@sizes' ({ id: { w, c } })
   const setSize = useCallback((patch) => {
     const cur = layoutRef.current['@sizes'] || {}, next = { ...cur };
-    for (const [id, v] of Object.entries(patch)) { const o = { ...cur[id], ...v }; if (!o.w) delete o.w; if (!o.c) delete o.c; if (Object.keys(o).length) next[id] = o; else delete next[id]; }
+    for (const [id, v] of Object.entries(patch)) { const o = { ...cur[id], ...v }; if (!o.w) delete o.w; if (!o.h) delete o.h; if (!o.c) delete o.c; if (Object.keys(o).length) next[id] = o; else delete next[id]; }
     layoutRef.current = { ...layoutRef.current, '@sizes': next };
     setLayoutTick((k) => k + 1);
   }, []);
-  const onSize = useCallback((id, w) => setSize({ [id]: { w } }), [setSize]);
+  const onSize = useCallback((id, v) => setSize({ [id]: v }), [setSize]);
   const onToggle = useCallback((id) => setSize({ [id]: { c: !(layoutRef.current['@sizes']?.[id]?.c) } }), [setSize]);
   const layoutRef = useRef({});
   const savedRef = useRef('');
@@ -387,7 +385,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
     const tables = nodes.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !(n.data.name.toLowerCase().includes(q) || n.data.fields.some((f) => f.name.toLowerCase().includes(q))) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !(n.data.name.toLowerCase().includes(q) || n.data.fields.some((f) => f.name.toLowerCase().includes(q))) },
     }));
     const byId = new Map(nodes.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
