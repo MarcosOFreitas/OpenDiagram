@@ -11,6 +11,7 @@
 | `Esc` | dialogs, panels, menus | close |
 | `Ctrl+Enter` | a comment in Docs | post it |
 | Double-click a table header | diagram | collapse / expand the table |
+| Double-click a sticky note | diagram | edit its text (Esc cancels) |
 | Double-click a relationship label | diagram | put the line back |
 | Double-click the edge of a sidebar | Docs, editor | reset its width |
 

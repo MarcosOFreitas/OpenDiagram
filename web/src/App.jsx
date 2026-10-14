@@ -33,13 +33,14 @@ function parse(text) {
       indexes: t.indexes.map((i) => ({ name: i.name, unique: i.unique, pk: i.pk, cols: i.columns.map((c) => c.value) })),
     }));
     const lineage = lineageEdges(text, tables); // `// lineage:` comment lines
+    const notes = (db.notes || []).map((n) => ({ name: n.name, text: String(n.content ?? '').replace(/\s+$/, ''), start: n.token.start.offset, end: n.token.end.offset }));
     const refs = db.schemas.flatMap((s) => s.refs).map((r) => {
       const [a, b] = r.endpoints;
       const [child, parent] = a.relation === '*' || b.relation === '1' ? [a, b] : [b, a];
       return { name: r.name || '', id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
     });
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
-    return { tables, refs, groups, lineage, db };
+    return { tables, refs, groups, lineage, notes, db };
   } catch (e) {
     return { error: errMsg(e), diags: e?.diags?.map((d) => ({ line: d.location?.start?.line ?? 1, col: d.location?.start?.column ?? 1, endLine: d.location?.end?.line, endCol: d.location?.end?.column, message: d.message ?? 'syntax error' })) ?? [] };
   }
@@ -135,7 +136,27 @@ function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targe
     </>
   );
 }
-const nodeTypes = { table: TableNode, grp: GroupNode };
+// Sticky note: a top-level DBML `Note name { '''text''' }` drawn on the canvas. Double-click edits the text (written back into the DBML), the corner handles resize it.
+function NoteNode({ data: n, selected }) {
+  const [edit, setEdit] = useState(!!n.autoEdit), [text, setText] = useState(n.text);
+  useEffect(() => { if (!edit) setText(n.text); }, [n.text, edit]);
+  const done = (save) => { setEdit(false); if (save && text !== n.text) n.onEdit(n.name, text); else setText(n.text); };
+  return (
+    <>
+      <NodeResizer isVisible={!!selected && n.canEdit} minWidth={140} minHeight={70} onResize={(_, p) => n.onSize(n.id, { w: Math.round(p.width), h: Math.round(p.height) })} />
+      <div className={`note ${n.dark ? 'dark' : ''}`} style={{ width: n.w || 220, ...(n.h ? { height: n.h } : {}), minHeight: 70 }} onDoubleClick={() => n.canEdit && setEdit(true)} title={n.canEdit ? 'Double-click to edit' : ''}>
+        <div className="note-h"><span>{n.name.replace(/_/g, ' ')}</span>{n.canEdit && <button className="nodrag note-x" onClick={() => n.onRemove(n.name)} title="Delete note" aria-label="Delete note">✕</button>}</div>
+        {edit
+          ? <textarea className="nodrag nowheel note-t" autoFocus value={text} onChange={(e) => setText(e.target.value)} onBlur={() => done(true)} onKeyDown={(e) => { if (e.key === 'Escape') done(false); }} />
+          : <div className="note-b">{n.text || <i>Empty note (double-click to write)</i>}</div>}
+      </div>
+    </>
+  );
+}
+const nodeTypes = { table: TableNode, grp: GroupNode, note: NoteNode };
+// DBML text of a sticky note (triple quotes: any text, several lines)
+const noteBlock = (name, text) => `Note ${qid(name)} {\n  '''\n${String(text).replaceAll("'''", "'' '").split('\n').map((l) => `  ${l}`).join('\n')}\n  '''\n}`;
+const isSticky = (n) => !/^SEQUENCE /.test(n.text); // the importer records database sequences as Notes: those are documentation, not stickies
 const edgeTypes = { ref: RefEdge };
 
 // dagre on a set of tables -> Map id -> top-left position
@@ -369,7 +390,7 @@ const EXPORTS = [
 ];
 
 function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, onOrg }) {
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
   const { zoom } = useViewport();
   const shared = !!shareToken;
   const [doc, setDoc] = useState(null); // loaded diagram: { id, access, ownerName, isOwner }
@@ -416,7 +437,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   // A named view = which tables are visible, where they are, sizes, line labels, detail level and relationship highlight.
   // The live state always sits at the root of the layout; leaving a view stores it back (so switching never loses changes).
   const snapView = () => ({
-    pos: Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) }])),
+    pos: Object.fromEntries(nodes.filter((n) => n.type === 'table' || n.type === 'note').map((n) => [n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) }])),
     sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs, lineage: view.lineage !== false,
   });
   const applySnap = (sn, views, base, active) => {
@@ -648,7 +669,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const keyCols = {};
     parsed.refs.forEach((r) => { (keyCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames); (keyCols[tid(r.parent.schemaName, r.parent.tableName)] ||= []).push(...r.parent.fieldNames); });
     const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [] }));
-    setNodes((old) => layout(tables, parsed.refs, new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]), parsed.groups, 'auto', view.lineage !== false ? parsed.lineage || [] : []));
+    setNodes((old) => {
+      const pos = new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]);
+      const tn = layout(tables, parsed.refs, pos, parsed.groups, 'auto', view.lineage !== false ? parsed.lineage || [] : []);
+      const x0 = tn.length ? Math.min(...tn.map((n) => n.position.x)) : 0, y0 = tn.length ? Math.max(...tn.map((n) => n.position.y)) + 300 : 0; // notes without a saved place go under the tables
+      const notes = (parsed.notes || []).filter(isSticky).map((nt, i) => ({ id: `n:${nt.name}`, type: 'note', position: pos.get(`n:${nt.name}`) || { x: x0 + (i % 4) * 250, y: y0 + Math.floor(i / 4) * 170 }, data: { id: `n:${nt.name}`, name: nt.name, text: nt.text } }));
+      return [...tn, ...notes];
+    });
     setEdges(parsed.refs.map((r) => ({
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
       target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
@@ -658,6 +685,29 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
   }, [parsed, doc]); // eslint-disable-line react-hooks/exhaustive-deps -- `doc` too: two diagrams with identical DBML must still rebuild the canvas after a switch
 
+  const notesOn = view.notes !== false; // sticky notes can be hidden (View)
+  const newNote = useRef(null); // id of the note just created: it opens in edit mode
+  const editNote = (name, text) => { // write the new text of a sticky note back into the DBML
+    const nt = (parsed.notes || []).find((x) => x.name === name), cur = dbmlRef.current;
+    if (nt && canEdit) setDbml(cur.slice(0, nt.start) + noteBlock(name, text) + cur.slice(nt.end));
+  };
+  const removeNote = (name) => {
+    const nt = (parsed.notes || []).find((x) => x.name === name), cur = dbmlRef.current;
+    if (nt && canEdit) setDbml((cur.slice(0, nt.start) + cur.slice(nt.end)).replace(/\n{3,}/g, '\n\n').replace(/\n*$/, '\n'));
+  };
+  const addNote = () => {
+    if (!canEdit) return notify('err', 'This diagram is read-only for you');
+    const names = new Set((parsed.notes || []).map((x) => x.name));
+    let i = 1; while (names.has(`note_${i}`)) i++;
+    const name = `note_${i}`, box = document.querySelector('.canvas')?.getBoundingClientRect();
+    const at = box ? screenToFlowPosition({ x: box.x + box.width / 2 - 110, y: box.y + box.height / 2 - 40 }) : { x: 0, y: 0 };
+    layoutRef.current = { ...layoutRef.current, [`n:${name}`]: { x: Math.round(at.x), y: Math.round(at.y) } };
+    newNote.current = `n:${name}`; setTimeout(() => { newNote.current = null; }, 800);
+    const cur = dbmlRef.current;
+    setNotesShown();
+    setDbml(`${cur.replace(/\n*$/, '\n')}\n${noteBlock(name, '')}\n`);
+  };
+  const setNotesShown = () => { if (!notesOn) setView((v) => ({ ...v, notes: true })); };
   const lineageOn = view.lineage !== false; // dashed data-lineage arrows (from the `// lineage:` comments) can be switched off
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase(), m = matcher(search), groupName = new Map((parsed.groups || []).flatMap((g) => g.tables.map((t) => [t, g.name.toLowerCase()])));
@@ -665,7 +715,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const sz = layoutRef.current['@sizes'] || {};
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
     const gMembers = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
-    const visible = nodes.filter((n) => !hidden.has(n.id));
+    const visible = nodes.filter((n) => n.type === 'table' && !hidden.has(n.id));
     const linC = activeId && lineageOn ? closure(edges.filter((e) => e.data.kind === 'lineage'), activeId) : null; // what feeds the selected table (up) and what it feeds (down)
     const tables = visible.map((n) => ({
       ...n,
@@ -679,8 +729,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       const pad = 22, w = b.width + pad * 2, h = b.height + pad * 2 + 18;
       return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit, active: activeGroup === gr.name }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
-    return [...boxes, ...tables];
-  }, [nodes, edges, search, parsed, lineageOn, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+    const stickies = notesOn ? nodes.filter((n) => n.type === 'note').map((n) => ({ ...n, draggable: canEdit, data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, canEdit, dark: view.theme === 'dark', autoEdit: newNote.current === n.id, onEdit: editNote, onRemove: removeNote, onSize } })) : [];
+    return [...boxes, ...tables, ...stickies];
+  }, [nodes, edges, search, parsed, lineageOn, notesOn, canEdit, view.theme, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const labels = layoutRef.current['@labels'] || {};
     const gSet = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
@@ -741,7 +792,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const pass = (measured) => {
       setNodes((old) => {
         const sz = layoutRef.current['@sizes'], hid = new Set(layoutRef.current['@hidden'] || []);
-        const vis = old.filter((n) => !hid.has(n.id));
+        const vis = old.filter((n) => n.type === 'table' && !hid.has(n.id));
         const next = layout(vis.map((n) => ({ ...n.data, detail: view.detail || 'full', hideIndexes: view.hideIndexes, collapsed: !!sz?.[n.id]?.c || view.detail === 'tables', w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo, lineageOn ? parsed.lineage || [] : []);
         const fresh = new Map(next.map((n) => [n.id, n])), merged = old.map((n) => fresh.get(n.id) || n); // hidden tables keep their place
         layoutRef.current = { ...Object.fromEntries(merged.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}), ...(hid.size ? { '@hidden': [...hid] } : {}), ...Object.fromEntries(['@views', '@base', '@view'].filter((k) => layoutRef.current[k]).map((k) => [k, layoutRef.current[k]])) };
@@ -825,7 +876,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       } else if (fmt === 'dbml') download(`${base}.dbml`, dbml);
       else if (fmt === 'json') download(`${base}.json`, exporter.export(dbml, 'json'));
       else if (fmt === 'png' || fmt === 'svg') {
-        const b = getNodesBounds(nodes.map((n) => ({ ...n, measured: n.measured ?? { width: 220, height: tableHeight(n.data) } })));
+        const b = getNodesBounds(nodes.filter((n) => n.type !== 'note' || notesOn).map((n) => ({ ...n, measured: n.measured ?? { width: 220, height: n.type === 'note' ? 120 : tableHeight(n.data) } })));
         const w = Math.ceil(b.width + 120), h = Math.ceil(b.height + 120);
         const vp = getViewportForBounds(b, w, h, 0.1, 2, 0.05);
         const url = await (fmt === 'png' ? toPng : toSvg)(document.querySelector('.react-flow__viewport'), { backgroundColor: canvasBg, width: w, height: h, style: { width: `${w}px`, height: `${h}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})` } });
@@ -935,7 +986,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                 setLayoutTick((k) => k + 1);
                 return;
               }
-              if (n.type === 'table') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
+              if (n.type === 'table' || n.type === 'note') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
             {view.grid && <Background gap={22} size={1.2} color={view.theme === 'dark' ? '#27324a' : '#cfd4dc'} />}
             <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>
@@ -951,9 +1002,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => zoomIn()} title="Zoom in">+</button>
             <i className="sep" />
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen">⤢</button>
-            <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
-            <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
             <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
+            {canEdit && mode === 'diagram' && <button onClick={addNote} title="Add a sticky note (a Note block in the DBML)" aria-label="Add sticky note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z" /><path d="M14 20v-6h6" /></svg></button>}
             {(parsed.lineage || []).length > 0 && <button className={lineageOn ? 'on' : ''} onClick={() => setView({ ...view, lineage: !lineageOn })} title={lineageOn ? 'Hide data lineage' : 'Show data lineage (dashed arrows from the source to the table built from it)'} aria-label="Data lineage"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.2" /><circle cx="5" cy="18" r="2.2" /><circle cx="19" cy="12" r="2.2" /><path d="M7 6.5c5 0 5 5.5 10 5.5M7 17.5c5 0 5-5.5 10-5.5" strokeDasharray="3 2.5" /></svg></button>}
             <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
             <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
@@ -1106,6 +1158,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
               <label className="chk"><input type="checkbox" checked={view.hiRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
               <label className="chk"><input type="checkbox" checked={lineageOn} onChange={(e) => setView({ ...view, lineage: e.target.checked })} /> Show data lineage (dashed arrows)</label>
+              <label className="chk"><input type="checkbox" checked={notesOn} onChange={(e) => setView({ ...view, notes: e.target.checked })} /> Show sticky notes</label>
               <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>
               <label className="chk"><input type="checkbox" checked={view.snap} onChange={(e) => setView({ ...view, snap: e.target.checked })} /> Snap to grid</label>
               <small className="hint">Click a table to highlight its relationships. Header color: <code>Table t [headercolor: #3498DB]</code>.</small>

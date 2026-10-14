@@ -23,6 +23,11 @@
 - **Documentation:** **More → Documentation** opens `/docs` in a new tab (there is no Help drawer any more; the DBML examples live in the *Syntax* pages with a Copy button).
 - **Feedback:** toasts (ok/err), button busy states, empty-state hint.
 
+## Sticky notes
+- A top-level DBML `Note name { '''text''' }` is a sticky note (`parsed.notes`: name, text, start/end offsets from `db.notes[].token`). Notes whose text starts with `SEQUENCE ` (the importer's sequences) are not drawn. DBML 3 accepts no settings on a top-level Note, so there is one colour.
+- Canvas: node type `note` (`NoteNode`), id `n:<name>`, kept in `nodes` next to the tables, position in the layout root like a table, size in `@sizes`; named views carry the note places; Arrange and collapse-all only touch tables; hidden with `view.notes` (View checkbox, per browser). Double-click edits (textarea, commit on blur, Esc cancels) and rewrites the block in the DBML by offsets (`noteBlock`, triple quotes); the dock button adds `note_N` at the centre of the canvas, in edit mode; the corner ✕ removes the block.
+- Not done: note colours (would need a convention outside DBML), Markdown in notes, notes in the Docs view/exports, linking a note to a table.
+
 ## Data lineage (`web/src/lineage.js`)
 - Syntax (a comment, so DBML parsers ignore it; the editor keeps it as text): `// lineage: target <- source, source(col, col)`; a column on both sides (`v.total <- orders.total`) is a column mapping. Names: `table`, `schema.table`, `table.column`, `schema.table.column`, double quotes for odd names; unknown names are ignored, repeated pairs merged. Import writes `// lineage(auto): ...`; refresh rewrites those and keeps the hand-written ones (`keepGroups` in `App.jsx`).
 - Drawing: dashed violet arrows source -> target (type `ref` edge with `data.kind = 'lineage'`, arrow head, table-level handles `ls/lsl/lt/ltr` in the table header; a one-to-one column mapping uses the column handles). Label: `N cols`, the list of columns when the arrow is picked.

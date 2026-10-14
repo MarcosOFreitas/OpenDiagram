@@ -172,6 +172,15 @@ TableGroup Sales [color: #E67E22] {
   order_items
   payments
 }
+
+// ---------- Sticky note (drag it, double-click to edit, or delete it)
+
+Note tip {
+  '''
+  Double-click a table header to collapse it.
+  Drag this note anywhere, or delete it.
+  '''
+}
 `;
 
 export const TEMPLATES = [

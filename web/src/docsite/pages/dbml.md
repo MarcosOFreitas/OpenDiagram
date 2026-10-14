@@ -63,15 +63,20 @@ Project shop {
 }
 ```
 
-## Standalone notes
+## Sticky notes
 
-A top-level `Note` is a free text block that is not attached to a table. It stays in the DBML text and is not drawn on the diagram (movable sticky notes on the canvas are planned). The importer uses it to record database sequences.
+A top-level `Note` is a free text block that is not attached to a table. OpenDiagram draws it on the diagram as a **sticky note** (see [Diagram basics](diagram-basics#sticky-notes)). Use triple quotes for several lines.
 
 ```dbml
 Note reminder {
-  'Review the payments model before the release'
+  '''
+  Review the payments model
+  before the release
+  '''
 }
 ```
+
+> **Note** DBML does not accept settings (such as a color) on a top-level `Note`, so every sticky note has the same color. The importer also writes database sequences as `Note` blocks whose text starts with `SEQUENCE`; those stay in the text and the documentation and are not drawn as stickies.
 
 ## Comments
 

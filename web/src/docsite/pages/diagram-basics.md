@@ -28,6 +28,16 @@
 - **Select** a table and drag the handles on its edges and corners to change its **width and height**. A manual height makes the rows scroll inside the table. A width-only change keeps the height automatic.
 - The default width follows the content, so the longest column name always fits. Column names are on the left and keep priority; types are on the right and are the first to be shortened.
 
+## Sticky notes
+
+Sticky notes are free text on the canvas, kept in the DBML as top-level `Note` blocks (see [DBML](dbml#sticky-notes)).
+
+- **Add** one with the note button in the dock (people who can edit). It appears in the middle of the screen, ready to type.
+- **Edit** by double-clicking it. The text is written back into the DBML when you click outside; Esc cancels.
+- **Move** it by dragging its top; **resize** it with the corner handles when it is selected; **delete** it with the ✕ in its corner. Its place and size are saved with the diagram.
+- **Hide** all of them with **More → View → Show sticky notes**. Arrange never moves them.
+- Notes you type in the editor appear on the canvas as soon as the text is valid; a note without a saved place is put under the tables.
+
 ## Header colors
 
 ```dbml
