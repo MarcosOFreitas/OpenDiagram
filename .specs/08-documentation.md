@@ -9,7 +9,7 @@ Turn the DBML into readable database documentation: browse tables, columns, cons
 ## Behaviour
 
 - **Docs mode:** `Diagram | Docs` switch in the top bar (segmented control with icons). Documentation renders the *last valid* DBML (a syntax error shows a hint instead of a blank page until the first valid parse). Follows the light/dark theme.
-- **Sidebar:** project title, search (filters by table name, schema or any column name), Overview, tables grouped by `TableGroup` (group color dot; ungrouped under *Other tables*/*Tables*), Enums.
+- **Sidebar:** project title, search (filters by table name, schema or any column name), Overview, tables grouped by `TableGroup` (group color dot; ungrouped under *Other tables*/*Tables*), Enums. The sidebar can be hidden/shown (edge button ‹ ›) and resized by dragging its edge (double-click resets to 270px, limits 200px to 60% of the window); the choice is kept in this browser (`localStorage` `opendiagram.docsNav`) and also works in the exported `.html` (done in `initDocs`; hidden on narrow screens and in print).
 - **Overview:** project name, `database_type`, project `Note`, counters (tables, relationships, enums, groups), relationship table (from → to, cardinality, on delete/update, linked).
 - **Table section:** name, schema badge, group chips, table note, columns table (name, type, constraints `PK`/`NN`/`UQ`/`AI`, default, outgoing references as links with cardinality, column note), indexes (primary/unique/plain, name), *Referenced by* list (incoming relationships).
 - **Enums:** value list with notes.
@@ -21,6 +21,7 @@ Turn the DBML into readable database documentation: browse tables, columns, cons
 ## Acceptance criteria
 
 - [x] Sidebar lists tables by group, enums and Overview; search narrows to matching tables/columns.
+- [x] Sidebar hide/show and drag-resize, remembered after a reload (verified in the app; the exported `.html` shares the code but was not opened).
 - [x] Overview shows project note/type, counters and the relationship table; reference cells link to the target table section.
 - [x] Column row shows constraints, default (as `'string'`/`` `expr` ``), notes and outgoing reference with cardinality.
 - [x] Chevron/summary click collapses and expands a table; Collapse all / Expand all work; a link to a collapsed table opens it; collapsed state survives reload.

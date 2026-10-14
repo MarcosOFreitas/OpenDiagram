@@ -8,7 +8,12 @@ export const docsCss = `
 .dx[data-theme=dark]{--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}
 @media (prefers-color-scheme:dark){.dx:not([data-theme]){--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}}
 .dx *{box-sizing:border-box}
-.dx-nav{width:270px;flex:none;overflow:auto;background:var(--side);border-right:1px solid var(--line);padding:16px 12px}
+.dx-nav{width:var(--navw,270px);flex:none;overflow:auto;background:var(--side);border-right:1px solid var(--line);padding:16px 12px}
+.dx{position:relative}
+.dx.nav-closed .dx-nav{width:0;padding:0;border-right:0;overflow:hidden}
+.dx-toggle{position:absolute;top:12px;z-index:5;width:18px;height:40px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--side);color:var(--muted);padding:0;cursor:pointer;font:inherit;line-height:1}
+.dx-grip{position:absolute;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;z-index:4}
+.dx-grip:hover{background:rgba(79,140,255,.45)}
 .dx-nav h1{font-size:15px;margin:0 0 10px;padding:0 6px}
 .dx-search{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);margin-bottom:8px;font:inherit}
 .dx-tools{display:flex;gap:6px;margin-bottom:6px}
@@ -61,11 +66,11 @@ td .cmt{margin:0}
 .dx-table:not([open])>.dx-body{display:none}
 .dx td:last-child .cmt,.dx td:last-child .cmt-in{min-width:170px}
 .cmt-in{min-height:52px;display:block}
-@media (max-width:760px){.dx{flex-direction:column}.dx-nav{width:100%;max-height:40%}.dx-main{padding:20px}}
-@media print{.dx{display:block;height:auto}.dx-nav{display:none}.dx-main{overflow:visible}}
+@media (max-width:760px){.dx{flex-direction:column}.dx-nav,.dx.nav-closed .dx-nav{width:100%;max-height:40%;padding:16px 12px;border-right:1px solid var(--line);overflow:auto}.dx-toggle,.dx-grip{display:none!important}.dx-main{padding:20px}}
+@media print{.dx{display:block;height:auto}.dx-nav,.dx-toggle,.dx-grip{display:none}.dx-main{overflow:visible}}
 `;
 
-// plain DOM behaviour: sidebar search, expand/collapse all, open a collapsed table when its link is used.
+// plain DOM behaviour: sidebar search, hide/resize, expand/collapse all, open a collapsed table when its link is used.
 // Must stay self-contained: it is inlined into the standalone export via toString().
 export function initDocs(root) {
   const input = root.querySelector('.dx-search');
@@ -80,6 +85,29 @@ export function initDocs(root) {
   const ex = root.querySelector('.dx-expand'), co = root.querySelector('.dx-collapse');
   if (ex) ex.addEventListener('click', () => setAll(true));
   if (co) co.addEventListener('click', () => setAll(false));
+  // sidebar: hide/show (edge button) and resize (drag the edge, double-click resets); remembered in this browser
+  const dx = root.querySelector('.dx'), nav = root.querySelector('.dx-nav');
+  if (dx && nav && !dx.querySelector('.dx-toggle')) {
+    const st = { w: 270, c: false };
+    try { const v = JSON.parse(localStorage.getItem('opendiagram.docsNav') || '{}'); if (v.w >= 200 && v.w <= 900) st.w = v.w; st.c = !!v.c; } catch (e) { /* private mode */ }
+    const toggle = document.createElement('button'), grip = document.createElement('div');
+    toggle.type = 'button'; toggle.className = 'dx-toggle'; grip.className = 'dx-grip';
+    const apply = () => {
+      dx.style.setProperty('--navw', st.w + 'px'); dx.classList.toggle('nav-closed', st.c);
+      toggle.textContent = st.c ? '›' : '‹'; toggle.title = st.c ? 'Show the list' : 'Hide the list';
+      toggle.style.left = (st.c ? 0 : st.w) + 'px'; grip.style.left = (st.c ? 0 : st.w) + 'px'; grip.style.display = st.c ? 'none' : '';
+    };
+    const save = () => { try { localStorage.setItem('opendiagram.docsNav', JSON.stringify(st)); } catch (e) { /* private mode */ } };
+    toggle.addEventListener('click', () => { st.c = !st.c; apply(); save(); });
+    grip.addEventListener('dblclick', () => { st.w = 270; apply(); save(); });
+    grip.addEventListener('mousedown', (e) => {
+      e.preventDefault(); document.body.style.userSelect = 'none';
+      const move = (ev) => { st.w = Math.max(200, Math.min(Math.floor(window.innerWidth * 0.6), ev.clientX - dx.getBoundingClientRect().left)); apply(); };
+      const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); document.body.style.userSelect = ''; save(); };
+      document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+    });
+    dx.appendChild(grip); dx.appendChild(toggle); apply();
+  }
   // in-page links: open a collapsed table and scroll only the content pane (default anchor jumps also scroll the app shell)
   root.addEventListener('click', (e) => {
     const a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
