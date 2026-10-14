@@ -8,6 +8,7 @@ Open-source database diagramming tool in the spirit of dbdiagram.io: write [DBML
 - **DBML editor** (CodeMirror): syntax highlighting, autocomplete (keywords, types, tables, `table.column`), inline parser errors. Color settings (`headercolor`, `color`) get a clickable swatch that opens a color picker, plus a preset palette on `color: `.
 - **Diagram** (React Flow): auto layout, drag, search, relationship highlight, TableGroups with colors, light/dark theme.
 - **Generated documentation** (dbdocs-style): switch to *Docs* for a browsable, searchable page of tables, columns, constraints, notes and relationships. Tables collapse/expand, and you can add your own comments per table/column/project (stored only in the app, never in the database). Export as one standalone `.html` file or Markdown.
+- **Sample model included**: every new account starts with a ready-made "Loja - modelo" diagram (customers, catalogue, orders, payments, with groups, enums, indexes and relationships), and the Diagrams tab can create more from it.
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML files; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - **TLS** for PostgreSQL and Oracle (TCPS), with optional custom CA.
 - **Accounts, administration and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat **groups** (a person can be in several); private diagrams (autosaved) and database connections per account; share a diagram with **people, groups or optional links**, choosing view / comment / edit for each.
@@ -58,7 +59,7 @@ docker compose cp ./backup/. app:/data && docker compose restart app
 
 ## Using it
 
-0. **Diagrams** tab: your diagrams and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
+0. **Diagrams** tab: your diagrams (new accounts start with the sample shop model; *Start from a template* or *New blank diagram* for more) and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
 1. **More → Database** → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
 2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
 3. Edit the DBML on the left; the diagram updates live. **Help** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.

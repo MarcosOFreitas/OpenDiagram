@@ -14,32 +14,7 @@ import Admin from './Admin.jsx';
 import Menu from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
-
-const SAMPLE = `// Use DBML to define your database structure
-// Or open the Database panel to import it from Postgres / Oracle
-
-Table users {
-  id integer [pk]
-  username varchar [not null]
-  email varchar [unique]
-  created_at timestamp
-}
-
-Table posts {
-  id integer [pk]
-  title varchar
-  body text [note: 'Content of the post']
-  user_id integer [not null]
-  created_at timestamp
-}
-
-Ref user_posts: posts.user_id > users.id
-
-TableGroup blog [color: #e67e22] {
-  users
-  posts
-}
-`;
+import { BLANK, TEMPLATES } from './templates.js';
 
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
 
@@ -244,8 +219,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         let list = await api('diagrams');
         let id = store('lastDiagram');
         if (!list.some((x) => x.id === id)) id = list[0]?.id;
-        if (!id) { // first sign-in: keep whatever the browser had from the pre-accounts version
-          id = (await api('diagrams', { title: store('title') || 'Untitled diagram', dbml: store('dbml') || SAMPLE })).id;
+        if (!id) { // first sign-in: whatever the browser kept from the pre-accounts version, else the sample shop model
+          const first = TEMPLATES[0];
+          id = (await api('diagrams', store('dbml') ? { title: store('title') || 'Untitled diagram', dbml: store('dbml') } : { title: first.title, dbml: first.dbml })).id;
           list = await api('diagrams');
         }
         if (off) return;
@@ -286,13 +262,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     (shared ? api(`shared/${shareToken}`).then((d) => d.comments) : api(`diagrams/${doc.id}/comments`)).then(setComments).catch(() => {});
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const newDiagram = async () => { try { const { id } = await api('diagrams', { title: 'Untitled diagram', dbml: SAMPLE }); setDiagrams(await api('diagrams')); await openDiagram(id); } catch (e) { notify('err', errMsg(e)); } };
+  const newDiagram = async (templateId) => { try { const t = TEMPLATES.find((x) => x.id === templateId); const { id } = await api('diagrams', t ? { title: t.title, dbml: t.dbml } : { title: 'Untitled diagram', dbml: BLANK }); setDiagrams(await api('diagrams')); await openDiagram(id); } catch (e) { notify('err', errMsg(e)); } };
   const deleteDiagram = async (d) => {
     if (!window.confirm(`Delete "${d.title}"? Its share links and comments are removed too.`)) return;
     try {
       await api(`diagrams/${d.id}`, undefined, 'DELETE');
       const list = await api('diagrams'); setDiagrams(list);
-      if (d.id === doc?.id) { if (list[0]) await openDiagram(list[0].id); else await newDiagram(); }
+      if (d.id === doc?.id) { if (list[0]) await openDiagram(list[0].id); else await newDiagram(TEMPLATES[0].id); }
     } catch (e) { notify('err', errMsg(e)); }
   };
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
@@ -327,7 +303,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     })));
     const key = parsed.tables.map((t) => t.id).sort().join('|');
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
-  }, [parsed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [parsed, doc]); // eslint-disable-line react-hooks/exhaustive-deps -- `doc` too: two diagrams with identical DBML must still rebuild the canvas after a switch
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -537,7 +513,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <button onClick={onLogout}>Sign out</button>
             </div>
           )}
-          {drawer === 'diagrams' && <Library diagrams={diagrams} currentId={doc?.id} isAdmin={user?.role === 'admin'} onOpen={(id) => { openDiagram(id).then(() => setDrawer(null)).catch((e) => notify('err', errMsg(e))); }} onCreate={newDiagram} onDelete={deleteDiagram} />}
+          {drawer === 'diagrams' && <Library diagrams={diagrams} currentId={doc?.id} isAdmin={user?.role === 'admin'} onOpen={(id) => { openDiagram(id).then(() => setDrawer(null)).catch((e) => notify('err', errMsg(e))); }} templates={TEMPLATES} onCreate={newDiagram} onDelete={deleteDiagram} />}
           {drawer === 'share' && manage && doc?.id && <SharePanel diagramId={doc.id} notify={notify} />}
 
           {drawer === 'connect' && (

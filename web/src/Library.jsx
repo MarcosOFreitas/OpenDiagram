@@ -3,12 +3,19 @@ import { ago } from './api.js';
 const ROLE = { view: 'can view', comment: 'can comment', edit: 'can edit', admin: 'administrator' };
 
 // "Diagrams" tab: my diagrams (autosave) and the ones other people shared with me (directly or through a group)
-export default function Library({ diagrams, currentId, isAdmin, onOpen, onCreate, onDelete }) {
+export default function Library({ diagrams, currentId, isAdmin, templates = [], onOpen, onCreate, onDelete }) {
   const mine = diagrams.filter((d) => d.role === 'owner');
   const shared = diagrams.filter((d) => d.role !== 'owner');
   return (
     <div className="dbody">
-      <button className="primary" onClick={onCreate}>+ New diagram</button>
+      <button className="primary" onClick={() => onCreate()}>+ New blank diagram</button>
+      {templates.length > 0 && <h4>Start from a template</h4>}
+      {templates.map((t) => (
+        <div key={t.id} className="card" onClick={() => onCreate(t.id)}>
+          <div className="grow"><b>{t.name}</b><small>{t.description}</small></div>
+          <small>+ create</small>
+        </div>
+      ))}
       <h4>My diagrams</h4>
       {mine.length === 0 && <small className="hint">No diagrams yet.</small>}
       {mine.map((d) => (

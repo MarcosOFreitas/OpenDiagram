@@ -24,7 +24,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 ## Manual UI checklist (browser)
 
 - Fresh volume: first screen offers to create the administrator; afterwards public sign-up is closed. Admin → create user (temporary password shown once) → sign in as that user: forced password change → workspace. Admin → groups → add member → share a diagram with the group → the member sees it under *Shared with me* with the right permission.
-- First sign-in → a diagram exists → edit → `Saved`; reload keeps content and table positions.
+- First sign-in of a new account → the sample "Loja - modelo" diagram exists (8 tables, 10 refs, 3 groups); *Start from a template* creates another; switching between two diagrams with identical DBML still draws the canvas → edit → `Saved`; reload keeps content and table positions.
 - Share: give a person and a group each a level; and create view/comment/edit links; open each in a private window: read-only editor for view/comment, comments visible, Log in prompt; after signing up the permission chip changes and comment/edit work; owner downgrade/revoke takes effect.
 - Import from demo-pg via the drawer → 4+ tables, edges visible, toast shown.
 - Test with `writer` → amber warning banner; with `reader` → none.

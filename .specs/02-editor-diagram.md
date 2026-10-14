@@ -12,6 +12,7 @@
 - **Header color:** `Table t [headercolor: #hex]`.
 - **Interactions:** click table → highlights it and its edges; search dims non-matching tables/columns; Arrange re-runs layout; minimap; zoom 5–200 %.
 - **View tab:** theme light/dark, background grid on/off, edge style (curved/rounded/step/straight), hide types, hide indexes, snap to grid. Persisted in `localStorage.view`.
+- **Templates:** `web/src/templates.js` holds the blank starter and the sample shop model ("Loja - modelo": customers, addresses, categories, products, reviews, orders, order_items, payments; 2 enums, composite PK, indexes, 10 refs with actions, 3 colored groups, project note). It is the first diagram of every new account and appears under *Start from a template* in the Diagrams tab. Add more by extending `TEMPLATES`.
 - **Help tab:** getting-started steps + 7 self-contained DBML examples with *Insert* / *Copy*.
 - **Feedback:** toasts (ok/err), button busy states, empty-state hint.
 
