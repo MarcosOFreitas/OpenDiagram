@@ -131,6 +131,8 @@ export function update(id, patch, { includeSource = false, baseVersion, actor, s
   return version;
 }
 
+export const versionOf = (id) => db.prepare('select version from diagrams where id = ?').get(id)?.version ?? null;
+
 // ---- history (people who can edit)
 export function listVersions(id) {
   const cur = db.prepare('select version from diagrams where id = ?').get(id)?.version;

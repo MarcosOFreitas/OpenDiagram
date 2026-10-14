@@ -5,6 +5,7 @@ import { db } from './db.js';
 import * as store from './store.js';
 import * as auth from './auth.js';
 import * as dg from './diagrams.js';
+import * as presence from './presence.js';
 import * as admin from './admin.js';
 import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
@@ -165,6 +166,13 @@ app.delete('/api/diagrams/:id', (req) => {
   return { ok: true };
 });
 
+// presence: a heartbeat from every open tab says who has the diagram open (and what they have selected); the answer lists the others and the current version
+const tabId = (b) => (typeof b?.tab === 'string' && /^[\w-]{6,40}$/.test(b.tab) ? b.tab : null);
+app.post('/api/diagrams/:id/presence', (req) => {
+  const d = dg.getForUser(req.user, req.params.id), tab = tabId(req.body);
+  if (!tab) throw bad('invalid tab id');
+  return { viewers: presence.beat(d.id, tab, { key: req.user.id, name: req.user.name || req.user.email }, req.body, req.body?.leave === true), version: dg.versionOf(d.id) };
+});
 app.get('/api/diagrams/:id/shares', (req) => dg.listShares(req.user, req.params.id));
 // a link may carry a password (scrypt hash; never returned): visitors send it in the x-share-password header
 const linkPassword = (p) => { if (typeof p !== 'string' || p.length < 6 || p.length > 200) throw bad('link password must have 6 to 200 characters'); return p; };
@@ -214,6 +222,11 @@ async function share(req, need) {
 app.get('/api/shared/:token', async (req) => {
   const s = await share(req);
   return { title: s.title, dbml: s.dbml, layout: s.layout, version: s.version, access: s.access, owner: s.ownerName, isOwner: req.user?.id === s.ownerId, comments: dg.listComments(s.diagramId) };
+});
+app.post('/api/shared/:token/presence', async (req) => { // visitors of a link take part too (anonymous ones as "Guest")
+  const s = await share(req), tab = tabId(req.body);
+  if (!tab) throw bad('invalid tab id');
+  return { viewers: presence.beat(s.diagramId, tab, req.user ? { key: req.user.id, name: req.user.name || req.user.email } : { key: `guest:${tab}`, name: 'Guest' }, req.body, req.body?.leave === true), version: dg.versionOf(s.diagramId) };
 });
 app.put('/api/shared/:token', async (req) => {
   const s = await share(req, 'edit');

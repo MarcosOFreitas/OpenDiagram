@@ -358,3 +358,9 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .note-x { border: 0; background: transparent; color: inherit; cursor: pointer; opacity: 0; padding: 0 2px; font-size: 11px; } .note:hover .note-x, .react-flow__node.selected .note-x { opacity: .8; }
 .note-b { padding: 2px 10px 10px; white-space: pre-wrap; overflow-wrap: anywhere; flex: 1; overflow: auto; } .note-b i { opacity: .55; }
 .note-t { box-sizing: border-box; flex: 1; width: calc(100% - 12px); min-width: 0; min-height: 60px; border: 0; background: rgba(255, 255, 255, .45); color: inherit; font: inherit; padding: 6px 10px; margin: 0 6px 6px; resize: none; outline: 2px solid rgba(37, 99, 235, .5); outline-offset: -2px; border-radius: 3px; }
+
+/* presence: avatars of the other people who have the diagram open, their selection, and the newer-version bar */
+.peers { display: flex; margin-left: 4px; } .peer { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; border: 2px solid var(--top, #0f172a); margin-left: -6px; box-sizing: border-box; } .peer:first-child { margin-left: 0; }
+.peer.more { background: #475569; } .peer.editing { box-shadow: 0 0 0 2px #fbbf24; }
+.tbl.peered { position: relative; } .peer-tag { position: absolute; top: 0; right: 0; z-index: 3; padding: 1px 7px; border-radius: 0 0 0 5px; color: #fff; font-size: 10.5px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newer { display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: #fef3c7; color: #78350f; border-bottom: 1px solid #fcd34d; font-size: 13px; } .newer button { padding: 2px 10px; border: 1px solid #d97706; border-radius: 5px; background: #fff; color: #78350f; cursor: pointer; } .newer button.ghost { border-color: transparent; background: transparent; }

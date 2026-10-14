@@ -326,6 +326,36 @@ r = await B('PUT', `/api/shared/${vedit.token}`, { dbml: T2, baseVersion: sv });
 check('...and accepts the current one', r.status === 200 && r.json.version === sv + 1);
 await A('DELETE', `/api/diagrams/${vId}`);
 
+// ---------------- presence: who has the diagram open
+r = await A('POST', '/api/diagrams', { title: 'Presence', dbml: 'Table p {\n  id int\n}\n' });
+const pId = r.json.id;
+await A('POST', `/api/diagrams/${pId}/access`, { type: 'user', subjectId: bob.id, access: 'view' });
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-alice-1' });
+check('presence: alone on the diagram, with its version', r.status === 200 && r.json.viewers.length === 0 && r.json.version === 1, JSON.stringify(r.json));
+r = await B('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-bob-1', sel: 'public.p', editing: false });
+check('presence: the second person sees the first', r.json.viewers.length === 1 && r.json.viewers[0].name === 'Alice' && /^#/.test(r.json.viewers[0].color), JSON.stringify(r.json));
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-alice-1' });
+check('presence: the first sees the second with what they selected', r.json.viewers.length === 1 && r.json.viewers[0].name === 'Bob' && r.json.viewers[0].sel === 'public.p' && !('email' in r.json.viewers[0]), JSON.stringify(r.json));
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-alice-2', editing: true });
+check('presence: a second tab of the same person is not shown to themselves', r.json.viewers.length === 1);
+r = await B('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-bob-1' });
+check('presence: two tabs of one person count once for the others, editing flag travels', r.json.viewers.length === 1 && r.json.viewers[0].editing === true, JSON.stringify(r.json));
+r = await A('POST', `/api/diagrams/${pId}/shares`, { access: 'view' }); const plink = r.json;
+r = await anon('POST', `/api/shared/${plink.token}/presence`, { tab: 'tab-guest-1' });
+check('presence: a link visitor sees the people and is "Guest" to them', r.status === 200 && r.json.viewers.length === 2);
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-alice-1' });
+check('presence: the guest is listed as Guest', r.json.viewers.some((v) => v.name === 'Guest'), JSON.stringify(r.json));
+r = await B('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-bob-1', leave: true });
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-alice-1' });
+check('presence: leaving removes the person at once', !r.json.viewers.some((v) => v.name === 'Bob'), JSON.stringify(r.json));
+r = await A('POST', `/api/diagrams/${pId}/presence`, { tab: 'x' });
+check('presence: an invalid tab id is refused', r.status === 400);
+r = await C('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-carol-1' });
+check('presence: people without access get 404 and are not listed', r.status === 404);
+r = await anon('POST', `/api/diagrams/${pId}/presence`, { tab: 'tab-anon-1' });
+check('presence: anonymous cannot use the account route', r.status === 401);
+await A('DELETE', `/api/diagrams/${pId}`);
+
 // ---------------- password-protected links
 r = await A('POST', `/api/diagrams/${dId}/shares`, { access: 'view', password: 'abc' });
 check('link password must have 6+ characters', r.status === 400);

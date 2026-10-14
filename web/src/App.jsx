@@ -65,7 +65,8 @@ function TableNode({ data: t, selected }) {
   return (
     <>
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
-    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.linRole ? `lin-${t.linRole}` : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
+    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.linRole ? `lin-${t.linRole}` : ''} ${t.peers?.length ? 'peered' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}), ...(t.peers?.length ? { boxShadow: `0 0 0 2.5px ${t.peers[0].color}` } : {}) }} title={t.note || ''}>
+      {t.peers?.length > 0 && <div className="peer-tag" style={{ background: t.peers[0].color }} title={t.peers.map((p) => p.name).join(', ')}>{t.peers[0].name}{t.peers.length > 1 ? ` +${t.peers.length - 1}` : ''}</div>}
       <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <Handle type="source" position={Position.Right} id="ls" className="hdl" /><Handle type="source" position={Position.Left} id="lsl" className="hdl" />
         <Handle type="target" position={Position.Left} id="lt" className="hdl" /><Handle type="target" position={Position.Right} id="ltr" className="hdl" />{/* table-level data lineage */}
@@ -401,6 +402,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const overwriteRef = useRef(false); // set by "Keep my changes": the next save is flagged so the server keeps the overwritten version in History
   const verRef = useRef(null); // the server version this editor last loaded or saved: sent as baseVersion so a save over someone else's work is refused (409)
   const [docVersion, setDocVersion] = useState(null);
+  const tabId = useRef(`${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`).current; // this browser tab, for presence
+  const [peers, setPeers] = useState([]); // other people who have this diagram open: { id, name, color, sel, editing }
+  const [serverVersion, setServerVersion] = useState(null); // the version on the server as of the last presence beat
+  const beatRef = useRef(null);
   const [conflict, setConflict] = useState(null); // { version, by, at } while a newer version exists on the server
   const [diagrams, setDiagrams] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -622,6 +627,25 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     return () => clearTimeout(t);
   }, [doc, canEdit, conflict, title, dbml, source, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // presence: a heartbeat says this tab has the diagram open (and what is selected / being edited); the answer lists the others and the server version
+  const selRef = useRef(null), editingRef = useRef(false);
+  selRef.current = activeId; editingRef.current = canEdit && saveState !== 'saved';
+  useEffect(() => {
+    if (!doc || (!doc.id && !shared)) return undefined;
+    const path = shared ? `shared/${shareToken}/presence` : `diagrams/${doc.id}/presence`;
+    let stop = false;
+    const send = async (leave = false) => {
+      try { const r = await api(path, { tab: tabId, sel: selRef.current, editing: editingRef.current, ...(leave ? { leave: true } : {}) }); if (!stop && !leave) { setPeers(r.viewers); setServerVersion(r.version); } } catch { /* offline or no access any more: try again at the next beat */ }
+    };
+    beatRef.current = send; send();
+    const t = setInterval(() => { if (!document.hidden) send(); }, 4000);
+    const bye = () => { try { fetch(`/api/${path}`, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tab: tabId, leave: true }) }); } catch { /* closing */ } };
+    window.addEventListener('pagehide', bye);
+    return () => { stop = true; clearInterval(t); beatRef.current = null; window.removeEventListener('pagehide', bye); setPeers([]); send(true); };
+  }, [doc, shareToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const t = setTimeout(() => beatRef.current?.(), 350); return () => clearTimeout(t); }, [activeId, saveState]); // tell the others at once what changed
+  const newer = serverVersion != null && docVersion != null && serverVersion > docVersion && saveState === 'saved' && !conflict; // someone saved while we have no unsaved changes
+
   // comments (stored by the app, never in the database); refetched when the Docs view opens so other people's show up
   const cbase = shared ? `shared/${shareToken}` : `diagrams/${doc?.id}`;
   const addComment = async (key, text) => { try { const c = await api(`${cbase}/comments`, { key, text }); setComments((l) => [...l, c]); } catch (e) { notify('err', errMsg(e)); } };
@@ -719,9 +743,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const gMembers = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const visible = nodes.filter((n) => n.type === 'table' && !hidden.has(n.id));
     const linC = activeId && lineageOn ? closure(edges.filter((e) => e.data.kind === 'lineage'), activeId) : null; // what feeds the selected table (up) and what it feeds (down)
+    const peerSel = new Map(); // table id -> the other people who have it selected
+    peers.forEach((p) => { if (p.sel) peerSel.set(p.sel, [...(peerSel.get(p.sel) || []), p]); });
     const tables = visible.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), linRole: linC ? (linC.up.has(n.id) ? 'up' : linC.down.has(n.id) ? 'down' : '') : '', active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || (!!gMembers && !gMembers.has(n.id)) || !!q && !hit(n.data) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), linRole: linC ? (linC.up.has(n.id) ? 'up' : linC.down.has(n.id) ? 'down' : '') : '', peers: peerSel.get(n.id), active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || (!!gMembers && !gMembers.has(n.id)) || !!q && !hit(n.data) },
     }));
     const byId = new Map(visible.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
@@ -733,7 +759,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     });
     const stickies = notesOn ? nodes.filter((n) => n.type === 'note').map((n) => ({ ...n, draggable: canEdit, data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, canEdit, dark: view.theme === 'dark', autoEdit: newNote.current === n.id, onEdit: editNote, onRemove: removeNote, onSize } })) : [];
     return [...boxes, ...tables, ...stickies];
-  }, [nodes, edges, search, parsed, lineageOn, notesOn, canEdit, view.theme, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, search, parsed, peers, lineageOn, notesOn, canEdit, view.theme, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const labels = layoutRef.current['@labels'] || {};
     const gSet = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
@@ -930,6 +956,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           ? <span className="chip-access" title={`Shared by ${doc.ownerName}`}>{access === 'edit' ? (user ? 'can edit' : 'edit link — log in to edit') : access === 'comment' ? (user ? 'can comment' : 'comment link — log in to comment') : 'view only'}</span>
           : !manage || !owner ? <span className="chip-access" title={`Owned by ${doc.ownerName}`}>{doc.ownerName} · {LABEL[access]}</span> : null}
         {canEdit && <span className={`savestate ${saveState}`}>{saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Not saved' : saveState === 'conflict' ? 'Conflict' : 'Saved'}</span>}
+        {peers.length > 0 && (
+          <div className="peers" aria-label="People who have this diagram open">
+            {peers.slice(0, 4).map((p) => <span key={p.id} className={`peer ${p.editing ? 'editing' : ''}`} style={{ background: p.color }} title={`${p.name}${p.editing ? ' · editing' : p.sel ? ` · looking at ${p.sel.replace(/^public\./, '')}` : ''}`}>{(p.name || '?')[0].toUpperCase()}</span>)}
+            {peers.length > 4 && <span className="peer more" title={peers.slice(4).map((p) => p.name).join(', ')}>+{peers.length - 4}</span>}
+          </div>
+        )}
         <div className="mode" role="tablist" aria-label="View mode">
           <button role="tab" aria-selected={mode === 'diagram'} className={mode === 'diagram' ? 'on' : ''} onClick={() => setMode('diagram')}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><rect x="9.5" y="10" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M4 6v4h5.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>Diagram
@@ -957,6 +989,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           : <button className="tbtn on" onClick={onLogin}>Log in</button>}
       </header>
 
+      {newer && (
+        <div className="newer" role="status">
+          Someone saved a newer version of this diagram.
+          <button onClick={() => { setServerVersion(null); if (shared) setUnlockTick((n) => n + 1); else openDiagram(doc.id).catch((e) => notify('err', errMsg(e))); }}>Load it</button>
+          <button className="ghost" onClick={() => setServerVersion(null)} title="Hide until the next change">Dismiss</button>
+        </div>
+      )}
       <div className="body">
         <section className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? editorW : 0 }}>
           <Editor value={dbml} onChange={setDbml} diags={editorDiags} info={editorInfo} readOnly={readOnly} wrap={view.wrap} />
