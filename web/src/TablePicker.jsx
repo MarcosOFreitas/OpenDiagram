@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PALETTE } from './Editor.jsx';
 
 // search text -> predicate on 'schema.table': plain text = contains, `*`/`?` = wildcards (VW_*), /regex/ = regular expression
-function matcher(text) {
+export function matcher(text) {
   const n = text.trim();
   if (!n) return () => true;
   try {

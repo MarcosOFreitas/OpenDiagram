@@ -14,7 +14,8 @@ import Admin from './Admin.jsx';
 import Menu from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
-import TablePicker from './TablePicker.jsx';
+import TablePicker, { matcher } from './TablePicker.jsx';
+import TablesPanel from './TablesPanel.jsx';
 import { BLANK, TEMPLATES } from './templates.js';
 
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
@@ -338,6 +339,16 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const onSize = useCallback((id, v) => setSize({ [id]: v }), [setSize]);
   const onToggle = useCallback((id) => setSize({ [id]: { c: !(layoutRef.current['@sizes']?.[id]?.c) } }), [setSize]);
   const layoutRef = useRef({});
+  // tables hidden from the canvas live in the saved layout under '@hidden' (a list of ids)
+  const hidden = useMemo(() => new Set(layoutRef.current['@hidden'] || []), [layoutTick, doc]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setHidden = (ids, hide) => {
+    const cur = new Set(layoutRef.current['@hidden'] || []);
+    ids.forEach((id) => (hide ? cur.add(id) : cur.delete(id)));
+    const next = { ...layoutRef.current };
+    if (cur.size) next['@hidden'] = [...cur]; else delete next['@hidden'];
+    layoutRef.current = next; setLayoutTick((k) => k + 1);
+  };
+  const showOnly = (ids) => { const keep = new Set(ids); setHidden(parsed.tables.map((t) => t.id).filter((id) => !keep.has(id)), true); setHidden(ids, false); };
   const savedRef = useRef('');
   const [dbml, setDbml] = useState('');
   const [title, setTitle] = useState('');
@@ -364,6 +375,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [editorOpen, setEditorOpen] = useState(true);
   const [drawer, setDrawer] = useState(null); // null | 'connect' | 'import' | 'export' | 'view'
   const [search, setSearch] = useState('');
+  const [panelOpen, setPanelOpen] = useState(() => store('tablesPanel') === '1'); // right-hand Tables panel
+  const panelSearch = useRef(null);
+  useEffect(() => { store('tablesPanel', panelOpen ? '1' : '0'); }, [panelOpen]);
   const [sqlFmt, setSqlFmt] = useState('postgres');
   const [paste, setPaste] = useState('');
   const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
@@ -478,7 +492,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   };
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setDrawer(null); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDrawer(null);
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPanelOpen(true); setTimeout(() => panelSearch.current?.focus(), 80); }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -511,14 +528,16 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }, [parsed, doc]); // eslint-disable-line react-hooks/exhaustive-deps -- `doc` too: two diagrams with identical DBML must still rebuild the canvas after a switch
 
   const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().toLowerCase(), m = matcher(search), groupName = new Map((parsed.groups || []).flatMap((g) => g.tables.map((t) => [t, g.name.toLowerCase()])));
+    const hit = (t) => m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupName.get(t.id) || '').includes(q);
     const sz = layoutRef.current['@sizes'] || {};
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
-    const tables = nodes.map((n) => ({
+    const visible = nodes.filter((n) => !hidden.has(n.id));
+    const tables = visible.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !(n.data.name.toLowerCase().includes(q) || n.data.fields.some((f) => f.name.toLowerCase().includes(q))) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c, onSize, onToggle, hideIndexes: view.hideIndexes, hideTypes: view.hideTypes, active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !hit(n.data) },
     }));
-    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const byId = new Map(visible.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
       const m = gr.tables.map((id) => byId.get(id)).filter(Boolean);
       if (!m.length) return [];
@@ -527,10 +546,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h }, width: w, height: h, draggable: false, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
-  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
-    return edges.map((e) => {
+    return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)).map((e) => {
     // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
     const a = geo.get(e.source), b = geo.get(e.target);
     let sp = 'right', tp = 'left';
@@ -541,18 +560,25 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     }
     const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
-    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: '#2563eb', strokeWidth: 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
-    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, label: view.hiRefs && e.data.name ? e.data.name : e.label, labelStyle: { fontSize: view.hiRefs ? 11 : 10, fill: picked ? '#b45309' : view.hiRefs ? '#2563eb' : '#64748b', fontWeight: picked || view.hiRefs ? 700 : 400 }, labelBgStyle: { fill: canvasBg } };
-  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg]);
+    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: view.theme === 'dark' ? '#4f8cff' : '#2563eb', strokeWidth: view.hiRefs && !on ? 1.6 : 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
+    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, label: view.hiRefs && e.data.name ? e.data.name : e.label, labelStyle: { fontSize: view.hiRefs ? 10.5 : 10, fill: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.hiRefs ? (view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8') : '#64748b', fontWeight: picked || view.hiRefs ? 600 : 400 }, ...(view.hiRefs && e.data.name ? { labelShowBg: true, labelBgStyle: { fill: view.theme === 'dark' ? '#111826' : '#fff', stroke: view.theme === 'dark' ? '#2c3f66' : '#bfd3ff', strokeWidth: 1, fillOpacity: 0.96 }, labelBgPadding: [6, 3], labelBgBorderRadius: 6 } : { labelBgStyle: { fill: canvasBg } }) };
+  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg, hidden]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
+  const focusTable = (id) => { // select it and bring it to the middle (showing it if it was hidden)
+    if (hidden.has(id)) setHidden([id], false);
+    setActiveEdge(null); setActiveId(id);
+    setTimeout(() => fitView({ nodes: [{ id }], padding: 0.8, maxZoom: 1, duration: 300 }), 80);
+  };
   const relayout = (algo = view.algo) => { // two passes: estimated sizes, then the sizes the browser really measured (manual widths, wrapped text) so nothing overlaps
     const pass = (measured) => {
       setNodes((old) => {
-        const sz = layoutRef.current['@sizes'];
-        const next = layout(old.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, parsed.groups, algo);
-        layoutRef.current = { ...Object.fromEntries(next.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}) };
-        return next;
+        const sz = layoutRef.current['@sizes'], hid = new Set(layoutRef.current['@hidden'] || []);
+        const vis = old.filter((n) => !hid.has(n.id));
+        const next = layout(vis.map((n) => ({ ...n.data, collapsed: !!sz?.[n.id]?.c, w: (measured && n.measured?.width) || sz?.[n.id]?.w, h: (measured && n.measured?.height) || sz?.[n.id]?.h })), parsed.refs, null, (parsed.groups || []).map((g) => ({ ...g, tables: g.tables.filter((id) => !hid.has(id)) })), algo);
+        const fresh = new Map(next.map((n) => [n.id, n])), merged = old.map((n) => fresh.get(n.id) || n); // hidden tables keep their place
+        layoutRef.current = { ...Object.fromEntries(merged.map((n) => [n.id, n.position])), ...(sz ? { '@sizes': sz } : {}), ...(hid.size ? { '@hidden': [...hid] } : {}) };
+        return merged;
       });
       setLayoutTick((n) => n + 1);
     };
@@ -688,7 +714,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </button>
         </div>
         <div className="grow" />
-        <input className="search" placeholder="Search tables / columns…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {mode === 'diagram' && <button className={`tbtn ${panelOpen ? 'on' : ''}`} onClick={() => { setPanelOpen(!panelOpen); setTimeout(() => panelSearch.current?.focus(), 80); }} title="Search, group and hide tables (Ctrl+K)">Tables{hidden.size ? ` · ${hidden.size} hidden` : ''}</button>}
         {owner && source && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
         {primary.map((k) => <button key={k} className={`tbtn ${drawer === k ? 'on' : ''}`} onClick={() => open(k)}>{tabName[k]}</button>)}
         <Menu trigger="More" active={['connect', 'import', 'view', 'docs'].includes(drawer)} title="Database, Import, View, Help"
@@ -715,8 +741,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); }} nodesConnectable={false} nodesDraggable={canEdit}
             onNodeDragStop={(_, n) => { if (n.type === 'table') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
             {view.grid && <Background gap={22} size={1.2} color={view.theme === 'dark' ? '#27324a' : '#cfd4dc'} />}
-            <MiniMap pannable zoomable className="mini" nodeColor="#1e3a5f" maskColor="rgba(244,245,247,.7)" />
+            <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>
+          {mode === 'diagram' && (<>
+            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title="Tables panel (Ctrl+K)" aria-label="Tables panel">{panelOpen ? '›' : '‹'}</button>
+            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
+          </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
           <div className="dock">
@@ -727,7 +757,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen">⤢</button>
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
-            <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)">⌁</button>
+            <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
             <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
             <button onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
             {algoOpen && (<>
