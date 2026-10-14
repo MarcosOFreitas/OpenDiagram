@@ -1,6 +1,6 @@
 # 03 — Connections & live import
 
-**Status:** implemented. Oracle TLS verified only up to descriptor/failure paths (see Acceptance). Code: `server/src/{index,introspect,store,dbml}.js`, drawer *Database* tab in `web/src/App.jsx`.
+**Status:** implemented. Oracle TLS `verify` verified by hand against an OCI Autonomous DB; wallet/`noverify`/`serverDn` pending (see Acceptance). Code: `server/src/{index,introspect,store,dbml}.js`, drawer *Database* tab in `web/src/App.jsx`.
 
 ## Connection model
 
@@ -66,5 +66,6 @@ All JSON. Errors: `{error}` with HTTP status.
 - [x] Postgres TLS: `verify` without CA rejects a self-signed cert; with the CA PEM connects; `noverify` connects; `verify` against a non-TLS server fails.
 - [x] Oracle connect descriptor rejects injection in host/service name; `tcps` against a plain listener fails fast with `NJS-506`.
 - [x] Refresh: added column/table detected, TableGroup preserved, second refresh is a no-op; auto-refresh applied a change within ~1 minute.
-- [ ] Oracle TLS success path (TCPS listener + wallet/CA) — **not verified**; needs an Oracle with TCPS configured.
+- [x] Oracle TLS `verify` without wallet/CA PEM verified manually (2026-10-14) against an Oracle Autonomous Database (OCI, TCPS 1522, public CA, hostname match): test, schema list and import worked. Gotcha: with TLS left on `off` against a TCPS port the server just closes the connection (`NJS-521 end-of-file`).
+- [ ] Oracle TLS with wallet/CA PEM (mTLS), `noverify`, `serverDn` — **not verified**.
 - [ ] Read-only enforcement is asserted by a direct `psql` check, not by instrumenting the app's own connection; add a test hook if stronger proof is needed.

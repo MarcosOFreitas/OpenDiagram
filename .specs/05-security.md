@@ -12,7 +12,7 @@
 | API | Unauthorised access to connections/diagrams | e-mail+password accounts (scrypt), roles + administrator-only admin API, sign-up closed by default, forced password change for temporary passwords, server-side sessions in HttpOnly SameSite cookies, 404 for other accounts' resources, CSRF Origin guard, login/sign-up throttling, per-person/group/link access levels, last-administrator guard | No e-mail verification, self-service reset, MFA, SSO or session list; throttling is in memory and per process; administrators can reset any password and open/edit/delete any diagram (by design; no audit log yet) |
 | Share links | A leaked link grants its level to whoever has it | random 144-bit tokens, per-link level, instant downgrade/revoke, anonymous = read-only, `no-referrer`, payload excludes source/credentials | Links are bearer secrets stored in clear in SQLite; no expiry yet |
 | Oracle connect descriptor | Injection via host/service/DN | whitelist validation (`SAFE`, DN quote/paren rejection) | — |
-| Transport | Sniffing / MITM to the DB | TLS modes with certificate verification, custom CA | `noverify` allowed (UI warns); Oracle TCPS success path unverified |
+| Transport | Sniffing / MITM to the DB | TLS modes with certificate verification, custom CA | `noverify` allowed (UI warns); Oracle TCPS verified for `verify` without wallet only |
 | Browser | XSS | CSP (`default-src 'self'`, no framing), `nosniff`; React escaping; no `dangerouslySetInnerHTML`; standalone docs HTML is built with `renderToStaticMarkup` (escaped) and makes no network requests | No CSP, no auth cookies yet |
 | Supply chain | Vulnerable deps | lockfiles committed | no automated audit in CI |
 

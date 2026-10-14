@@ -117,7 +117,7 @@ Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](
 - Exporting SQL for a different engine than the source needs manual edits (e.g. `nextval(...)` defaults, `character varying`).
 - Auto-refresh runs in the browser; it stops when the page is closed.
 - Sharing works with people, groups and links, but accounts are only created by administrators (no e-mail invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; saved database connections cannot be shared with a group yet.
-- Oracle TLS (TCPS) is implemented but not yet verified end-to-end against a TLS listener (see spec).
+- Oracle TLS (TCPS): `verify` without wallet checked against an OCI Autonomous DB; wallet/CA PEM, `noverify` and `serverDn` are not verified yet (see spec).
 
 ## Credits and disclaimer
 

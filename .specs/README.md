@@ -11,7 +11,7 @@ Living specifications for OpenDiagram. Rules:
 | 00 | [Product](00-product.md) — vision, users, scope, non-goals | stable |
 | 01 | [Architecture](01-architecture.md) — components, data flow, decisions | stable |
 | 02 | [Editor & diagram](02-editor-diagram.md) | implemented |
-| 03 | [Connections & live import](03-connections-import.md) — read-only, guardrails, TLS, refresh, API | implemented (Oracle TLS e2e pending) |
+| 03 | [Connections & live import](03-connections-import.md) — read-only, guardrails, TLS, refresh, API | implemented (Oracle TLS: `verify` checked by hand; wallet/`noverify` pending) |
 | 04 | [Import/export formats](04-formats.md) | implemented, known gaps |
 | 05 | [Security](05-security.md) — threat model, pre-deploy checklist | open items before public hosting |
 | 06 | [Roadmap](06-roadmap.md) | living |

@@ -37,7 +37,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 ## Known gaps
 
-- Oracle TLS success path (needs an Oracle with TCPS).
+- Oracle TLS: only `verify` without wallet is verified (by hand, OCI Autonomous DB); wallet/CA PEM, `noverify`, `serverDn` and any automated TCPS test are not.
 - `DB_HOST_POLICY=public-only` / `allowlist` verified only through the policy functions, not through `/api/schemas`.
 - A comment-level / edit-level member exercising the UI (the API is covered); opening a downloaded docs `.html` from disk.
 - Read-only enforcement proven with `psql`, not through the app's own pool.

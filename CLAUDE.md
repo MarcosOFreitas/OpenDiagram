@@ -60,10 +60,10 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 
 Everything below is implemented, committed and covered by the e2e scripts unless marked otherwise (details and acceptance criteria in `.specs/`): DBML editor + diagram, live import from PostgreSQL/Oracle (read-only sessions, privilege guardrails, TLS, manual/auto refresh), generated documentation with comments, accounts and administration (first account = administrator, groups, settings), private diagrams with autosave, sharing with people/groups/links, administrators manage every diagram (never others' connections), SSRF host policy.
 
-Not verified yet: Oracle TLS success path (needs an Oracle with TCPS); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
+Not verified yet: Oracle TLS with a wallet/CA PEM, `noverify` and `serverDn` (plain `verify` against an OCI Autonomous DB works, checked by hand); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
 Next steps, in the agreed order (details in `.specs/06-roadmap.md`; A1 more objects and A2 table picker are done):
-1. **A3** verify Oracle TLS (TCPS) end to end — needs an Oracle with a TCPS listener; the success path has never been exercised.
+1. **A3** finish verifying Oracle TLS: `verify` without wallet is done (OCI Autonomous DB, by hand); still open: wallet/CA PEM (mTLS), `noverify`, `serverDn`, ideally an automated TCPS demo service.
 2. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
 Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
@@ -76,5 +76,5 @@ The REA reverse-engineering MCP was only used to study the public dbdiagram.io U
 ## Working agreements
 
 - Smallest change that solves the problem; reuse what exists. Keep specs, README and the in-app Help tab consistent when behaviour changes.
-- Report honestly what was and was not tested (e.g. Oracle TLS is unverified end-to-end).
+- Report honestly what was and was not tested (e.g. Oracle TLS wallet/`noverify`/`serverDn` are unverified).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.
