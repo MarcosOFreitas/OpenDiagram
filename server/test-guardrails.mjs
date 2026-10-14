@@ -37,6 +37,7 @@ check('import only the picked schema.table', r.status === 200 && r.tables === 1,
 r = await post('tables', { ...pg('reader', 'reader'), schemas: [] });
 check('list tables needs a schema', r.status === 400);
 
+const r2 = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] });
 // 2c. A1 objects: enum, view (grey Table + definition), materialized view, sequence, trigger
 r = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('A1 enum', r.dbml.includes('Enum shop.order_state {'));
@@ -46,6 +47,12 @@ check('A1 sequence note (serial sequences skipped)', r.dbml.includes('Note "shop
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
 r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('list tables flags views', r.tables.filter((t) => t.view).length === 2, JSON.stringify(r.tables.filter((t) => t.view).map((t) => t.name)));
+
+check('multi-line comment becomes a triple-quoted note', r2.dbml.includes(`note: '''
+Stock keeping unit:
+1 = internal;
+2 = supplier
+'''`));
 
 // 3. the session itself is read-only even for a superuser (checked straight against the DB with the same options the app uses)
 const sql = `begin read only; create table shop.should_fail(id int);`;

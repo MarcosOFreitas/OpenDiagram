@@ -41,7 +41,7 @@ DBML has `Table`, `Enum` and `Note` only; `toDbml` stays the single generator an
 | Trigger | text in the note of its table/view: `TRIGGERS` + `name: definition` |
 | Sequence | standalone `Note "schema.name" { ''' SEQUENCE … ''' }` (a sticky note, not a table) |
 
-Multi-line notes use `'''…'''`. Consequence: SQL/JSON **export** emits views as plain tables.
+Multi-line notes (including multi-line column/table comments from the database) use `'''…'''`; newlines inside a default expression are collapsed to a space. Consequence: SQL/JSON **export** emits views as plain tables.
 
 ## Acceptance criteria
 

@@ -1,9 +1,9 @@
 // model -> DBML. Single source of truth for the editor and the diagram.
 const id = (s) => (/^[A-Za-z_]\w*$/.test(s) ? s : `"${s.replaceAll('"', '\\"')}"`);
-const str = (s) => `'${String(s).replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+const str = (s) => (/[\r\n]/.test(s) ? mstr(String(s).replace(/\r\n?/g, '\n')) : `'${String(s).replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`); // single-quoted strings cannot span lines
 const type = (t) => (/^\w+(\(\s*\d+\s*(,\s*\d+\s*)?\))?(\[\])?$/.test(t) ? t : `"${t.replaceAll('"', '\\"')}"`);
 const mstr = (s) => `'''\n${String(s).replaceAll("'''", "'' '")}\n'''`; // multi-line note
-const expr = (s) => `\`${String(s).replaceAll('`', "'")}\``;
+const expr = (s) => `\`${String(s).replaceAll('`', "'").replace(/\s*[\r\n]+\s*/g, ' ')}\``;
 const col = (c) => (/^[A-Za-z_]\w*$/.test(c) || /^"[^"]+"$/.test(c) ? c : expr(c));
 const tn = (t) => `${id(t.schema)}.${id(t.name)}`;
 export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set null', d: 'set default' };

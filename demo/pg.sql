@@ -45,3 +45,6 @@ create materialized view shop.mv_orders_by_status as select status, count(*) tot
 create sequence shop.invoice_seq start 1000;
 create function shop.touch() returns trigger language plpgsql as $$ begin return new; end $$;
 create trigger trg_orders_touch before insert on shop.orders for each row execute function shop.touch();
+
+-- multi-line comment: must not break the generated DBML
+comment on column shop.products.sku is E'Stock keeping unit:\n1 = internal;\n2 = supplier';
