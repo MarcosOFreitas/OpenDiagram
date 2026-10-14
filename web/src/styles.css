@@ -53,8 +53,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #bfd3ff; border-c
 .tbl-h small { opacity: .7; font-weight: 400; }
 .tbl-c { position: relative; height: 22px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; border-top: 1px solid #f0f2f6; }
 .tbl-c:hover { background: #f5f8ff; }
-.nm { display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ty { color: #8a94a6; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.nm { flex: 1 0 auto; max-width: 100%; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 4px; text-align: left; overflow: hidden; }
+.nmt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ty { flex: 0 1 auto; min-width: 0; color: #8a94a6; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.tyt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nn { font-size: 9px; color: #a3acbb; font-weight: 700; }
 .ic { display: inline-block; width: 12px; font-style: normal; font-size: 10px; text-align: center; }
 .ic.pk { color: #d49b00; } .ic.fk { color: #5b7fc7; } .ic.note { color: #9aa3b2; width: auto; }

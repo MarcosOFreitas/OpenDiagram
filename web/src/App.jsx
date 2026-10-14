@@ -41,6 +41,12 @@ function parse(text) {
 }
 
 const ROW = 22;
+// default width from the content: the longest column name always fits, the type gets what is left (min 220, max 480)
+const tableWidth = (t) => {
+  const head = t.name.length * 7.5 + (t.schema !== 'public' ? t.schema.length * 5.5 + 12 : 0) + 44;
+  const rows = t.fields.map((f) => f.name.length * 7 + Math.min(String(f.type || '').length, 24) * 6 + 74);
+  return Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
+};
 const tableHeight = (t) => (t.collapsed ? 30 : 30 + t.fields.length * ROW + t.indexes.length * 20);
 
 function TableNode({ data: t, selected }) {
@@ -50,7 +56,7 @@ function TableNode({ data: t, selected }) {
   return (
     <>
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
-    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || 220, ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
+    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
       <div className="tbl-h" style={t.headerColor ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>
         <span className="tbl-n">{t.name}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
@@ -63,13 +69,13 @@ function TableNode({ data: t, selected }) {
       </div>
       {!t.collapsed && <div className="tbl-body">
       {t.fields.map((f) => (
-        <div key={f.name} className="tbl-c" title={f.note || ''}>
+        <div key={f.name} className="tbl-c" title={`${f.name}: ${f.type}${f.note ? ` — ${f.note}` : ''}`}>
           <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
           <span className="nm">
             {f.pk ? <i className="ic pk" title="primary key">🔑</i> : fk.has(f.name) ? <i className="ic fk" title="foreign key">⛓</i> : <i className="ic" />}
-            {f.name}{f.note && <i className="ic note" title={f.note}>✎</i>}
+            <span className="nmt">{f.name}</span>{f.note && <i className="ic note" title={f.note}>✎</i>}
           </span>
-          <span className="ty">{!t.hideTypes && f.type}{(f.notNull || f.pk) && <b className="nn">NN</b>}</span>
+          <span className="ty"><span className="tyt">{!t.hideTypes && f.type}</span>{(f.notNull || f.pk) && <b className="nn">NN</b>}</span>
           <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
         </div>
       ))}
@@ -93,7 +99,7 @@ const nodeTypes = { table: TableNode, grp: GroupNode };
 // dagre on a set of tables -> Map id -> top-left position
 function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
   const g = new dagre.graphlib.Graph({ compound: true }).setGraph({ rankdir, nodesep: 36, ranksep: 90 }).setDefaultEdgeLabel(() => ({}));
-  tables.forEach((t) => g.setNode(t.id, { width: 220, height: tableHeight(t) }));
+  tables.forEach((t) => g.setNode(t.id, { width: tableWidth(t), height: tableHeight(t) }));
   const grouped = new Set();
   groups.forEach((gr) => {
     g.setNode(`g:${gr.name}`, {});
@@ -104,7 +110,7 @@ function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
     if (g.hasNode(a) && g.hasNode(b)) g.setEdge(a, b);
   });
   dagre.layout(g);
-  return new Map(tables.map((t) => { const p = g.node(t.id); return [t.id, { x: p.x - 110, y: p.y - tableHeight(t) / 2 }]; }));
+  return new Map(tables.map((t) => { const p = g.node(t.id); return [t.id, { x: p.x - tableWidth(t) / 2, y: p.y - tableHeight(t) / 2 }]; }));
 }
 
 // Many tables: dagre alone puts every table without relationships in one huge column. Lay out each connected
@@ -122,7 +128,7 @@ function packedPositions(tables, refs) {
     if (ts.length === 1) { loose.push(ts[0]); continue; }
     const ids = new Set(ts.map((t) => t.id));
     const cr = refs.filter((r) => ids.has(tid(r.child.schemaName, r.child.tableName)) && ids.has(tid(r.parent.schemaName, r.parent.tableName)));
-    const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x)) + 220, h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
+    const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x + tableWidth(t))), h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
     let best = size(dagrePositions(ts, cr));
     if (ts.length > 12) { // big component: left-to-right or top-to-bottom, whichever is closer to a wide screen
       const alt = size(dagrePositions(ts, cr, [], 'TB')), off = (b) => Math.abs(Math.log(b.w / b.h / 1.6));
@@ -132,13 +138,13 @@ function packedPositions(tables, refs) {
   }
   if (loose.length) { // grid, in name order, ~square
     const avgH = loose.reduce((s, t) => s + tableHeight(t), 0) / loose.length;
-    const cols = Math.max(1, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / 256)));
-    const pos = new Map(), colH = Array(cols).fill(0); // each table goes to the shortest column: tall tables do not stretch a whole row
+    const cols = Math.max(1, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / (Math.max(...loose.map(tableWidth)) + 36))));
+    const colW = Math.max(...loose.map(tableWidth)) + 36, pos = new Map(), colH = Array(cols).fill(0); // each table goes to the shortest column: tall tables do not stretch a whole row
     loose.sort((a, b) => a.id.localeCompare(b.id)).forEach((t) => {
       const c = colH.indexOf(Math.min(...colH));
-      pos.set(t.id, { x: c * 256, y: colH[c] }); colH[c] += tableHeight(t) + 36;
+      pos.set(t.id, { x: c * colW, y: colH[c] }); colH[c] += tableHeight(t) + 36;
     });
-    blocks.push({ w: cols * 256 - 36, h: Math.max(...colH) - 36, pos });
+    blocks.push({ w: cols * colW - 36, h: Math.max(...colH) - 36, pos });
   }
   const area = blocks.reduce((s, b) => s + (b.w + GAP) * (b.h + GAP), 0);
   const maxW = Math.max(Math.sqrt(area) * 1.8, ...blocks.map((b) => b.w));
