@@ -1,9 +1,10 @@
 // e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
 import { execSync } from 'node:child_process';
 
+const BASE = process.env.BASE || 'http://localhost:3000';
 let cookie = '';
 const post = async (path, body) => {
-  const r = await fetch(`http://localhost:3000/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  const r = await fetch(`${BASE}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
   const set = r.headers.get('set-cookie');
   if (set) cookie = set.split(';')[0];
   return { status: r.status, ...(await r.json()) };

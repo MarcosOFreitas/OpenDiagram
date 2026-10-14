@@ -17,7 +17,7 @@ Open-source database diagramming tool in the spirit of dbdiagram.io: write [DBML
 
 ## Quick start
 
-Requires Docker (with Compose v2).
+Requires Docker with Compose v2 (Docker Desktop on Windows/macOS). Nothing else is needed to run it; Node 24 is only needed for [development](#develop).
 
 ```bash
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
@@ -43,14 +43,27 @@ docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql
 
 To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its anonymous volume: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
 
+The demo databases are only for trying and testing the app; remove them (and the `demo-*` services) for a real deployment.
+
+### Backup and moving to another machine
+
+Everything the app stores (accounts, diagrams, comments, saved connections) is one SQLite file in the `appdata` volume. Saved connection passwords are encrypted with `APP_SECRET`, so a restore needs the **same** `APP_SECRET`.
+
+```bash
+docker compose cp app:/data ./backup                 # backup (the app can keep running)
+# on the new machine: start once, then restore and restart
+docker compose up -d --build
+docker compose cp ./backup/. app:/data && docker compose restart app
+```
+
 ## Using it
 
 0. **Diagrams** tab: your diagrams and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
-1. **Database** tab → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
+1. **More → Database** → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
 2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
 3. Edit the DBML on the left; the diagram updates live. **Help** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
 4. **↻** in the top bar re-reads the metadata; set an interval in the connection for automatic refresh (runs while the page is open).
-5. **Docs** (top bar) shows generated documentation for the DBML — click a table header to collapse it, click a comment area to add a note; **Export** tab: DBML, SQL per dialect, JSON, PNG, SVG, documentation (HTML / Markdown). **View** tab: theme, grid, edge style, hide types/indexes.
+5. **Docs** (top bar) shows generated documentation for the DBML — click a table header to collapse it, click a comment area to add a note; **Export**: DBML, SQL per dialect, JSON, PNG, SVG, documentation (HTML / Markdown). **More → View**: theme, grid, edge style, hide types/indexes, editor line wrapping. Drag the edge of the editor to resize it; Ctrl+F searches and replaces.
 
 ## Configuration
 
@@ -66,18 +79,19 @@ To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its
 ## Develop
 
 ```bash
-# API (needs Node 24: uses the built-in node:sqlite)
-cd server && npm install && npm start          # http://localhost:3000
+# API (needs Node 24: uses the built-in node:sqlite); data goes to ./server/data (gitignored)
+cd server && npm install && npm start          # http://localhost:3000 — the first account you create is the administrator
 # UI with hot reload, proxying /api to :3000
 cd web && npm install && npm run dev           # http://localhost:5173
 # production build into server/public
 cd web && npm run build
 ```
 
-Tests (stack must be running; see [`.specs/07-testing.md`](.specs/07-testing.md)):
+Tests (the Docker stack must be running; see [`.specs/07-testing.md`](.specs/07-testing.md)). They need an administrator of the stack under test; create a throw-away one with the CLI. `BASE=http://host:port` points them at another address (default `http://localhost:3000`):
 
 ```bash
-export TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=...   # an administrator of the stack under test
+docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'
+export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-password'
 node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, SSRF policy
 node server/test-guardrails.mjs        # read-only/privilege guardrails + PostgreSQL TLS modes
 cd web && node roundtrip.mjs           # DB import → export → re-import per format (needs the oracle profile)
@@ -101,7 +115,7 @@ Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](
 - Oracle SQL **files** cannot be imported (parser limitation) — use the live Oracle import. JSON is export-only.
 - Exporting SQL for a different engine than the source needs manual edits (e.g. `nextval(...)` defaults, `character varying`).
 - Auto-refresh runs in the browser; it stops when the page is closed.
-- Sharing is link-based only (no per-user invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; connections cannot be shared with a group yet.
+- Sharing works with people, groups and links, but accounts are only created by administrators (no e-mail invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; saved database connections cannot be shared with a group yet.
 - Oracle TLS (TCPS) is implemented but not yet verified end-to-end against a TLS listener (see spec).
 
 ## Credits and disclaimer

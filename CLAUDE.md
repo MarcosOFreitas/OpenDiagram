@@ -12,11 +12,11 @@ docker compose up -d --build app             # rebuild after code changes (web i
 cd web && npx vite build                     # quick syntax check of the UI (outputs to ../server/public)
 node --check server/src/*.js                 # quick syntax check of the API
 node server/test-auth.mjs                    # e2e: accounts, roles, groups, sharing, links, SSRF policy (stack up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD of an admin: `docker compose exec app node src/cli.js create-admin <email> <password>`)
-node server/test-guardrails.mjs              # e2e: read-only/privilege guardrails + PG TLS (stack must be up)
-cd web && node roundtrip.mjs                 # e2e: import → export → re-import per format (needs oracle profile)
+node server/test-guardrails.mjs              # e2e: read-only/privilege guardrails + PG TLS (stack up; also needs TEST_ADMIN_*)
+cd web && node roundtrip.mjs                 # e2e: import → export → re-import per format (needs oracle profile + TEST_ADMIN_*)
 ```
 
-There is no unit-test framework and no linter configured. Verification = the two e2e scripts + driving the UI in a browser. Do not claim a UI change works without loading it.
+All three scripts accept `BASE=http://host:port` (default `http://localhost:3000`). There is no unit-test framework and no linter configured. Verification = those e2e scripts + driving the UI in a browser. Do not claim a UI change works without loading it.
 
 ## Layout
 
@@ -25,14 +25,14 @@ There is no unit-test framework and no linter configured. Verification = the two
 - `server/src/introspect.js` — per-engine catalog queries (`pg_catalog`, `ALL_*` views) → neutral model `{tables, refs}`; read-only session setup; TLS; privilege checks.
 - `server/src/dbml.js` — neutral model → DBML text.
 - `server/src/store.js` — saved connections per account (SQLite); secrets AES-256-GCM encrypted with `APP_SECRET`.
-- `web/src/App.jsx` — root (auth gate, `/s/<token>` route) + `Workspace` (topbar, drawer tabs, canvas, autosave, refresh). `Auth.jsx` sign-in/up + password form, `Admin.jsx` administration overlay, `Library.jsx` diagrams tab, `SharePanel.jsx` people/groups/links, `api.js` fetch helper. `Editor.jsx` CodeMirror DBML editor. `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
+- `web/src/App.jsx` — root (auth gate, `/s/<token>` route) + `Workspace` (topbar, drawer tabs, canvas, autosave, refresh). `Auth.jsx` sign-in/up + password form, `Admin.jsx` administration overlay, `Library.jsx` diagrams tab, `SharePanel.jsx` people/groups/links, `Menu.jsx` top-bar dropdown, `api.js` fetch helper. `Editor.jsx` CodeMirror DBML editor (highlighting, autocomplete, diagnostics, color swatches, find/replace bar, read-only/wrap compartments). `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
 - `demo/` — sample DBs for manual/e2e testing. `.specs/` — specs. `server/public` is a build artifact (gitignored).
 
 ## Conventions
 
 - Server: plain ESM JavaScript, no build step, no TypeScript. Web: React 18 + Vite, JSX, no TS. Match the existing terse style; do not add layers, libraries or config for hypothetical needs.
 - **DBML text is the single source of truth.** Import = generate DBML; the diagram is always parsed from the editor text (`@dbml/core`). Never keep a second model in sync.
-- Errors thrown by the API carry `statusCode`; the global handler returns `{error}`. UI shows them as toasts via `notify`.
+- Errors thrown by the API carry `statusCode`; the global handler returns `{error}`. UI shows them as toasts via `notify` (inside the Admin overlay they are shown in the panel, because the overlay covers the toast area).
 - Diagram content (`dbml`, title, layout, connection link) lives on the server and autosaves; `localStorage` only keeps per-browser UI state: `view`, `docsCollapsed`, `lastDiagram`, `gen:<diagramId>` (last generated DBML for refresh diffs). Always wrap in try/catch (`store()` helper).
 
 ## Security invariants (do not weaken)
@@ -54,7 +54,19 @@ There is no unit-test framework and no linter configured. Verification = the two
 - `node:sqlite` needs Node 24 (Docker image has it). Fetch clients send `Content-Type: application/json` on DELETE/logout with no body; `index.js` registers a lenient JSON parser for that.
 - Public sign-up is closed after the first account; tests and scripts need an admin (see above). Existing demo Docker volumes keep `app.db`: delete the volume (`docker compose down -v`) to start with a clean user list.
 - Refresh (`keepGroups`) preserves only TableGroups and node positions; other manual edits to imported tables are overwritten by design.
-- Writing files with shell heredocs containing quotes/backslashes is error-prone on this Windows setup; prefer the editor tools.
+- On Windows (Git Bash) writing files with shell heredocs that contain quotes/backslashes is error-prone: prefer the editor tools or a script file. Git Bash also rewrites absolute container paths in `docker compose exec` arguments: prefix with `MSYS_NO_PATHCONV=1`. PowerShell blocks `npx.ps1`: use `npx.cmd`.
+
+## Current state and where to resume
+
+Everything below is implemented, committed and covered by the e2e scripts unless marked otherwise (details and acceptance criteria in `.specs/`): DBML editor + diagram, live import from PostgreSQL/Oracle (read-only sessions, privilege guardrails, TLS, manual/auto refresh), generated documentation with comments, accounts and administration (first account = administrator, groups, settings), private diagrams with autosave, sharing with people/groups/links, administrators manage every diagram (never others' connections), SSRF host policy.
+
+Not verified yet: Oracle TLS success path (needs an Oracle with TCPS); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
+
+Next steps, in order (`.specs/06-roadmap.md`): group-owned database connections (members use a read-only connection without seeing the secret, with an audit log), server-side scheduled refresh, account hardening (SSO, e-mail verification/reset, link expiry), public-deployment hardening.
+
+Starting on a new machine: clone, `cp .env.example .env` (set `APP_SECRET`), `docker compose up -d --build`, open http://localhost:3000 and create the first (administrator) account, or `docker compose exec app node src/cli.js create-admin <email> <password>`. For the tests create a throw-away administrator and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`. The `demo-pg` roles `reader` (select only) and `writer` (can write) exist for the guardrail tests; the Oracle demo needs `--profile oracle` and may need `demo/oracle.sql` loaded once (see README).
+
+The REA reverse-engineering MCP was only used to study the public dbdiagram.io UI for feature ideas; it is not needed to build, run or test the project (to use it again: `npx.cmd -y rea-agents setup --client claude_code --yes`, then restart Claude Code).
 
 ## Working agreements
 

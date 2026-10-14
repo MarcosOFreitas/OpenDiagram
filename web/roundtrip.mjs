@@ -1,7 +1,8 @@
 import { Parser, importer, exporter } from '@dbml/core';
 
 // the API requires an account: sign in with the test administrator (TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
-const reg = await fetch('http://localhost:3000/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD }) });
+const BASE = process.env.BASE || 'http://localhost:3000';
+const reg = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD }) });
 const cookie = reg.headers.get('set-cookie')?.split(';')[0] ?? '';
 if (!cookie) { console.error('admin sign-in failed: set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD'); process.exit(2); }
 
@@ -37,7 +38,7 @@ const diff = (a, b) => {
 };
 
 for (const [name, body] of Object.entries(conns)) {
-  const r = await (await fetch('http://localhost:3000/api/import', { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) })).json();
+  const r = await (await fetch(`${BASE}/api/import`, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) })).json();
   if (r.error) { console.log(name, 'IMPORT FAIL', r.error); continue; }
   const orig = summarize(r.dbml);
   console.log(`\n== ${name}: ${r.tables} tables, ${r.refs} refs`);
