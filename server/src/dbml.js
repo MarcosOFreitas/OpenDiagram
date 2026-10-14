@@ -10,7 +10,7 @@ export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set nul
 
 // DBML has no view/trigger/sequence: a view is a Table whose note holds `VIEW` + the SQL definition (the UI marks it "· View"), triggers go in their table's note, a sequence is a standalone Note
 
-export function toDbml({ tables, refs, enums = [], sequences = [] }) {
+export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] }) {
   const out = [];
   const enumTypes = new Set(enums.flatMap((e) => [`${e.schema}.${e.name}`, e.name]));
   for (const e of enums) out.push(`Enum ${tn(e)} {`, ...e.values.map((v) => `  ${id(v)}`), '}', '');
@@ -45,6 +45,9 @@ export function toDbml({ tables, refs, enums = [], sequences = [] }) {
     if (r.onUpdate && r.onUpdate !== 'no action') s.push(`update: ${r.onUpdate}`);
     out.push(`Ref ${id(r.name)}: ${side(r.from)} > ${side(r.to)}${s.length ? ` [${s.join(', ')}]` : ''}`);
   }
+  // data lineage is not DBML: it is written as a comment line that other DBML tools ignore, and OpenDiagram reads back. `(auto)` marks lines generated from the catalog: a refresh rewrites them and keeps the ones written by hand (`// lineage: target <- source(col, col), source`)
+  if (lineage.length) out.push('');
+  for (const l of lineage) out.push(`// lineage(auto): ${tn(l.target)} <- ${l.sources.map((s) => `${tn(s)}${s.columns?.length ? `(${s.columns.map(id).join(', ')})` : ''}`).join(', ')}`);
   for (const q of sequences) out.push('', `Note ${id(`${q.schema}.${q.name}`)} {`, `  ${mstr(`SEQUENCE ${q.schema}.${q.name}: ${q.desc}${q.comment ? `\n${q.comment}` : ''}`)}`, '}');
   return out.join('\n') + '\n';
 }

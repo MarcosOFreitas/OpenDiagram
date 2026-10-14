@@ -42,7 +42,8 @@ Also (A1), with the DBML representation in [04](04-formats.md#objects-without-a-
 - Import links the saved connection + selection to the diagram (`diagrams.source` on the server). Top-bar `↻` or drawer *Refresh now* re-imports.
 - Auto: interval from the connection (`refreshMinutes`), runs in the browser while the page is open; no overlap (single in-flight guard); errors toast.
 - Compare to last generated DBML (`localStorage.gen:<diagramId>`): identical ⇒ "Already up to date", editor untouched. Changed ⇒ DBML replaced, **TableGroups re-appended** (members that no longer exist are dropped), positions kept by table id, toast shows `+N tables, −N tables, N changed`.
-- Other manual edits to imported tables are overwritten (documented in the UI).
+- Other manual edits to imported tables are overwritten (documented in the UI), except hand-written `// lineage:` lines (kept; the generated `// lineage(auto):` ones are rewritten).
+- Lineage: `assemble(..., lineage)` -> `{ lineage: [{ target, sources: [{ schema, name, columns }] }] }`, written by `toDbml` as `// lineage(auto): target <- source(col, ...)`. PostgreSQL: `pg_depend` rows of the view's `pg_rewrite` rule (`refobjsubid` gives the columns used; the output-column mapping is not in the catalog). Oracle: `ALL_DEPENDENCIES` (views and materialized views onto tables/views, table level only). Only sources and targets that are part of the import are kept (`importModel` filters them with the picked tables).
 
 ## API
 

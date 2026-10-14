@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, getViewportForBounds } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
@@ -15,6 +15,7 @@ import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
 import TablePicker, { matcher } from './TablePicker.jsx';
 import History from './History.jsx';
+import { lineageEdges, closure, MANUAL } from './lineage.js';
 import TablesPanel from './TablesPanel.jsx';
 import { BLANK, TEMPLATES } from './templates.js';
 
@@ -31,13 +32,14 @@ function parse(text) {
       fields: t.fields.map((f) => ({ name: f.name, type: f.type.type_name, pk: f.pk, notNull: f.not_null, unique: f.unique, note: f.note })),
       indexes: t.indexes.map((i) => ({ name: i.name, unique: i.unique, pk: i.pk, cols: i.columns.map((c) => c.value) })),
     }));
+    const lineage = lineageEdges(text, tables); // `// lineage:` comment lines
     const refs = db.schemas.flatMap((s) => s.refs).map((r) => {
       const [a, b] = r.endpoints;
       const [child, parent] = a.relation === '*' || b.relation === '1' ? [a, b] : [b, a];
       return { name: r.name || '', id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
     });
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
-    return { tables, refs, groups, db };
+    return { tables, refs, groups, lineage, db };
   } catch (e) {
     return { error: errMsg(e), diags: e?.diags?.map((d) => ({ line: d.location?.start?.line ?? 1, col: d.location?.start?.column ?? 1, endLine: d.location?.end?.line, endCol: d.location?.end?.column, message: d.message ?? 'syntax error' })) ?? [] };
   }
@@ -62,8 +64,10 @@ function TableNode({ data: t, selected }) {
   return (
     <>
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
-    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
+    <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.linRole ? `lin-${t.linRole}` : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
       <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
+        <Handle type="source" position={Position.Right} id="ls" className="hdl" /><Handle type="source" position={Position.Left} id="lsl" className="hdl" />
+        <Handle type="target" position={Position.Left} id="lt" className="hdl" /><Handle type="target" position={Position.Right} id="ltr" className="hdl" />{/* table-level data lineage */}
         {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
         <span className="tbl-n">{t.name}{t.viewKind && <em className="tbl-kind"> · {t.viewKind}</em>}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
         {(t.collapsed ? t.fields : t.fields.filter((f) => !rows.includes(f))).map((f) => ( // columns that are not drawn (collapsed table, keys-only level) keep their relationship lines: connect them to the header
@@ -106,7 +110,7 @@ function GroupNode({ data: g }) {
 }
 // Relationship line with a draggable label: dragging it bends the line through the new point (saved in layout['@labels']);
 // double-click puts it back. Without an offset the line is the normal curve/step/straight path.
-function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, interactionWidth, data }) {
+function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, markerEnd, interactionWidth, data }) {
   const { zoom } = useViewport();
   const args = { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition };
   const [base, bx, by] = data.edgeType === 'straight' ? getStraightPath(args) : data.edgeType === 'step' ? getSmoothStepPath({ ...args, borderRadius: 0 }) : data.edgeType === 'smoothstep' ? getSmoothStepPath(args) : getBezierPath(args);
@@ -122,7 +126,7 @@ function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targe
   };
   return (
     <>
-      <BaseEdge id={id} path={d} style={style} interactionWidth={interactionWidth} />
+      <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} interactionWidth={interactionWidth} />
       {data.text && (
         <EdgeLabelRenderer>
           <div className="ref-label nodrag nopan" style={{ transform: `translate(-50%, -50%) translate(${px}px, ${py}px)`, ...data.css }} onPointerDown={start} onDoubleClick={() => data.onMove(id, null)} title="Drag to move the line (double-click to reset)">{data.text}</div>
@@ -331,7 +335,10 @@ function withGroups(newDbml, groups) {
 }
 function keepGroups(oldDbml, newDbml) {
   const o = parse(oldDbml);
-  return o.error ? newDbml : withGroups(newDbml, o.groups);
+  if (o.error) return newDbml;
+  const have = new Set(newDbml.split('\n').map((l) => l.trim()));
+  const manual = oldDbml.split('\n').filter((l) => MANUAL.test(l) && !have.has(l.trim())); // data lineage written by hand survives a refresh; `(auto)` lines are regenerated
+  return withGroups(manual.length ? `${newDbml.replace(/\n*$/, '\n')}\n${manual.join('\n')}\n` : newDbml, o.groups);
 }
 function diffSummary(oldDbml, newDbml) {
   const o = parse(oldDbml), n = parse(newDbml);
@@ -399,13 +406,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   // The live state always sits at the root of the layout; leaving a view stores it back (so switching never loses changes).
   const snapView = () => ({
     pos: Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) }])),
-    sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs,
+    sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs, lineage: view.lineage !== false,
   });
   const applySnap = (sn, views, base, active) => {
     const keep = Object.keys(views).length ? { '@views': views } : {};
     layoutRef.current = { ...sn.pos, ...(sn.sizes ? { '@sizes': sn.sizes } : {}), ...(sn.hidden ? { '@hidden': sn.hidden } : {}), ...(sn.labels ? { '@labels': sn.labels } : {}), ...keep, ...(base ? { '@base': base } : {}), ...(active ? { '@view': active } : {}) };
     setNodes((old) => old.map((n) => (sn.pos[n.id] ? { ...n, position: sn.pos[n.id] } : n)));
-    setView((v) => ({ ...v, detail: sn.detail || 'full', hiRefs: !!sn.hiRefs }));
+    setView((v) => ({ ...v, detail: sn.detail || 'full', hiRefs: !!sn.hiRefs, lineage: sn.lineage !== false }));
     setLayoutTick((k) => k + 1);
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 200);
   };
@@ -477,9 +484,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
   useEffect(() => { // while a named view is active, its detail level and highlight travel with the diagram (not only with this browser)
     const lr = layoutRef.current;
-    if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs)) return;
-    layoutRef.current = { ...lr, '@detail': view.detail || 'full', '@hiRefs': !!view.hiRefs }; setLayoutTick((k) => k + 1);
-  }, [view.detail, view.hiRefs, doc, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs && lr['@lineage'] === (view.lineage !== false))) return;
+    layoutRef.current = { ...lr, '@detail': view.detail || 'full', '@hiRefs': !!view.hiRefs, '@lineage': view.lineage !== false }; setLayoutTick((k) => k + 1);
+  }, [view.detail, view.hiRefs, view.lineage, doc, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
@@ -517,7 +524,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     lastGen.current = (d.id && store(`gen:${d.id}`)) || '';
     layoutRef.current = d.layout ?? {};
     const lr0 = layoutRef.current, sn0 = lr0['@views']?.[lr0['@view']];
-    if (lr0['@view']) setView((v) => ({ ...v, detail: lr0['@detail'] ?? sn0?.detail ?? v.detail, hiRefs: lr0['@hiRefs'] ?? sn0?.hiRefs ?? v.hiRefs })); // a named view carries its detail level / highlight
+    if (lr0['@view']) setView((v) => ({ ...v, detail: lr0['@detail'] ?? sn0?.detail ?? v.detail, hiRefs: lr0['@hiRefs'] ?? sn0?.hiRefs ?? v.hiRefs, lineage: lr0['@lineage'] ?? sn0?.lineage ?? v.lineage })); // a named view carries its detail level / highlight
     idsKey.current = '';
     savedRef.current = JSON.stringify(payloadOf(d));
     setNodes([]); setEdges([]);
@@ -635,11 +642,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
       target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
       label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0], name: r.name || '' },
-    })));
+    })).concat((parsed.lineage || []).map((l) => ({ id: l.id, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: l.sCols, tCols: l.tCols, manual: l.manual, name: '' } }))));
     const key = parsed.tables.map((t) => t.id).sort().join('|');
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
   }, [parsed, doc]); // eslint-disable-line react-hooks/exhaustive-deps -- `doc` too: two diagrams with identical DBML must still rebuild the canvas after a switch
 
+  const lineageOn = view.lineage !== false; // dashed data-lineage arrows (from the `// lineage:` comments) can be switched off
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase(), m = matcher(search), groupName = new Map((parsed.groups || []).flatMap((g) => g.tables.map((t) => [t, g.name.toLowerCase()])));
     const hit = (t) => m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupName.get(t.id) || '').includes(q);
@@ -647,9 +655,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
     const gMembers = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const visible = nodes.filter((n) => !hidden.has(n.id));
+    const linC = activeId && lineageOn ? closure(edges.filter((e) => e.data.kind === 'lineage'), activeId) : null; // what feeds the selected table (up) and what it feeds (down)
     const tables = visible.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || (!!gMembers && !gMembers.has(n.id)) || !!q && !hit(n.data) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), linRole: linC ? (linC.up.has(n.id) ? 'up' : linC.down.has(n.id) ? 'down' : '') : '', active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || (!!gMembers && !gMembers.has(n.id)) || !!q && !hit(n.data) },
     }));
     const byId = new Map(visible.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
@@ -660,12 +669,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit, active: activeGroup === gr.name }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
-  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, search, parsed, lineageOn, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const labels = layoutRef.current['@labels'] || {};
     const gSet = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
-    return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)).map((e) => {
+    const linAll = edges.filter((e) => e.data.kind === 'lineage'), linC = activeId && lineageOn ? closure(linAll, activeId) : null;
+    return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target) && (lineageOn || e.data.kind !== 'lineage')).map((e) => {
     // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
     const a = geo.get(e.source), b = geo.get(e.target);
     let sp = 'right', tp = 'left';
@@ -673,6 +683,19 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (b.x >= a.x + a.w) { sp = 'right'; tp = 'left'; }
       else if (b.x + b.w <= a.x) { sp = 'left'; tp = 'right'; }
       else sp = tp = b.x + b.w / 2 >= a.x + a.w / 2 ? 'right' : 'left';
+    }
+    if (e.data.kind === 'lineage') { // data flows source -> target: dashed arrow; a one-to-one column mapping connects the columns, otherwise the table headers
+      const { sCols, tCols } = e.data, one = sCols.length === 1 && tCols.length === 1, dark = view.theme === 'dark';
+      const lh = one ? { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${sCols[0]}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${tCols[0]}` } : { sourceHandle: sp === 'right' ? 'ls' : 'lsl', targetHandle: tp === 'left' ? 'lt' : 'ltr' };
+      const picked = e.id === activeEdge, a = activeId;
+      const inUp = !!linC && (e.source === a || linC.up.has(e.source)) && (e.target === a || linC.up.has(e.target)), inDown = !!linC && (e.source === a || linC.down.has(e.source)) && (e.target === a || linC.down.has(e.target));
+      const color = picked ? '#f59e0b' : inUp ? '#8b5cf6' : inDown ? '#0d9488' : dark ? '#a78bfa' : '#7c3aed';
+      const faded = (!!linC && !inUp && !inDown) || (!!activeEdge && !picked) || (!!gSet && !gSet.has(e.source) && !gSet.has(e.target));
+      const cols = sCols.join(', ') + (tCols.length ? ` → ${tCols.join(', ')}` : '');
+      const text = picked ? (cols.length > 70 ? `${cols.slice(0, 67)}…` : cols) : sCols.length > 1 ? `${sCols.length} cols` : one ? '' : sCols.length === 1 ? sCols[0] : '';
+      return { ...e, ...lh, type: 'ref', zIndex: picked ? 20 : inUp || inDown ? 10 : 0, interactionWidth: 20, markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
+        style: { stroke: color, strokeWidth: picked ? 3 : inUp || inDown ? 2.4 : 1.6, strokeDasharray: '7 5', ...(faded ? { opacity: 0.18 } : {}) },
+        data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css: { background: dark ? '#1b1531' : '#f5f0ff', border: `1px solid ${dark ? '#4c3a8a' : '#d8c8ff'}`, color: dark ? '#c4b5fd' : '#6d28d9', fontSize: 10, fontWeight: picked ? 700 : 500, opacity: faded ? 0.3 : 1 }, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
     }
     const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
@@ -682,7 +705,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       ? { background: view.theme === 'dark' ? '#111826' : '#fff', border: `1px solid ${view.theme === 'dark' ? '#2c3f66' : '#bfd3ff'}`, color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8', fontWeight: 600, fontSize: 10.5 }
       : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : '#64748b', fontWeight: picked ? 700 : 400, fontSize: 10 };
     return { ...e, ...handles, type: 'ref', zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
-  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
+  }); }, [edges, nodes, lineageOn, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
   useEffect(() => { // close on any click outside the menu or Escape (a fixed backdrop inside the transformed dock would only cover the dock)
@@ -695,6 +718,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     if (hidden.has(id)) setHidden([id], false);
     setActiveEdge(null); setActiveId(id);
     setTimeout(() => fitView({ nodes: [{ id }], padding: 0.8, maxZoom: 1, duration: 300 }), 80);
+  };
+  const focusLineage = (id) => { // show only this table and everything it is built from or feeds, with the lineage lines on
+    const c = closure(edges.filter((e) => e.data.kind === 'lineage'), id);
+    if (!lineageOn) setView((v) => ({ ...v, lineage: true }));
+    showOnly([id, ...c.up, ...c.down]); setActiveEdge(null); setActiveId(id);
+    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 300 }), 120);
   };
   const relayout = (algo = view.algo) => { // two passes: estimated sizes, then the sizes the browser really measured (manual widths, wrapped text) so nothing overlaps
     const pass = (measured) => {
@@ -900,7 +929,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </ReactFlow>
           {mode === 'diagram' && (<>
             <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title={`Tables panel (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables panel">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
-            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
+            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} lineage={parsed.lineage || []} onLineage={focusLineage} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
@@ -913,6 +942,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
             <button onClick={() => setSize(Object.fromEntries(nodes.map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
             <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
+            {(parsed.lineage || []).length > 0 && <button className={lineageOn ? 'on' : ''} onClick={() => setView({ ...view, lineage: !lineageOn })} title={lineageOn ? 'Hide data lineage' : 'Show data lineage (dashed arrows from the source to the table built from it)'} aria-label="Data lineage"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.2" /><circle cx="5" cy="18" r="2.2" /><circle cx="19" cy="12" r="2.2" /><path d="M7 6.5c5 0 5 5.5 10 5.5M7 17.5c5 0 5-5.5 10-5.5" strokeDasharray="3 2.5" /></svg></button>}
             <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
             <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
             {algoOpen && (<>
@@ -1063,6 +1093,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <h4>Tables</h4>
               <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
               <label className="chk"><input type="checkbox" checked={view.hiRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
+              <label className="chk"><input type="checkbox" checked={lineageOn} onChange={(e) => setView({ ...view, lineage: e.target.checked })} /> Show data lineage (dashed arrows)</label>
               <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>
               <label className="chk"><input type="checkbox" checked={view.snap} onChange={(e) => setView({ ...view, snap: e.target.checked })} /> Snap to grid</label>
               <small className="hint">Click a table to highlight its relationships. Header color: <code>Table t [headercolor: #3498DB]</code>.</small>

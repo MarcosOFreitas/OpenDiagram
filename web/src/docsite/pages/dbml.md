@@ -75,7 +75,7 @@ Note reminder {
 
 ## Comments
 
-`// like this` is ignored by the parser. Use it freely to organize the file.
+`// like this` is ignored by the parser. Use it freely to organize the file. One kind of comment has a meaning for OpenDiagram: `// lineage: target <- source` declares [data lineage](data-lineage).
 
 ## Views from a database
 

@@ -33,6 +33,7 @@ Press **Import**. The DBML appears in the editor and the diagram is drawn. The c
 
 - **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE` / `ON UPDATE`) and indexes.
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark; the SQL definition is kept in the table note. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
+- **Data lineage** of views and materialized views (which tables they are built from, and in PostgreSQL which columns) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.
 - **Sequences** (those that are not owned by a column) as standalone `Note` blocks.
 - **Triggers** as text in the note of their table.
@@ -44,7 +45,7 @@ Not imported yet: check constraints, partitions, functions and procedures.
 
 After an import the top bar shows a **↻** button with the connection name and when it was read. Press it to re-read the metadata. In the connection you can set an **automatic refresh** (every 1, 5, 15, 30 minutes or hourly); it runs while the page is open.
 
-A refresh keeps your **table groups** and **table positions**. Other manual edits to imported tables are replaced by what the database says, by design.
+A refresh keeps your **table groups**, **table positions** and the **data lineage lines you wrote by hand**. Other manual edits to imported tables are replaced by what the database says, by design.
 
 > **Note** Importing again into a diagram also re-applies its current table groups, so you do not lose them.
 

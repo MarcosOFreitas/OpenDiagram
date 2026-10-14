@@ -23,6 +23,12 @@
 - **Documentation:** **More → Documentation** opens `/docs` in a new tab (there is no Help drawer any more; the DBML examples live in the *Syntax* pages with a Copy button).
 - **Feedback:** toasts (ok/err), button busy states, empty-state hint.
 
+## Data lineage (`web/src/lineage.js`)
+- Syntax (a comment, so DBML parsers ignore it; the editor keeps it as text): `// lineage: target <- source, source(col, col)`; a column on both sides (`v.total <- orders.total`) is a column mapping. Names: `table`, `schema.table`, `table.column`, `schema.table.column`, double quotes for odd names; unknown names are ignored, repeated pairs merged. Import writes `// lineage(auto): ...`; refresh rewrites those and keeps the hand-written ones (`keepGroups` in `App.jsx`).
+- Drawing: dashed violet arrows source -> target (type `ref` edge with `data.kind = 'lineage'`, arrow head, table-level handles `ls/lsl/lt/ltr` in the table header; a one-to-one column mapping uses the column handles). Label: `N cols`, the list of columns when the arrow is picked.
+- State: `view.lineage` (default on) = dock button + View checkbox; saved per named view (`@lineage`). Hidden tables hide their arrows. Click a table: upstream (violet) / downstream (teal) closure (`closure()`) outlined and its arrows coloured, other lineage arrows fade. Click an arrow: focus it and its two tables. Tables panel: lineage icon per row (show only that table's whole lineage) and the filter "Only tables with data lineage".
+- Not done: lineage does not feed Arrange; no lineage section in the Docs view; no parsing of SQL to map output columns.
+
 ## Acceptance criteria
 
 - [x] Typing valid DBML updates the diagram without losing positions of existing tables.

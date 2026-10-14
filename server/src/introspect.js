@@ -8,7 +8,7 @@ import { ACTION } from './dbml.js';
 const key = (s, n) => `${s}.${n}`;
 
 // views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists
-function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = []) {
+function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = []) {
   const tables = new Map();
   for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] });
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
@@ -21,7 +21,15 @@ function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], en
   }
   for (const r of trigRows) tables.get(key(r.schema, r.table))?.triggers.push({ name: r.name, def: r.def });
   const refs = fkRows.filter((r) => tables.has(key(r.from.schema, r.from.name)) && tables.has(key(r.to.schema, r.to.name)));
-  return { tables: [...tables.values()], refs, enums, sequences };
+  // data lineage: which tables (and the columns of them) a view / materialized view is built from. Only between tables of this import.
+  const lin = new Map();
+  for (const r of lineageRows) {
+    const tk = key(r.target.schema, r.target.name), sk = key(r.source.schema, r.source.name);
+    if (tk === sk || !tables.has(tk) || !tables.has(sk)) continue;
+    if (!lin.has(tk)) lin.set(tk, { target: r.target, sources: [] });
+    lin.get(tk).sources.push({ ...r.source, columns: r.columns ?? [] });
+  }
+  return { tables: [...tables.values()], refs, enums, sequences, lineage: [...lin.values()] };
 }
 
 // ---------- Postgres ----------
@@ -86,7 +94,15 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
     from pg_sequence s join pg_class c on c.oid=s.seqrelid join pg_namespace n on n.oid=c.relnamespace
     where n.nspname = any($1) and not exists (select 1 from pg_depend d where d.objid=c.oid and d.deptype in ('a','i')) order by 1,2`))
     .map((r) => ({ schema: r.schema, name: r.name, comment: r.comment, desc: `${r.type} start ${r.start} step ${r.step} min ${r.min} max ${r.max}${r.cycle ? ' cycle' : ''}` }));
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences);
+  // lineage: the rewrite rule of a view depends on the tables and columns it reads (pg_depend); the mapping output column -> source column is not in the catalog
+  const lineage = (await q(`select vn.nspname vschema, v.relname vname, sn.nspname sschema, s.relname sname, array_remove(array_agg(distinct a.attname::text), null) cols
+    from pg_depend d join pg_rewrite r on r.oid=d.objid join pg_class v on v.oid=r.ev_class join pg_namespace vn on vn.oid=v.relnamespace
+    join pg_class s on s.oid=d.refobjid join pg_namespace sn on sn.oid=s.relnamespace
+    left join pg_attribute a on a.attrelid=d.refobjid and a.attnum=d.refobjsubid and d.refobjsubid > 0
+    where d.classid='pg_rewrite'::regclass and d.refclassid='pg_class'::regclass and v.relkind in ('v','m') and s.oid <> v.oid and vn.nspname = any($1)
+    group by 1,2,3,4 order by 1,2,3,4`))
+    .map((r) => ({ target: { schema: r.vschema, name: r.vname }, source: { schema: r.sschema, name: r.sname }, columns: r.cols }));
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage);
 });
 
 // ---------- Oracle (thin mode, no Instant Client) ----------
@@ -143,7 +159,7 @@ function oraType(r) {
 const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
   const inl = schemas.map((_, i) => `:s${i}`).join(',');
-  const q = async (sql) => (await conn.execute(sql.replace('@IN', inl), binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
+  const q = async (sql) => (await conn.execute(sql.replaceAll('@IN', inl), binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
   const tableRows = await q(`select t.owner "schema", t.table_name "name", c.comments "comment" from all_tables t
     left join all_tab_comments c on c.owner=t.owner and c.table_name=t.table_name and c.table_type='TABLE'
     where t.owner in (@IN) and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' and t.table_name not like 'MLOG$\\_%' escape '\\' and t.table_name not like 'RUPD$\\_%' escape '\\' order by 1,2`);
@@ -191,7 +207,11 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   const sequences = (await q(`select s.sequence_owner, s.sequence_name, s.min_value, s.max_value, s.increment_by, s.cycle_flag from all_sequences s
     where s.sequence_owner in (@IN) and s.sequence_name not like 'ISEQ$$_%' order by 1,2`))
     .map((r) => ({ schema: r.SEQUENCE_OWNER, name: r.SEQUENCE_NAME, desc: `min ${r.MIN_VALUE} step ${r.INCREMENT_BY}${r.CYCLE_FLAG === 'Y' ? ' cycle' : ''}` }));
-  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences);
+  // lineage at table level (ALL_DEPENDENCIES has no columns); a materialized view's dependency on its own container table is dropped by assemble
+  const lineage = (await q(`select owner, name, referenced_owner, referenced_name from all_dependencies
+    where owner in (@IN) and type in ('VIEW','MATERIALIZED VIEW') and referenced_type in ('TABLE','VIEW','MATERIALIZED VIEW') and referenced_owner in (@IN) order by 1,2,3,4`))
+    .map((r) => ({ target: { schema: r.OWNER, name: r.NAME }, source: { schema: r.REFERENCED_OWNER, name: r.REFERENCED_NAME } }));
+  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences, lineage);
 });
 
 // guardrail 2: detect credentials that can do more than read metadata. Returns [{level, message}]
@@ -245,6 +265,8 @@ export async function importModel(c, schemas, tables) {
     m.tables = m.tables.filter((t) => want.has(t.name.toLowerCase()) || want.has(`${t.schema}.${t.name}`.toLowerCase())); // plain name or schema.name
     const have = new Set(m.tables.map((t) => key(t.schema, t.name)));
     m.refs = m.refs.filter((r) => have.has(key(r.from.schema, r.from.name)) && have.has(key(r.to.schema, r.to.name)));
+    m.lineage = (m.lineage ?? []).filter((l) => have.has(key(l.target.schema, l.target.name)))
+      .map((l) => ({ ...l, sources: l.sources.filter((s) => have.has(key(s.schema, s.name))) })).filter((l) => l.sources.length);
   }
   return m;
 }

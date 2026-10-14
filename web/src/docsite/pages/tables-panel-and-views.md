@@ -14,6 +14,7 @@ Open it with the **‹** button on the right edge of the diagram, or with `Ctrl+
 - **Click a row** to select the table and center it on the screen (a hidden table is shown first).
 - The **target** button on a row shows **only that table and the ones related to it**.
 - **Filters** (funnel): all / visible only / hidden only, and only tables that have relationships.
+- For tables with [data lineage](data-lineage), a second icon on the row shows only that table and everything it is built from or feeds. The filter **Only tables with data lineage** lists just those tables.
 - The chip at the bottom shows everything again.
 
 Hidden tables leave their relationship lines and group boxes. They are still in the DBML and in the [Docs view](generated-documentation). **Arrange** only lays out the visible tables, and hidden ones keep their place.
@@ -40,7 +41,7 @@ A **view** is a named way of looking at the same diagram. It stores:
 - which tables are visible,
 - where they are and their sizes,
 - the offsets of the relationship labels,
-- the detail level and the relationship highlight.
+- the detail level, the relationship highlight and the data lineage switch.
 
 At the top of the Tables panel:
 

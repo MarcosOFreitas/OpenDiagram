@@ -12,7 +12,7 @@ export const NAV = [
   'getting-started',
   { title: 'Syntax', items: ['dbml', 'relationships', 'enums-indexes-schemas'] },
   { title: 'Database import', items: ['database-import', 'database-security'] },
-  { title: 'Working with diagrams', items: ['diagram-basics', 'tables-panel-and-views', 'arrange', 'table-groups'] },
+  { title: 'Working with diagrams', items: ['diagram-basics', 'tables-panel-and-views', 'arrange', 'table-groups', 'data-lineage'] },
   'generated-documentation',
   'import-export',
   { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links', 'versions-and-history'] },

@@ -7,18 +7,20 @@ const Eye = ({ off }) => (off
   : <Ico><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></Ico>);
 const Funnel = () => <Ico><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></Ico>;
 const Target = () => <Ico><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></Ico>;
+const Flow = () => <Ico><circle cx="5" cy="6" r="2" /><circle cx="5" cy="18" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 6c5 0 5 6 10 6M7 18c5 0 5-6 10-6" /></Ico>;
 const Chev = ({ open }) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s' }} aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>;
 
 const tid = (s, n) => `${s || 'public'}.${n}`;
 
 // Right-hand panel of the diagram: search, group by schema / TableGroup, show or hide tables on the canvas, jump to a table.
 // hidden: Set of table ids; onHide(ids, hide); onOnly(ids) = show only these; onFocus(id) = select + center.
-export default function TablesPanel({ right = 0, views = [], activeView = '', onView, onCreateView, onDeleteView, onRenameView, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
+export default function TablesPanel({ right = 0, lineage = [], onLineage, views = [], activeView = '', onView, onCreateView, onDeleteView, onRenameView, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
   const [by, setBy] = useState(groups.length ? 'group' : 'schema'); // schema | group
   const [open, setOpen] = useState(() => new Set());
   const [fOpen, setFOpen] = useState(false);
   const [vis, setVis] = useState('all'); // all | visible | hidden
   const [connectedOnly, setConnectedOnly] = useState(false);
+  const [linOnly, setLinOnly] = useState(false);
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -29,12 +31,13 @@ export default function TablesPanel({ right = 0, views = [], activeView = '', on
     return a;
   }, [tables, refs]);
 
+  const linIds = useMemo(() => new Set(lineage.flatMap((l) => [l.source, l.target])), [lineage]); // tables that take part in some data lineage
   const q = search.trim();
   const rows = useMemo(() => {
     const m = matcher(q), ql = q.toLowerCase();
     return tables.filter((t) => (!q || m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupOf.get(t.id)?.name || '').toLowerCase().includes(ql))
-      && (vis === 'all' || (vis === 'hidden') === hidden.has(t.id)) && (!connectedOnly || adj.get(t.id)?.size));
-  }, [tables, q, vis, connectedOnly, hidden, groupOf, adj]);
+      && (vis === 'all' || (vis === 'hidden') === hidden.has(t.id)) && (!connectedOnly || adj.get(t.id)?.size) && (!linOnly || linIds.has(t.id)));
+  }, [tables, q, vis, connectedOnly, linOnly, linIds, hidden, groupOf, adj]);
 
   const sections = useMemo(() => {
     const map = new Map();
@@ -53,7 +56,7 @@ export default function TablesPanel({ right = 0, views = [], activeView = '', on
   const shownCount = (list) => list.filter((t) => !hidden.has(t.id)).length;
   const toggleMany = (list) => onHide(list.map((t) => t.id), shownCount(list) > 0); // any visible -> hide all, else show all
   const only = (t) => onOnly([t.id, ...(adj.get(t.id) || [])]);
-  const filtered = vis !== 'all' || connectedOnly;
+  const filtered = vis !== 'all' || connectedOnly || linOnly;
 
   return (
     <aside className="tpn" aria-label="Tables panel" style={{ right }}>
@@ -81,6 +84,7 @@ export default function TablesPanel({ right = 0, views = [], activeView = '', on
         <div className="tpn-filters">
           <label>Show <select value={vis} onChange={(e) => setVis(e.target.value)}><option value="all">All tables</option><option value="visible">Visible only</option><option value="hidden">Hidden only</option></select></label>
           <label className="chk"><input type="checkbox" checked={connectedOnly} onChange={(e) => setConnectedOnly(e.target.checked)} /> Only tables with relationships</label>
+          {lineage.length > 0 && <label className="chk"><input type="checkbox" checked={linOnly} onChange={(e) => setLinOnly(e.target.checked)} /> Only tables with data lineage</label>}
         </div>
       )}
       <div className="tpn-bar">
@@ -104,6 +108,7 @@ export default function TablesPanel({ right = 0, views = [], activeView = '', on
               <div key={t.id} className={`tpn-row ${activeId === t.id ? 'on' : ''} ${hidden.has(t.id) ? 'off' : ''}`} onClick={() => onFocus(t.id)} title={`${t.schema}.${t.name}`}>
                 <span className="tpn-name">{t.name}</span>
                 {by === 'group' && <small className="tpn-sch">{t.schema}</small>}
+                {linIds.has(t.id) && <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); onLineage(t.id); }} title="Show only this table and everything it is built from or feeds (data lineage)"><Flow /></button>}
                 <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); only(t); }} title="Show only this table and the ones related to it"><Target /></button>
                 <button className="tpn-ic sm" onClick={(e) => { e.stopPropagation(); onHide([t.id], !hidden.has(t.id)); }} title={hidden.has(t.id) ? 'Show on the diagram' : 'Hide from the diagram'}><Eye off={hidden.has(t.id)} /></button>
               </div>
