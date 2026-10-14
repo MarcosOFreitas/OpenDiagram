@@ -4,6 +4,11 @@ services:
     ports: ["3000:3000"]
     environment:
       APP_SECRET: ${APP_SECRET:-dev-secret-change-me}
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-}
+      DB_HOST_POLICY: ${DB_HOST_POLICY:-open}
+      DB_HOST_ALLOWLIST: ${DB_HOST_ALLOWLIST:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
     volumes: [appdata:/data]
 
   # demo DBs to test imports: host "demo-pg" / "demo-oracle" from inside the app
