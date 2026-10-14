@@ -45,6 +45,9 @@ async function pgWith(c, fn) {
 const pgSchemas = (c) => pgWith(c, async (cl) =>
   (await cl.query(`select nspname from pg_namespace where nspname not like 'pg\\_%' and nspname <> 'information_schema' order by 1`)).rows.map((r) => r.nspname));
 
+const pgTables = (c, schemas) => pgWith(c, async (cl) =>
+  (await cl.query(`select n.nspname schema, c.relname name from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname = any($1) order by 1,2`, [schemas])).rows);
+
 const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   const q = async (sql) => (await cl.query(sql, [schemas])).rows;
   const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname = any($1) order by 1,2`);
@@ -108,6 +111,12 @@ async function oraWith(c, fn) {
 
 const oraSchemas = (c) => oraWith(c, async (conn) =>
   (await conn.execute(`select distinct t.owner from all_tables t join all_users u on u.username=t.owner where u.oracle_maintained='N' order by 1`)).rows.map((r) => r[0]));
+
+const oraTables = (c, schemas) => oraWith(c, async (conn) => {
+  const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
+  return (await conn.execute(`select t.owner "schema", t.table_name "name" from all_tables t where t.owner in (${schemas.map((_, i) => `:s${i}`).join(',')})
+    and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' order by 1,2`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
+});
 
 function oraType(r) {
   const t = r.DATA_TYPE;
@@ -198,14 +207,15 @@ async function oraPrivileges(c, schemas) {
   });
 }
 
-const drivers = { postgres: { schemas: pgSchemas, import: pgImport, privileges: pgPrivileges }, oracle: { schemas: oraSchemas, import: oraImport, privileges: oraPrivileges } };
+const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgImport, privileges: pgPrivileges }, oracle: { schemas: oraSchemas, tables: oraTables, import: oraImport, privileges: oraPrivileges } };
 export const listSchemas = (c) => drivers[c.type].schemas(c);
+export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas);
 export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas);
 export async function importModel(c, schemas, tables) {
   const m = await drivers[c.type].import(c, schemas);
   if (tables?.length) {
     const want = new Set(tables.map((t) => t.toLowerCase()));
-    m.tables = m.tables.filter((t) => want.has(t.name.toLowerCase()));
+    m.tables = m.tables.filter((t) => want.has(t.name.toLowerCase()) || want.has(`${t.schema}.${t.name}`.toLowerCase())); // plain name or schema.name
     const have = new Set(m.tables.map((t) => key(t.schema, t.name)));
     m.refs = m.refs.filter((r) => have.has(key(r.from.schema, r.from.name)) && have.has(key(r.to.schema, r.to.name)));
   }

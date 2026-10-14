@@ -27,7 +27,7 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 
 ## What is imported
 
-Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and `BIN$`), table + column comments, columns (type via `format_type` / Oracle type formatting, nullability, default expression), PK (single → `[pk]`, composite → `indexes { (a,b) [pk] }`), FK (single/composite, `ON DELETE`/`ON UPDATE`), non-PK indexes (unique flag, method, expression columns). FKs to tables outside the selection are dropped. Optional `tables` filter (case-insensitive names).
+Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and `BIN$`), table + column comments, columns (type via `format_type` / Oracle type formatting, nullability, default expression), PK (single → `[pk]`, composite → `indexes { (a,b) [pk] }`), FK (single/composite, `ON DELETE`/`ON UPDATE`), non-PK indexes (unique flag, method, expression columns). FKs to tables outside the selection are dropped. Optional `tables` filter (case-insensitive; plain `name` or `schema.name` — the UI picker stores `schema.name`).
 **Not imported yet:** views, enums, sequences, triggers, check constraints, partitions detail.
 
 ## Refresh
@@ -49,6 +49,7 @@ All JSON. Errors: `{error}` with HTTP status.
 | `DELETE /api/connections/:id` | → `{ok:true}` |
 | Diagrams, share links, comments | see [09](09-accounts-sharing.md) |
 | `POST /api/schemas` | `{id}` or draft fields (draft overrides saved) → `{schemas, warnings, readOnly:true}` |
+| `POST /api/tables` | `{id\|draft, schemas[]}` → `{tables:[{schema,name}]}` (catalog query, read-only session; feeds the table picker); `400` no schema |
 | `POST /api/import` | `{id\|draft, schemas[], tables?[]}` → `{dbml, tables, refs, warnings, at}`; `400` no schema; `403` strict block |
 
 ## Acceptance criteria

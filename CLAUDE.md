@@ -62,11 +62,10 @@ Everything below is implemented, committed and covered by the e2e scripts unless
 
 Not verified yet: Oracle TLS success path (needs an Oracle with TCPS); `DB_HOST_POLICY=public-only` through the HTTP routes (only the policy functions are tested); a comment-level/edit-level *member* exercising the UI (API covered); opening a downloaded docs `.html` straight from disk.
 
-Next steps, in the agreed order (details in `.specs/06-roadmap.md`):
+Next steps, in the agreed order (details in `.specs/06-roadmap.md`; A2 table picker is done):
 1. **A1** import more metadata objects: views, enums, sequences, triggers, comments on non-table objects (today: tables, columns, PK/FK, indexes, table/column comments only). Decide the DBML representation first; `toDbml` stays the single generator; update specs 03/04.
-2. **A2** table picker inside a schema (today a comma-separated text filter in the Database tab → needs a read-only "list tables" endpoint and a checkbox list).
-3. **A3** verify Oracle TLS (TCPS) end to end — needs an Oracle with a TCPS listener; the success path has never been exercised.
-4. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
+2. **A3** verify Oracle TLS (TCPS) end to end — needs an Oracle with a TCPS listener; the success path has never been exercised.
+3. **B1** group-owned database connections with an audit log (original plan step 4, not done) and **B2** OIDC/LDAP SSO (step 5, not done). Step 3 (groups, sharing with people/groups/links) is done.
 Afterwards: server-side scheduled refresh, account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.

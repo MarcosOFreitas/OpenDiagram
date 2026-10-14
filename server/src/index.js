@@ -6,7 +6,7 @@ import * as store from './store.js';
 import * as auth from './auth.js';
 import * as dg from './diagrams.js';
 import * as admin from './admin.js';
-import { listSchemas, importModel, privilegeWarnings } from './introspect.js';
+import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
 import { assertHostAllowed } from './policy.js';
 
@@ -113,6 +113,11 @@ app.post('/api/schemas', async (req) => {
   const c = await resolve(req.body ?? {}, req.user.id);
   const schemas = await listSchemas(c);
   return { schemas, warnings: await checkPrivileges(c, schemas), readOnly: true };
+});
+app.post('/api/tables', async (req) => {
+  const { schemas } = req.body ?? {};
+  if (!schemas?.length) throw bad('select at least one schema');
+  return { tables: await listTables(await resolve(req.body, req.user.id), schemas) };
 });
 app.post('/api/import', async (req) => {
   const { schemas, tables } = req.body ?? {};

@@ -149,7 +149,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [form, setForm] = useState(EMPTY);
   const [schemas, setSchemas] = useState([]);
   const [picked, setPicked] = useState([]);
-  const [tableFilter, setTableFilter] = useState('');
+  const [tableSel, setTableSel] = useState([]); // 'schema.table' entries; empty = all tables
+  const [tableList, setTableList] = useState(null); // null = not loaded
+  const [tableQ, setTableQ] = useState('');
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -337,6 +339,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     setSchemas(r.schemas); setPicked(r.schemas.length === 1 ? r.schemas : []); setWarnings(r.warnings || []);
     notify(r.warnings?.length ? 'err' : 'ok', `Connected (read-only session) — ${r.schemas.length} schema(s)${r.warnings?.length ? ' · credential has extra privileges!' : ''}`);
   });
+  const loadTables = run('tables', async () => {
+    const r = await api('tables', { ...body(), schemas: picked });
+    setTableList(r.tables.map((t) => `${t.schema}.${t.name}`)); setTableQ('');
+  });
   const persist = async (extra = {}) => {
     const { id } = await api('connections', body(extra));
     setForm((f) => ({ ...f, id, password: '', hasCa: f.clearCa ? false : !!f.caPem || !!f.hasCa, caPem: '', clearCa: false }));
@@ -345,7 +351,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   };
   const save = run('save', async () => { await persist(); notify('ok', 'Connection saved'); });
   const importNow = run('import', async () => {
-    const tables = tableFilter.split(',').map((x) => x.trim()).filter(Boolean);
+    const tables = tableSel;
     const id = await persist({ schemas: picked, tables });
     const r = await api('import', { id, schemas: picked, tables });
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
@@ -373,7 +379,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableFilter((c.tables || []).join(', ')); setWarnings([]); };
+  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setTableList(null); setWarnings([]); };
   const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
   const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
 
@@ -524,7 +530,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   <span><a onClick={() => refresh(false)}>Refresh now</a> · <a onClick={() => setSource(null)}>Unlink</a></span>
                 </div>
               )}
-              <h4>Saved connections <a onClick={() => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableFilter(''); setWarnings([]); }}>+ new</a></h4>
+              <h4>Saved connections <a onClick={() => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableSel([]); setTableList(null); setWarnings([]); }}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
               {conns.map((c) => (
                 <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
@@ -575,7 +581,17 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                     <label key={s} className="chk"><input type="checkbox" checked={picked.includes(s)} onChange={(e) => setPicked(e.target.checked ? [...picked, s] : picked.filter((x) => x !== s))} /> {s}</label>
                   ))}
                 </div>
-                <input placeholder="Only these tables (optional, comma separated)" value={tableFilter} onChange={(e) => setTableFilter(e.target.value)} />
+                <h4>Tables {tableList && <><a onClick={() => setTableSel(tableList.filter((t) => t.toLowerCase().includes(tableQ.toLowerCase())))}>all shown</a> · <a onClick={() => setTableSel([])}>none</a></>}</h4>
+                {!tableList && <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected — change…` : 'All tables — choose specific ones…'}</button>}
+                {tableList && (<>
+                  <input placeholder="Search tables…" value={tableQ} onChange={(e) => setTableQ(e.target.value)} />
+                  <div className="schemas">
+                    {tableList.filter((t) => t.toLowerCase().includes(tableQ.toLowerCase())).map((t) => (
+                      <label key={t} className="chk"><input type="checkbox" checked={tableSel.includes(t)} onChange={(e) => setTableSel(e.target.checked ? [...tableSel, t] : tableSel.filter((x) => x !== t))} /> {t}</label>
+                    ))}
+                  </div>
+                  <small className="hint">{tableSel.length ? `${tableSel.length} selected` : 'Nothing selected = import all tables of the schemas.'}</small>
+                </>)}
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>
               </>)}
             </div>

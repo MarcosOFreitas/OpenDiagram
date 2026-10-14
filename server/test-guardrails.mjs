@@ -28,6 +28,15 @@ check('strict blocks writer', r.status === 403, r.error?.slice(0, 90));
 r = await post('import', { ...pg('reader', 'reader', { blockWritable: true }), schemas: ['shop'] });
 check('strict allows reader', r.status === 200 && r.tables >= 4, `${r.tables} tables`);
 
+// 2b. table picker: list tables (read-only), import filtered by schema.table
+r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });
+check('list tables', r.status === 200 && r.tables?.length >= 4 && r.tables.every((t) => t.schema === 'shop' && t.name), `${r.tables?.length} tables`);
+const one = r.tables?.[0];
+r = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'], tables: [`${one?.schema}.${one?.name}`] });
+check('import only the picked schema.table', r.status === 200 && r.tables === 1, `${r.tables} tables`);
+r = await post('tables', { ...pg('reader', 'reader'), schemas: [] });
+check('list tables needs a schema', r.status === 400);
+
 // 3. the session itself is read-only even for a superuser (checked straight against the DB with the same options the app uses)
 const sql = `begin read only; create table shop.should_fail(id int);`;
 try { execSync(`docker compose exec -T demo-pg psql -U postgres -d demo -v ON_ERROR_STOP=1 -c "${sql}"`, { stdio: 'pipe' }); check('read-only txn rejects DDL', false, 'DDL succeeded'); }
