@@ -34,7 +34,7 @@ One installation = one organisation. People have **e-mail + password** accounts 
 
 ## Diagrams and sharing
 
-A diagram stores `title`, `dbml`, `layout` (table positions) and `source` (link to one of the owner's saved connections, for refresh). The UI autosaves 800 ms after a change (`Saving… / Saved / Not saved`). A new account's first diagram is the bundled sample model ("Loja - modelo", `web/src/templates.js`: 8 tables, enums, indexes, relationships with actions, three TableGroups) — unless the browser still held a diagram from the pre-accounts version, which is kept instead. The *Diagrams* tab offers *New blank diagram* and *Start from a template*, and lists **My diagrams** and **Shared with me** (with owner and permission).
+A diagram stores `title`, `dbml`, `layout` (table positions) and `source` (link to one of the owner's saved connections, for refresh). The UI autosaves 800 ms after a change (`Saving… / Saved / Not saved`). A new account's first diagram is the bundled sample model ("Online store - sample", `web/src/templates.js`: 8 tables, enums, indexes, relationships with actions, three TableGroups) — unless the browser still held a diagram from the pre-accounts version, which is kept instead. The *Diagrams* tab offers *New blank diagram* and *Start from a template*, and lists **My diagrams** and **Shared with me** (with owner and permission).
 
 Who can open a diagram (the effective level is the **highest** that applies):
 

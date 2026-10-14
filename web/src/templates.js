@@ -22,18 +22,18 @@ Table posts {
 Ref user_posts: posts.user_id > users.id
 `;
 
-const SHOP = `Project loja {
+const SHOP = `Project shop {
   database_type: 'PostgreSQL'
   Note: '''
-    Modelo de exemplo: loja virtual.
-    Clientes fazem pedidos de produtos de um catálogo e pagam por eles.
-    Edite este diagrama à vontade: ele é só um ponto de partida.
+    Sample model: an online store.
+    Customers place orders for products from a catalog and pay for them.
+    Edit this diagram freely: it is only a starting point.
   '''
 }
 
 Enum order_status {
-  pending [note: 'Criado, aguardando pagamento']
-  paid [note: 'Pagamento confirmado']
+  pending [note: 'Created, waiting for payment']
+  paid [note: 'Payment confirmed']
   shipped
   delivered
   cancelled
@@ -41,21 +41,21 @@ Enum order_status {
 
 Enum payment_method {
   credit_card
-  pix
-  boleto
+  bank_transfer
+  cash
 }
 
-// ---------- Clientes
+// ---------- Customers
 
-Table customers [headercolor: #3498DB, note: 'Pessoas que compram na loja'] {
+Table customers [headercolor: #3498DB, note: 'People who buy in the store'] {
   id integer [pk, increment]
   name varchar(120) [not null]
-  email varchar(255) [unique, not null, note: 'Usado no login']
+  email varchar(255) [unique, not null, note: 'Used to sign in']
   phone varchar(30)
   created_at timestamp [not null, default: \`now()\`]
 }
 
-Table addresses [headercolor: #3498DB, note: 'Endereços de entrega e cobrança'] {
+Table addresses [headercolor: #3498DB, note: 'Shipping and billing addresses'] {
   id integer [pk, increment]
   customer_id integer [not null]
   street varchar(200) [not null]
@@ -69,21 +69,21 @@ Table addresses [headercolor: #3498DB, note: 'Endereços de entrega e cobrança'
   }
 }
 
-// ---------- Catálogo
+// ---------- Catalog
 
 Table categories [headercolor: #27AE60] {
   id integer [pk, increment]
-  parent_id integer [note: 'Categoria pai (hierarquia opcional)']
+  parent_id integer [note: 'Parent category (optional hierarchy)']
   name varchar(100) [unique, not null]
 }
 
-Table products [headercolor: #27AE60, note: 'Itens à venda'] {
+Table products [headercolor: #27AE60, note: 'Items for sale'] {
   id integer [pk, increment]
   category_id integer [not null]
   sku varchar(40) [unique, not null]
   name varchar(200) [not null]
   description text
-  price decimal(10,2) [not null, note: 'Preço atual de venda']
+  price decimal(10,2) [not null, note: 'Current selling price']
   stock integer [not null, default: 0]
   active boolean [not null, default: true]
 
@@ -93,11 +93,11 @@ Table products [headercolor: #27AE60, note: 'Itens à venda'] {
   }
 }
 
-Table reviews [headercolor: #27AE60, note: 'Avaliações dos clientes'] {
+Table reviews [headercolor: #27AE60, note: 'Customer reviews'] {
   id integer [pk, increment]
   product_id integer [not null]
   customer_id integer [not null]
-  rating smallint [not null, note: '1 a 5']
+  rating smallint [not null, note: '1 to 5']
   comment text
   created_at timestamp [not null, default: \`now()\`]
 
@@ -106,9 +106,9 @@ Table reviews [headercolor: #27AE60, note: 'Avaliações dos clientes'] {
   }
 }
 
-// ---------- Vendas
+// ---------- Sales
 
-Table orders [headercolor: #E67E22, note: 'Pedidos'] {
+Table orders [headercolor: #E67E22, note: 'Orders'] {
   id integer [pk, increment]
   customer_id integer [not null]
   shipping_address_id integer [not null]
@@ -122,11 +122,11 @@ Table orders [headercolor: #E67E22, note: 'Pedidos'] {
   }
 }
 
-Table order_items [headercolor: #E67E22, note: 'Linhas de cada pedido (chave composta)'] {
+Table order_items [headercolor: #E67E22, note: 'Lines of each order (composite key)'] {
   order_id integer [not null]
   product_id integer [not null]
   quantity integer [not null, default: 1]
-  unit_price decimal(10,2) [not null, note: 'Preço congelado no momento da compra']
+  unit_price decimal(10,2) [not null, note: 'Price frozen at purchase time']
 
   indexes {
     (order_id, product_id) [pk]
@@ -141,7 +141,7 @@ Table payments [headercolor: #E67E22] {
   paid_at timestamp
 }
 
-// ---------- Relacionamentos
+// ---------- Relationships
 
 Ref: addresses.customer_id > customers.id [delete: cascade]
 Ref: categories.parent_id > categories.id [delete: set null]
@@ -154,20 +154,20 @@ Ref: order_items.order_id > orders.id [delete: cascade]
 Ref: order_items.product_id > products.id
 Ref: payments.order_id > orders.id [delete: cascade]
 
-// ---------- Grupos (caixas coloridas no diagrama)
+// ---------- Groups (coloured boxes on the diagram)
 
-TableGroup Clientes [color: #3498DB] {
+TableGroup Customers [color: #3498DB] {
   customers
   addresses
 }
 
-TableGroup Catalogo [color: #27AE60] {
+TableGroup Catalog [color: #27AE60] {
   categories
   products
   reviews
 }
 
-TableGroup Vendas [color: #E67E22] {
+TableGroup Sales [color: #E67E22] {
   orders
   order_items
   payments
@@ -175,5 +175,5 @@ TableGroup Vendas [color: #E67E22] {
 `;
 
 export const TEMPLATES = [
-  { id: 'shop', name: 'Loja virtual — modelo', description: 'Clientes, catálogo, pedidos e pagamentos, com grupos, enums, índices e relacionamentos.', title: 'Loja - modelo', dbml: SHOP },
+  { id: 'shop', name: 'Online store — sample', description: 'Customers, catalog, orders and payments, with groups, enums, indexes and relationships.', title: 'Online store - sample', dbml: SHOP },
 ];

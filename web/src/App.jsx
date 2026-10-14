@@ -99,7 +99,7 @@ function TableNode({ data: t, selected }) {
 function GroupNode({ data: g }) {
   const c = g.color || '#6b7280';
   return (
-    <div style={{ width: g.w, height: g.h, border: `1.5px dashed ${c}`, background: `${c}12`, borderRadius: 10, pointerEvents: 'none' }}>
+    <div style={{ width: g.w, height: g.h, border: g.active ? `2.5px solid ${c}` : `1.5px dashed ${c}`, background: g.active ? `${c}2a` : `${c}12`, boxShadow: g.active ? `0 0 0 4px ${c}33` : undefined, borderRadius: 10, pointerEvents: 'none', transition: 'background .12s, box-shadow .12s' }}>
       <div className="grp-handle" title={g.canMove ? 'Drag to move the whole group' : undefined} style={{ color: c, fontWeight: 700, fontSize: 12, padding: '4px 10px', pointerEvents: g.canMove ? 'all' : 'none', cursor: g.canMove ? 'grab' : 'default', width: 'fit-content', maxWidth: '100%' }}>{g.name}</div>
     </div>
   );
@@ -347,7 +347,7 @@ function diffSummary(oldDbml, newDbml) {
 const EXPORTS = [
   ['dbml', 'DBML', '.dbml'], ['postgres', 'PostgreSQL', '.sql'], ['mysql', 'MySQL', '.sql'], ['mssql', 'SQL Server', '.sql'],
   ['oracle', 'Oracle', '.sql'], ['json', 'JSON', '.json'], ['png', 'PNG image', '.png'], ['svg', 'SVG image', '.svg'],
-  ['docs-html', 'Documentation', '.html (standalone)'], ['docs-md', 'Documentation', '.md'],
+  ['docs-html', 'Documentation (HTML)', '.html'], ['docs-md', 'Documentation (Markdown)', '.md'],
 ];
 
 function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, onOrg }) {
@@ -478,6 +478,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null); // clicked TableGroup (by name): its box is emphasised, the rest dims
   const [activeEdge, setActiveEdge] = useState(null); // clicked relationship: focus it and its two tables
   const [drag, setDrag] = useState(false);
   const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
@@ -630,10 +631,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const hit = (t) => m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupName.get(t.id) || '').includes(q);
     const sz = layoutRef.current['@sizes'] || {};
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
+    const gMembers = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const visible = nodes.filter((n) => !hidden.has(n.id));
     const tables = visible.map((n) => ({
       ...n,
-      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || !!q && !hit(n.data) },
+      data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, collapsed: !!sz[n.id]?.c || view.detail === 'tables', detail: view.detail || 'full', onSize, onToggle, hideIndexes: view.hideIndexes || lessDetail({ detail: view.detail }), hideTypes: view.hideTypes || lessDetail({ detail: view.detail }), active: n.id === activeId || !!ends?.includes(n.id), dim: (!!ends && !ends.includes(n.id)) || (!!gMembers && !gMembers.has(n.id)) || !!q && !hit(n.data) },
     }));
     const byId = new Map(visible.map((n) => [n.id, n]));
     const boxes = (parsed.groups || []).flatMap((gr) => {
@@ -641,12 +643,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (!m.length) return [];
       const b = getNodesBounds(m.map((n) => ({ ...n, measured: { width: n.measured?.width ?? 220, height: n.measured?.height ?? tableHeight(n.data) } })));
       const pad = 22, w = b.width + pad * 2, h = b.height + pad * 2 + 18;
-      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
+      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit, active: activeGroup === gr.name }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
-  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, view.detail, activeId, activeEdge, activeGroup, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
     const labels = layoutRef.current['@labels'] || {};
+    const gSet = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
     return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)).map((e) => {
     // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
@@ -659,13 +662,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     }
     const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
-    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: view.theme === 'dark' ? '#4f8cff' : '#2563eb', strokeWidth: view.hiRefs && !on ? 1.6 : 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
+    const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: view.theme === 'dark' ? '#4f8cff' : '#2563eb', strokeWidth: view.hiRefs && !on ? 1.6 : 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge || (gSet && !gSet.has(e.source) && !gSet.has(e.target)) ? { opacity: 0.15 } : {}) };
     const hi = view.hiRefs && !!e.data.name, text = hi ? e.data.name : e.label;
     const css = hi
       ? { background: view.theme === 'dark' ? '#111826' : '#fff', border: `1px solid ${view.theme === 'dark' ? '#2c3f66' : '#bfd3ff'}`, color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8', fontWeight: 600, fontSize: 10.5 }
       : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : '#64748b', fontWeight: picked ? 700 : 400, fontSize: 10 };
     return { ...e, ...handles, type: 'ref', zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
-  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg, hidden, layoutTick, setLabel]);
+  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
   const focusTable = (id) => { // select it and bring it to the middle (showing it if it was hidden)
@@ -772,13 +775,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const copyDbml = () => navigator.clipboard.writeText(dbml).then(() => notify('ok', 'DBML copied'), () => notify('err', 'Clipboard blocked'));
 
   const tabs = shared
-    ? [...(canEdit ? [['import', 'Import']] : []), ['export', 'Export'], ['view', 'View'], ['docs', 'Help']]
+    ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ['docs', 'Help']]
     : owner
-      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['export', 'Export'], ['view', 'View'], ['share', 'Share'], ['docs', 'Help']]
-      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import']] : []), ['export', 'Export'], ['view', 'View'], ...(manage ? [['share', 'Share']] : []), ['docs', 'Help']];
+      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['view', 'View'], ['share', 'Share'], ['docs', 'Help']]
+      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : []), ['docs', 'Help']];
   const tabName = Object.fromEntries(tabs);
   const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', share: 'Share', docs: 'Help', account: 'Account' };
-  const primary = ['diagrams', 'share', 'export'].filter((k) => tabName[k]); // everything else lives under "More"
+  const primary = ['share'].filter((k) => tabName[k]); // everything else lives under "Export" / "More"
   const LABEL = { view: 'view only', comment: 'can comment', edit: 'can edit', admin: 'administrator access' };
   const insertExample = (code) => { if (readOnly) return notify('err', 'This diagram is read-only for you'); setDbml((d) => `${d.replace(/\s+$/, '')}\n\n${code}\n`); notify('ok', 'Example added to the editor'); };
   const copyText = (t) => navigator.clipboard.writeText(t).then(() => notify('ok', 'Copied'), () => notify('err', 'Clipboard blocked'));
@@ -823,11 +826,15 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </button>
         </div>
         <div className="grow" />
-        {mode === 'diagram' && <button className={`tbtn ${panelOpen ? 'on' : ''}`} onClick={() => { setPanelOpen(!panelOpen); setTimeout(() => panelSearch.current?.focus(), 80); }} title="Search, group and hide tables (Ctrl+K)">Tables{hidden.size ? ` · ${hidden.size} hidden` : ''}</button>}
         {owner && source && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
         {primary.map((k) => <button key={k} className={`tbtn ${drawer === k ? 'on' : ''}`} onClick={() => open(k)}>{tabName[k]}</button>)}
-        <Menu trigger="More" active={['connect', 'import', 'view', 'docs'].includes(drawer)} title="Database, Import, View, Help"
-          items={['connect', 'import', 'view', 'docs'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) }))} />
+        <Menu trigger="Export" title="Download the diagram or its documentation"
+          items={[{ header: 'Image' }, ...EXPORTS.filter(([k]) => ['png', 'svg'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
+            { header: 'SQL' }, ...EXPORTS.filter(([k]) => ['postgres', 'mysql', 'mssql', 'oracle'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
+            { header: 'Other' }, ...EXPORTS.filter(([k]) => ['dbml', 'json', 'docs-html', 'docs-md'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
+            { sep: true }, { key: 'copy', label: 'Copy DBML to clipboard', onClick: copyDbml }]} />
+        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'view', 'docs'].includes(drawer)} title="Diagrams, Database, Import, View, Help"
+          items={['diagrams', 'connect', 'import', 'view', 'docs'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) }))} />
         {user
           ? <Menu align="right" title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
             items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
@@ -847,9 +854,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         <main className="canvas">
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-            onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); }} nodesConnectable={false} nodesDraggable={canEdit}
+            onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); setActiveGroup(n.type === 'grp' ? n.data.name : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveGroup(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); setActiveGroup(null); }} nodesConnectable={false} nodesDraggable={canEdit}
             onNodeDragStart={(_, n) => { // a group box moves all its tables with it
               if (n.type !== 'grp') return;
+              setActiveGroup(n.data.name); setActiveId(null); setActiveEdge(null);
               const gr = (parsed.groups || []).find((x) => `g:${x.name}` === n.id), ids = new Set((gr?.tables || []).filter((id) => !hidden.has(id)));
               grpDrag.current = { x0: n.position.x, y0: n.position.y, start: new Map(nodes.filter((m) => ids.has(m.id)).map((m) => [m.id, { ...m.position }])) };
             }}
@@ -871,7 +879,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>
           {mode === 'diagram' && (<>
-            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title="Tables panel (Ctrl+K)" aria-label="Tables panel">{panelOpen ? '›' : '‹'}</button>
+            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title={`Tables panel (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables panel">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
             {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
@@ -1005,17 +1013,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <textarea className="paste" placeholder="CREATE TABLE …" value={paste} onChange={(e) => setPaste(e.target.value)} />
               <button className="primary" disabled={!paste.trim()} onClick={() => importText(paste)}>Convert to diagram</button>
               <small className="hint">Oracle SQL files are not supported by the parser — use Database → Oracle to import live.</small>
-            </div>
-          )}
-
-          {drawer === 'export' && (
-            <div className="dbody">
-              <h4>Download</h4>
-              <div className="grid">
-                {EXPORTS.map(([k, l, ext]) => <button key={k} onClick={() => exportAs(k)}><b>{l}</b><small>{ext}</small></button>)}
-              </div>
-              <button onClick={copyDbml}>Copy DBML to clipboard</button>
-              <small className="hint">SQL is generated in the target dialect from the DBML; defaults/types from another engine may need manual edits.</small>
             </div>
           )}
 

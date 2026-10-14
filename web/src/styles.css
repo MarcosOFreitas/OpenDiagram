@@ -329,6 +329,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tpn-chip.idle { border-color: var(--p-line); color: var(--p-muted); cursor: default; }
 .tpn-toggle { position: absolute; z-index: 13; top: 12px; width: 26px; height: 40px; border: 1px solid var(--line); border-right: 0; border-radius: 8px 0 0 8px; background: #fff; color: #6b7280; font-size: 15px; padding: 0; box-shadow: -2px 2px 10px rgba(15, 23, 42, .08); }
 .tpn-toggle:hover { color: var(--accent); }
+.tpn-badge { position: absolute; top: -6px; left: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: #fff; font: 600 10px/16px system-ui, sans-serif; font-style: normal; text-align: center; }
 .shell[data-theme="dark"] .tpn-toggle { background: #151d2e; border-color: #263248; color: #aab4c8; }
 
 .shell[data-theme="dark"] .mini { background: #151d2e; border-color: #263248; }
