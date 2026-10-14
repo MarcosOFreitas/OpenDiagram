@@ -11,6 +11,7 @@ docker compose up -d --build app             # rebuild after code changes (web i
 
 cd web && npx vite build                     # quick syntax check of the UI (outputs to ../server/public)
 node --check server/src/*.js                 # quick syntax check of the API
+node server/test-auth.mjs                    # e2e: accounts, roles, groups, sharing, links, SSRF policy (stack up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD of an admin: `docker compose exec app node src/cli.js create-admin <email> <password>`)
 node server/test-guardrails.mjs              # e2e: read-only/privilege guardrails + PG TLS (stack must be up)
 cd web && node roundtrip.mjs                 # e2e: import → export → re-import per format (needs oracle profile)
 ```
@@ -19,11 +20,12 @@ There is no unit-test framework and no linter configured. Verification = the two
 
 ## Layout
 
-- `server/src/index.js` — Fastify routes (`/api/connections`, `/api/schemas`, `/api/import`) + static UI from `server/public`.
+- `server/src/index.js` — Fastify routes (auth, connections, schemas/import, diagrams, shares, comments, `/api/shared/:token`) + CSRF guard, login requirement, security headers, SPA fallback, static UI from `server/public`.
+- `server/src/db.js` (SQLite via built-in `node:sqlite`, schema), `auth.js` (scrypt, roles, sessions, throttling, settings), `admin.js` (users/groups/settings/directory + last-admin guard), `diagrams.js` (diagrams, access grants, links, comments), `policy.js` (SSRF host policy), `cli.js` (operator tool: create-admin, reset-password, list-users).
 - `server/src/introspect.js` — per-engine catalog queries (`pg_catalog`, `ALL_*` views) → neutral model `{tables, refs}`; read-only session setup; TLS; privilege checks.
 - `server/src/dbml.js` — neutral model → DBML text.
-- `server/src/store.js` — `connections.json` in `DATA_DIR`; secrets AES-256-GCM encrypted with `APP_SECRET`.
-- `web/src/App.jsx` — whole workspace (topbar, drawer tabs, canvas, refresh logic). `Editor.jsx` CodeMirror DBML editor. `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
+- `server/src/store.js` — saved connections per account (SQLite); secrets AES-256-GCM encrypted with `APP_SECRET`.
+- `web/src/App.jsx` — root (auth gate, `/s/<token>` route) + `Workspace` (topbar, drawer tabs, canvas, autosave, refresh). `Auth.jsx` sign-in/up + password form, `Admin.jsx` administration overlay, `Library.jsx` diagrams tab, `SharePanel.jsx` people/groups/links, `api.js` fetch helper. `Editor.jsx` CodeMirror DBML editor. `Docs.jsx` in-app Help tab (usage + DBML examples). `docsModel.js` / `DocsPage.jsx` generate the documentation view and the standalone HTML/Markdown export.
 - `demo/` — sample DBs for manual/e2e testing. `.specs/` — specs. `server/public` is a build artifact (gitignored).
 
 ## Conventions
@@ -31,7 +33,7 @@ There is no unit-test framework and no linter configured. Verification = the two
 - Server: plain ESM JavaScript, no build step, no TypeScript. Web: React 18 + Vite, JSX, no TS. Match the existing terse style; do not add layers, libraries or config for hypothetical needs.
 - **DBML text is the single source of truth.** Import = generate DBML; the diagram is always parsed from the editor text (`@dbml/core`). Never keep a second model in sync.
 - Errors thrown by the API carry `statusCode`; the global handler returns `{error}`. UI shows them as toasts via `notify`.
-- Frontend persists to `localStorage` only: `dbml`, `title`, `view`, `source`, `gen`. Always wrap in try/catch (`store()` helper).
+- Diagram content (`dbml`, title, layout, connection link) lives on the server and autosaves; `localStorage` only keeps per-browser UI state: `view`, `docsCollapsed`, `lastDiagram`, `gen:<diagramId>` (last generated DBML for refresh diffs). Always wrap in try/catch (`store()` helper).
 
 ## Security invariants (do not weaken)
 
@@ -39,7 +41,8 @@ There is no unit-test framework and no linter configured. Verification = the two
 2. Never return or log secrets (`password`, `caPem`, `walletPassword`). `store.list()` strips them; `get()` decrypts only server-side.
 3. Oracle connect descriptor is built from user input — keep the `SAFE` validation in `oraConnectString`.
 4. A failed privilege check is reported as a warning, never treated as "safe".
-5. The app has **no auth yet**; do not add features that make it riskier to expose (e.g. arbitrary SQL execution, file reads) without the auth/allowlist work in `.specs/05-security.md`.
+5. Authorization lives in the server, never in the UI: roles are `admin`/`member`; `/api/admin/*` requires admin; a diagram's effective level is owner > admin (administrators on others' diagrams: everything except the owner's `source`/connections) > edit > comment > view (`roleFor` in `diagrams.js`); the instance must keep one active admin (`guardLastAdmin`); accounts with `mustChangePassword` can only call `/api/auth/*`; every `/api` route except `health`, `auth/*`, `shared/*` requires a session; resources of other accounts answer 404; share-link routes must check the link's access level (`view < comment < edit`) and require login for `comment`/`edit`. Never put `source`, connections or secrets in a `/api/shared` payload.
+6. Do not add features that widen exposure (arbitrary SQL execution, file reads, new outbound fetches) without revisiting `.specs/05-security.md`; DB hosts go through `assertHostAllowed`.
 
 ## Gotchas
 
@@ -48,6 +51,8 @@ There is no unit-test framework and no linter configured. Verification = the two
 - Oracle `ALL_TAB_COLUMNS` has no `HIDDEN_COLUMN` (use `ALL_TAB_COLS`); `SESSION_ROLES` column is `ROLE`. node-pg cannot parse `name[]` — cast `attname::text` inside `array_agg`.
 - React Flow nodes stay `visibility:hidden` until measured; in a hidden/background browser pane they never get measured and edges don't render. Bring the pane to the front/take a screenshot before asserting on edges.
 - When editing CodeMirror state from tests use `document.execCommand('insertText')` on `.cm-content`; setting `textarea.value` no longer applies.
+- `node:sqlite` needs Node 24 (Docker image has it). Fetch clients send `Content-Type: application/json` on DELETE/logout with no body; `index.js` registers a lenient JSON parser for that.
+- Public sign-up is closed after the first account; tests and scripts need an admin (see above). Existing demo Docker volumes keep `app.db`: delete the volume (`docker compose down -v`) to start with a clean user list.
 - Refresh (`keepGroups`) preserves only TableGroups and node positions; other manual edits to imported tables are overwritten by design.
 - Writing files with shell heredocs containing quotes/backslashes is error-prone on this Windows setup; prefer the editor tools.
 

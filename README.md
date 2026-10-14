@@ -10,9 +10,10 @@ Open-source database diagramming tool in the spirit of dbdiagram.io: write [DBML
 - **Generated documentation** (dbdocs-style): switch to *Docs* for a browsable, searchable page of tables, columns, constraints, notes and relationships. Tables collapse/expand, and you can add your own comments per table/column/project (stored only in the app, never in the database). Export as one standalone `.html` file or Markdown.
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML files; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - **TLS** for PostgreSQL and Oracle (TCPS), with optional custom CA.
-- Ships as a single Docker image; no external services needed.
+- **Accounts, administration and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat **groups** (a person can be in several); private diagrams (autosaved) and database connections per account; share a diagram with **people, groups or optional links**, choosing view / comment / edit for each.
+- Ships as a single Docker image with SQLite storage; no external services needed.
 
-> Status: working MVP, **single-user, no authentication yet**. Read [Security](#security) before exposing it beyond localhost. Progress and plans live in [`.specs/`](.specs/README.md).
+> Status: working MVP with **accounts (e-mail + password), private diagrams and optional share links**. Read [Security](#security) before exposing it beyond your own machine/network. Progress and plans live in [`.specs/`](.specs/README.md).
 
 ## Quick start
 
@@ -24,7 +25,7 @@ docker compose up -d --build    # app on :3000 + demo Postgres
 docker compose --profile oracle up -d   # optional: demo Oracle Free (first start is slow)
 ```
 
-Open <http://localhost:3000>. The demo databases are reachable **from the app container** with these hosts:
+Open <http://localhost:3000> and **create the first account — it becomes the administrator** (it also adopts connections saved by older versions). From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups; public sign-up stays closed unless you open it. The demo databases are reachable **from the app container** with these hosts:
 
 | DB | Host | Port | Database / service | User / password |
 |----|------|------|--------------------|-----------------|
@@ -44,6 +45,7 @@ To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its
 
 ## Using it
 
+0. **Diagrams** tab: your diagrams and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
 1. **Database** tab → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
 2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
 3. Edit the DBML on the left; the diagram updates live. **Help** tab has copy-paste examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
@@ -56,12 +58,15 @@ To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its
 |----------|---------|---------|
 | `APP_SECRET` | `dev-secret-change-me` | Key for AES-256-GCM encryption of saved passwords / CA PEMs. **Set it** outside local dev; changing it invalidates saved connections. |
 | `PORT` | `3000` | HTTP port. |
-| `DATA_DIR` | `/data` (container) | Where `connections.json` lives (Docker volume `appdata`). |
+| `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite: accounts, diagrams, connections, comments) lives (Docker volume `appdata`). **Back it up.** |
+| `ALLOW_SIGNUP` | empty | Empty: the administrator decides (default closed after the first account). `1` opens self-registration, `0` forces it closed. |
+| `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private/loopback/link-local) or `allowlist` (+ `DB_HOST_ALLOWLIST`). |
+| `COOKIE_SECURE` / `TRUST_PROXY` | `0` | Set `1` when served over HTTPS / behind a reverse proxy. |
 
 ## Develop
 
 ```bash
-# API (needs Node 22+)
+# API (needs Node 24: uses the built-in node:sqlite)
 cd server && npm install && npm start          # http://localhost:3000
 # UI with hot reload, proxying /api to :3000
 cd web && npm install && npm run dev           # http://localhost:5173
@@ -72,6 +77,8 @@ cd web && npm run build
 Tests (stack must be running; see [`.specs/07-testing.md`](.specs/07-testing.md)):
 
 ```bash
+export TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=...   # an administrator of the stack under test
+node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, SSRF policy
 node server/test-guardrails.mjs        # read-only/privilege guardrails + PostgreSQL TLS modes
 cd web && node roundtrip.mjs           # DB import → export → re-import per format (needs the oracle profile)
 ```
@@ -80,11 +87,11 @@ Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite 
 
 ## Security
 
-Short version: **do not expose this to the internet as-is.**
+Fine for your machine or a trusted network as is. **Before hosting it for other people** set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, and read the checklist below.
 
-- No authentication; saved connections are shared by everyone who can reach the server.
-- The server connects to any host a user types (SSRF risk) — needs auth and a host allowlist before public hosting.
-- Mitigations that exist today: read-only sessions, privilege detection/blocking, secrets encrypted at rest, TLS with certificate verification, hardened Oracle connect descriptor.
+- Accounts use e-mail + password (scrypt), HttpOnly SameSite cookies, login throttling and a cross-origin write guard. Administrators create accounts and reset passwords (there is no e-mail verification or self-service "forgot password" yet); if every administrator is locked out use `docker compose exec app node src/cli.js create-admin <email> <password>`.
+- Saved database connections are private to their account (not even administrators can use them); secrets are encrypted at rest. Administrators can open, edit and delete any diagram of the organisation. Share links never expose connections or credentials.
+- Every database session is read-only (metadata only); credentials with excess privileges are detected and can be refused; TLS with certificate verification is supported.
 
 Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](.specs/05-security.md).
 
@@ -94,6 +101,7 @@ Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](
 - Oracle SQL **files** cannot be imported (parser limitation) — use the live Oracle import. JSON is export-only.
 - Exporting SQL for a different engine than the source needs manual edits (e.g. `nextval(...)` defaults, `character varying`).
 - Auto-refresh runs in the browser; it stops when the page is closed.
+- Sharing is link-based only (no per-user invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; connections cannot be shared with a group yet.
 - Oracle TLS (TCPS) is implemented but not yet verified end-to-end against a TLS listener (see spec).
 
 ## Credits and disclaimer

@@ -4,8 +4,8 @@
 
 ## Behaviour
 
-- **Layout:** top bar (title, search, Diagram/Docs switch, tabs Database/Import/Export/View/Help, refresh button when linked) · collapsible DBML editor · canvas · right drawer (350 px, Esc closes) · floating dock (zoom, fit, arrange).
-- **Editor:** CodeMirror 6, dark. DBML highlighting (blocks, `[settings]`, types, strings, `` `expr` ``, `#hex`, comments). Autocomplete: block keywords, settings, types, table names, `table.column` (from last valid parse). Parser errors → underline + gutter marker + status bar `line N: message`.
+- **Layout:** top bar (title + save state, Diagram/Docs switch, search, refresh button when linked, **Diagrams / Share / Export** buttons, a **More** menu with Database / Import / View / Help, and an avatar menu with Account, Administration (admins) and Sign out; the drawer shows the title of the open section) · collapsible DBML editor · canvas · right drawer (350 px, Esc closes) · floating dock (zoom, fit, arrange).
+- **Editor:** CodeMirror 6, dark; **resizable** (drag the edge between editor and diagram, double-click resets; width remembered), optional **line wrapping** (View tab) so no horizontal scrolling is needed; **Ctrl+F / Ctrl+H** opens a find/replace bar at the top with Next/Prev/Select all, Replace/Replace all and Match case / Whole word / Regex toggles, matches highlighted. DBML highlighting (blocks, `[settings]`, types, strings, `` `expr` ``, `#hex`, comments). Autocomplete: block keywords, settings, types, table names, `table.column` (from last valid parse). Parser errors → underline + gutter marker + status bar `line N: message`.
   **Colors:** a swatch widget follows each `headercolor:`/`color:` hex; clicking opens the native color picker and rewrites the hex live. Typing `color: ` / `headercolor: ` opens a 12-color preset list (with swatches).
 - **Diagram:** every `Table` is a card (header, PK/FK icons, NN badge, notes as tooltip, indexes rows). `Ref` → edge from child column to parent column, label `child:parent` cardinality. Auto layout with dagre (left→right); compound clusters keep `TableGroup` members together. Drag keeps positions across edits (by table id). Fit on load/import (not on every keystroke).
 - **TableGroup:** `TableGroup name [color: #hex] { tables }` → dashed colored box behind members, follows drags. A table in several groups uses the first.
@@ -29,4 +29,4 @@
 
 ## Known gaps
 
-No syntax-aware folding, no `Records`/sample-data blocks, no custom properties, no table partials, no side-panel color UI (colors are picked from the swatch next to the hex in the editor).
+Find/replace shows no "n of m" match counter. No syntax-aware folding, no `Records`/sample-data blocks, no custom properties, no table partials, no side-panel color UI (colors are picked from the swatch next to the hex in the editor).

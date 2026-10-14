@@ -8,7 +8,7 @@ Free, self-hostable database diagramming where the diagram can be **generated fr
 
 - **Developers / DBAs** documenting an existing database: connect, pick schemas, get a diagram + DBML in seconds.
 - **Architects / analysts** designing a schema in DBML and exporting SQL.
-- **Teams** (future) sharing diagrams and generated docs.
+- **Teams**: an administrator creates the accounts and groups, can see and manage every diagram of the organisation, and people share diagrams and generated docs with colleagues or whole groups.
 
 ## In scope (today)
 
@@ -28,5 +28,5 @@ dbdocs-style documentation pages from DBML · accounts, saved diagrams, share li
 
 1. DBML text is the source of truth.
 2. Read-only and least privilege by default; warn loudly otherwise.
-3. Minimal moving parts: one container, JSON file storage until multi-user needs a DB.
+3. Minimal moving parts: one container, SQLite storage.
 4. Honest status: unverified features are labelled as such.

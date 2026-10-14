@@ -4,7 +4,7 @@
 
 ## Connection model
 
-Stored in `DATA_DIR/connections.json`:
+Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other accounts cannot list or use them ([09](09-accounts-sharing.md)):
 
 | Field | Notes |
 |-------|-------|
@@ -32,9 +32,9 @@ Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and 
 
 ## Refresh
 
-- Import links the saved connection + selection to the diagram (`localStorage.source`). Top-bar `↻` or drawer *Refresh now* re-imports.
+- Import links the saved connection + selection to the diagram (`diagrams.source` on the server). Top-bar `↻` or drawer *Refresh now* re-imports.
 - Auto: interval from the connection (`refreshMinutes`), runs in the browser while the page is open; no overlap (single in-flight guard); errors toast.
-- Compare to last generated DBML (`localStorage.gen`): identical ⇒ "Already up to date", editor untouched. Changed ⇒ DBML replaced, **TableGroups re-appended** (members that no longer exist are dropped), positions kept by table id, toast shows `+N tables, −N tables, N changed`.
+- Compare to last generated DBML (`localStorage.gen:<diagramId>`): identical ⇒ "Already up to date", editor untouched. Changed ⇒ DBML replaced, **TableGroups re-appended** (members that no longer exist are dropped), positions kept by table id, toast shows `+N tables, −N tables, N changed`.
 - Other manual edits to imported tables are overwritten (documented in the UI).
 
 ## API
@@ -47,7 +47,7 @@ All JSON. Errors: `{error}` with HTTP status.
 | `GET /api/connections` | → connection list without secrets |
 | `POST /api/connections` | connection fields (+ optional `id` to edit) → `{id}` |
 | `DELETE /api/connections/:id` | → `{ok:true}` |
-| `GET /api/comments` / `PUT /api/comments` | documentation comments, `{key: text}` (see [08](08-documentation.md)) |
+| Diagrams, share links, comments | see [09](09-accounts-sharing.md) |
 | `POST /api/schemas` | `{id}` or draft fields (draft overrides saved) → `{schemas, warnings, readOnly:true}` |
 | `POST /api/import` | `{id\|draft, schemas[], tables?[]}` → `{dbml, tables, refs, warnings, at}`; `400` no schema; `403` strict block |
 
