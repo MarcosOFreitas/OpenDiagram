@@ -8,8 +8,7 @@ const col = (c) => (/^[A-Za-z_]\w*$/.test(c) || /^"[^"]+"$/.test(c) ? c : expr(c
 const tn = (t) => `${id(t.schema)}.${id(t.name)}`;
 export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set null', d: 'set default' };
 
-// DBML has no view/trigger/sequence: a view is a grey Table whose note holds the SQL definition, triggers go in their table's note, a sequence is a standalone Note
-const VIEW_COLOR = '#94a3b8';
+// DBML has no view/trigger/sequence: a view is a Table whose note holds `VIEW` + the SQL definition (the UI marks it "· View"), triggers go in their table's note, a sequence is a standalone Note
 
 export function toDbml({ tables, refs, enums = [], sequences = [] }) {
   const out = [];
@@ -19,7 +18,7 @@ export function toDbml({ tables, refs, enums = [], sequences = [] }) {
     const single = t.pk.length === 1 ? t.pk[0] : null;
     const parts = [t.comment, t.view != null && `${t.viewKind || 'VIEW'}\n${t.view.trim()}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
     const note = parts.length ? (parts.length === 1 && t.view == null && !t.triggers?.length ? str(t.comment) : mstr(parts.join('\n\n'))) : '';
-    const attrs = [t.view != null && `headercolor: ${VIEW_COLOR}`, note && `note: ${note}`].filter(Boolean);
+    const attrs = [note && `note: ${note}`].filter(Boolean);
     out.push(`Table ${tn(t)}${attrs.length ? ` [${attrs.join(', ')}]` : ''} {`);
     for (const c of t.columns) {
       const s = [];

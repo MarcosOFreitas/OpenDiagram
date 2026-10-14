@@ -41,8 +41,8 @@ const r2 = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] }
 // 2c. A1 objects: enum, view (grey Table + definition), materialized view, sequence, trigger
 r = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('A1 enum', r.dbml.includes('Enum shop.order_state {'));
-check('A1 view as grey Table with comment + definition', r.dbml.includes(`Table shop.v_customer_orders [headercolor: #94a3b8, note: '''\nOrders with customer name\n\nVIEW\nSELECT`));
-check('A1 materialized view', r.dbml.includes('Table shop.mv_orders_by_status [headercolor: #94a3b8'));
+check('A1 view as a Table with comment + definition', r.dbml.includes(`Table shop.v_customer_orders [note: '''\nOrders with customer name\n\nVIEW\nSELECT`));
+check('A1 materialized view', r.dbml.includes("Table shop.mv_orders_by_status [note: '''\nMATERIALIZED VIEW\n"));
 check('A1 sequence note (serial sequences skipped)', r.dbml.includes('Note "shop.invoice_seq" {') && !r.dbml.includes('Note "shop.customers_id_seq"'));
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
 r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });

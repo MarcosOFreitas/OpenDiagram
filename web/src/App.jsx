@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ReactFlow, ReactFlowProvider, NodeResizer, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, getViewportForBounds } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, getViewportForBounds } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
@@ -21,11 +21,13 @@ import { BLANK, TEMPLATES } from './templates.js';
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
 
 // DBML text -> {tables, refs, groups} for the diagram
+// the import writes `VIEW` / `MATERIALIZED VIEW` + the SQL into the table note
+const viewKindOf = (note) => { const n = typeof note === 'string' ? note : note?.value || ''; const m = /(^|\n)(MATERIALIZED VIEW|VIEW)\n/.exec(n); return m ? (m[2] === 'VIEW' ? 'View' : 'Mat. view') : ''; };
 function parse(text) {
   try {
     const db = new Parser().parse(text, 'dbmlv2');
     const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({
-      id: tid(t.schema.name, t.name), schema: t.schema.name, name: t.name, note: t.note, headerColor: t.headerColor,
+      id: tid(t.schema.name, t.name), schema: t.schema.name, name: t.name, note: t.note, headerColor: t.headerColor, viewKind: viewKindOf(t.note),
       fields: t.fields.map((f) => ({ name: f.name, type: f.type.type_name, pk: f.pk, notNull: f.not_null, unique: f.unique, note: f.note })),
       indexes: t.indexes.map((i) => ({ name: i.name, unique: i.unique, pk: i.pk, cols: i.columns.map((c) => c.value) })),
     }));
@@ -58,9 +60,9 @@ function TableNode({ data: t, selected }) {
     <>
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
     <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}) }} title={t.note || ''}>
-      <div className="tbl-h" style={t.headerColor ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
+      <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>
-        <span className="tbl-n">{t.name}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
+        <span className="tbl-n">{t.name}{t.viewKind && <em className="tbl-kind"> · {t.viewKind}</em>}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
         {t.collapsed && t.fields.map((f) => ( // a collapsed table keeps its relationship lines: connect them to the header
           <span key={f.name} style={{ display: 'contents' }}>
             <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
@@ -95,11 +97,39 @@ function GroupNode({ data: g }) {
   const c = g.color || '#6b7280';
   return (
     <div style={{ width: g.w, height: g.h, border: `1.5px dashed ${c}`, background: `${c}12`, borderRadius: 10, pointerEvents: 'none' }}>
-      <div style={{ color: c, fontWeight: 700, fontSize: 12, padding: '4px 10px' }}>{g.name}</div>
+      <div className="grp-handle" title={g.canMove ? 'Drag to move the whole group' : undefined} style={{ color: c, fontWeight: 700, fontSize: 12, padding: '4px 10px', pointerEvents: g.canMove ? 'all' : 'none', cursor: g.canMove ? 'grab' : 'default', width: 'fit-content', maxWidth: '100%' }}>{g.name}</div>
     </div>
   );
 }
+// Relationship line with a draggable label: dragging it bends the line through the new point (saved in layout['@labels']);
+// double-click puts it back. Without an offset the line is the normal curve/step/straight path.
+function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, interactionWidth, data }) {
+  const { zoom } = useViewport();
+  const args = { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition };
+  const [base, bx, by] = data.edgeType === 'straight' ? getStraightPath(args) : data.edgeType === 'step' ? getSmoothStepPath({ ...args, borderRadius: 0 }) : data.edgeType === 'smoothstep' ? getSmoothStepPath(args) : getBezierPath(args);
+  const off = data.off, px = bx + (off?.dx || 0), py = by + (off?.dy || 0);
+  const d = off ? `M${sourceX},${sourceY} Q${2 * px - (sourceX + targetX) / 2},${2 * py - (sourceY + targetY) / 2} ${targetX},${targetY}` : base; // quadratic curve that passes through the label
+  const start = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    const x0 = e.clientX, y0 = e.clientY, o = off || { dx: 0, dy: 0 };
+    let moved = false;
+    const move = (ev) => { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 3) moved = true; if (moved) data.onMove(id, { dx: Math.round(o.dx + (ev.clientX - x0) / zoom), dy: Math.round(o.dy + (ev.clientY - y0) / zoom) }); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (!moved) data.onPick(id); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+  return (
+    <>
+      <BaseEdge id={id} path={d} style={style} interactionWidth={interactionWidth} />
+      {data.text && (
+        <EdgeLabelRenderer>
+          <div className="ref-label nodrag nopan" style={{ transform: `translate(-50%, -50%) translate(${px}px, ${py}px)`, ...data.css }} onPointerDown={start} onDoubleClick={() => data.onMove(id, null)} title="Drag to move the line (double-click to reset)">{data.text}</div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
 const nodeTypes = { table: TableNode, grp: GroupNode };
+const edgeTypes = { ref: RefEdge };
 
 // dagre on a set of tables -> Map id -> top-left position
 function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
@@ -350,6 +380,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     if (cur.size) next['@hidden'] = [...cur]; else delete next['@hidden'];
     layoutRef.current = next; setLayoutTick((k) => k + 1);
   };
+  const setLabel = useCallback((id, off) => { // label offsets of the relationship lines live in the saved layout under '@labels'
+    const cur = { ...(layoutRef.current['@labels'] || {}) };
+    if (off) cur[id] = off; else delete cur[id];
+    const next = { ...layoutRef.current };
+    if (Object.keys(cur).length) next['@labels'] = cur; else delete next['@labels'];
+    layoutRef.current = next; setLayoutTick((k) => k + 1);
+  }, []);
   const showOnly = (ids) => { const keep = new Set(ids); setHidden(parsed.tables.map((t) => t.id).filter((id) => !keep.has(id)), true); setHidden(ids, false); };
   const savedRef = useRef('');
   const [dbml, setDbml] = useState('');
@@ -377,6 +414,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [editorOpen, setEditorOpen] = useState(true);
   const [drawer, setDrawer] = useState(null); // null | 'connect' | 'import' | 'export' | 'view'
   const [search, setSearch] = useState('');
+  const grpDrag = useRef(null); // start positions while a group box is dragged
   const [panelOpen, setPanelOpen] = useState(() => store('tablesPanel') === '1'); // right-hand Tables panel
   const panelSearch = useRef(null);
   useEffect(() => { store('tablesPanel', panelOpen ? '1' : '0'); }, [panelOpen]);
@@ -545,11 +583,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (!m.length) return [];
       const b = getNodesBounds(m.map((n) => ({ ...n, measured: { width: n.measured?.width ?? 220, height: n.measured?.height ?? tableHeight(n.data) } })));
       const pad = 22, w = b.width + pad * 2, h = b.height + pad * 2 + 18;
-      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h }, width: w, height: h, draggable: false, selectable: false, focusable: false, zIndex: -1 }];
+      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
     return [...boxes, ...tables];
   }, [nodes, edges, search, parsed, view.hideIndexes, view.hideTypes, activeId, activeEdge, layoutTick, hidden, onSize, onToggle]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownEdges = useMemo(() => {
+    const labels = layoutRef.current['@labels'] || {};
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
     return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)).map((e) => {
     // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
@@ -563,8 +602,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const handles = { sourceHandle: `${sp === 'right' ? 's' : 'sl'}:${e.data.sf}`, targetHandle: `${tp === 'left' ? 't' : 'tr'}:${e.data.tf}` };
     const picked = e.id === activeEdge, on = activeId && (e.source === activeId || e.target === activeId);
     const style = picked ? { stroke: '#f59e0b', strokeWidth: 3 } : on || view.hiRefs ? { stroke: view.theme === 'dark' ? '#4f8cff' : '#2563eb', strokeWidth: view.hiRefs && !on ? 1.6 : 2 } : { stroke: '#94a3b8', strokeWidth: 1.3, ...(activeEdge ? { opacity: 0.15 } : {}) };
-    return { ...e, ...handles, type: view.edgeType, zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, label: view.hiRefs && e.data.name ? e.data.name : e.label, labelStyle: { fontSize: view.hiRefs ? 10.5 : 10, fill: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.hiRefs ? (view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8') : '#64748b', fontWeight: picked || view.hiRefs ? 600 : 400 }, ...(view.hiRefs && e.data.name ? { labelShowBg: true, labelBgStyle: { fill: view.theme === 'dark' ? '#111826' : '#fff', stroke: view.theme === 'dark' ? '#2c3f66' : '#bfd3ff', strokeWidth: 1, fillOpacity: 0.96 }, labelBgPadding: [6, 3], labelBgBorderRadius: 6 } : { labelBgStyle: { fill: canvasBg } }) };
-  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg, hidden]);
+    const hi = view.hiRefs && !!e.data.name, text = hi ? e.data.name : e.label;
+    const css = hi
+      ? { background: view.theme === 'dark' ? '#111826' : '#fff', border: `1px solid ${view.theme === 'dark' ? '#2c3f66' : '#bfd3ff'}`, color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8', fontWeight: 600, fontSize: 10.5 }
+      : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : '#64748b', fontWeight: picked ? 700 : 400, fontSize: 10 };
+    return { ...e, ...handles, type: 'ref', zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
+  }); }, [edges, nodes, view.edgeType, view.hiRefs, activeId, activeEdge, canvasBg, hidden, layoutTick, setLabel]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
   const focusTable = (id) => { // select it and bring it to the middle (showing it if it was hidden)
@@ -744,10 +787,28 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? editorW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
         <main className="canvas">
-          <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} colorMode={view.theme}
+          <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); }} nodesConnectable={false} nodesDraggable={canEdit}
-            onNodeDragStop={(_, n) => { if (n.type === 'table') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
+            onNodeDragStart={(_, n) => { // a group box moves all its tables with it
+              if (n.type !== 'grp') return;
+              const gr = (parsed.groups || []).find((x) => `g:${x.name}` === n.id), ids = new Set((gr?.tables || []).filter((id) => !hidden.has(id)));
+              grpDrag.current = { x0: n.position.x, y0: n.position.y, start: new Map(nodes.filter((m) => ids.has(m.id)).map((m) => [m.id, { ...m.position }])) };
+            }}
+            onNodeDrag={(_, n) => {
+              const g = grpDrag.current;
+              if (n.type !== 'grp' || !g) return;
+              const dx = n.position.x - g.x0, dy = n.position.y - g.y0;
+              setNodes((old) => old.map((m) => (g.start.has(m.id) ? { ...m, position: { x: g.start.get(m.id).x + dx, y: g.start.get(m.id).y + dy } } : m)));
+            }}
+            onNodeDragStop={(_, n) => {
+              if (n.type === 'grp' && grpDrag.current) {
+                const g = grpDrag.current, dx = n.position.x - g.x0, dy = n.position.y - g.y0; grpDrag.current = null;
+                layoutRef.current = { ...layoutRef.current, ...Object.fromEntries([...g.start].map(([id, p]) => [id, { x: p.x + dx, y: p.y + dy }])) };
+                setLayoutTick((k) => k + 1);
+                return;
+              }
+              if (n.type === 'table') { layoutRef.current = { ...layoutRef.current, [n.id]: n.position }; setLayoutTick((k) => k + 1); } }}>
             {view.grid && <Background gap={22} size={1.2} color={view.theme === 'dark' ? '#27324a' : '#cfd4dc'} />}
             <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>

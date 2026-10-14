@@ -62,7 +62,7 @@ All JSON. Errors: `{error}` with HTTP status.
 ## Acceptance criteria
 
 - [x] Postgres import of the demo schema yields 4 tables + 2 views (view and materialized view) / 3 refs; Oracle yields 3 tables + 2 views (view and materialized view, listed once) / 2 refs (DBML parses).
-- [x] Postgres: enum → `Enum`, view → grey `Table` with definition, `invoice_seq` → `Note`, trigger in the table note, serial sequences skipped (`server/test-guardrails.mjs`). Oracle checked by hand against the demo (MV once, no `I_SNAP$` index, trigger, sequence).
+- [x] Postgres: enum → `Enum`, view → `Table` with the definition in its note (shown as "· View"), `invoice_seq` → `Note`, trigger in the table note, serial sequences skipped (`server/test-guardrails.mjs`). Oracle checked by hand against the demo (MV once, no `I_SNAP$` index, trigger, sequence).
 - [x] Superuser and `writer` produce warnings; `reader` produces none; strict mode blocks `writer`, allows `reader`.
 - [x] DDL inside the enforced read-only transaction is rejected by Postgres (checked with `psql` using the same mode).
 - [x] Postgres TLS: `verify` without CA rejects a self-signed cert; with the CA PEM connects; `noverify` connects; `verify` against a non-TLS server fails.

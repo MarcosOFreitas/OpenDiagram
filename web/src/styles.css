@@ -239,6 +239,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tbl { position: relative; }
 .tbl-h { position: relative; }
 .tbl-t { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 4px 0 0; font-size: 12px; line-height: 1; opacity: .85; }
+.tbl-kind { font-style: normal; font-weight: 400; opacity: .75; font-size: 11px; }
 .tbl-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tbl-h small { flex: 0 0 auto; }
 .react-flow__edge { cursor: pointer; }
@@ -331,3 +332,8 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .shell[data-theme="dark"] .tpn-toggle { background: #151d2e; border-color: #263248; color: #aab4c8; }
 
 .shell[data-theme="dark"] .mini { background: #151d2e; border-color: #263248; }
+
+/* relationship label (draggable) */
+.ref-label { position: absolute; pointer-events: all; cursor: grab; user-select: none; padding: 1px 6px; border-radius: 6px; line-height: 1.5; white-space: nowrap; }
+.ref-label:hover { box-shadow: 0 0 0 1px var(--accent); }
+.ref-label:active { cursor: grabbing; }
