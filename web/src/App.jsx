@@ -864,7 +864,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     if (!source || refreshing.current) return;
     refreshing.current = true; setBusy('refresh');
     try {
-      const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables });
+      const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables, purpose: 'refresh', diagramId: doc.id });
       setSource((x) => ({ ...x, at: r.at })); setWarnings(r.warnings || []);
       if (r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
       const cur = dbmlRef.current, merged = keepGroups(cur, r.dbml);
@@ -877,7 +877,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const linked = conns.find((c) => c.id === source?.connId);
   const every = linked?.refreshMinutes || 0;
   useEffect(() => {
-    if (!source || !every) return undefined;
+    if (!source || !every || !owner) return undefined; // the timer runs in the owner's page only (one refresh, not one per open browser)
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -971,7 +971,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </button>
         </div>
         <div className="grow" />
-        {owner && source && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
+        {canEdit && source && linked && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
         {primary.map((k) => <button key={k} className={`tbtn ${drawer === k ? 'on' : ''}`} onClick={() => open(k)}>{tabName[k]}</button>)}
         <Menu trigger="Export" title="Download the diagram or its documentation"
           items={[{ header: 'Image' }, ...EXPORTS.filter(([k]) => ['png', 'svg'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
@@ -1100,10 +1100,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                 <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
                   <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
                   <div className="grow"><b>{c.name}</b><small>{c.host}:{c.port}/{c.database}</small></div>
-                  <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete">✕</button>
+                  {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete">✕</button>}
                 </div>
               ))}
-              <h4>{form.id ? 'Edit connection' : 'New connection'}</h4>
+              <h4>{form.shared ? 'Shared connection' : form.id ? 'Edit connection' : 'New connection'}</h4>
+              {form.shared && <small className="hint">Registered by an administrator. You can use it to import and refresh, but the database user and password are not visible to you and cannot be changed here. Every use is recorded.</small>}
+              <fieldset className="conn-fs" disabled={!!form.shared}>
               <div className="seg">
                 {[['postgres', 'PostgreSQL'], ['oracle', 'Oracle']].map(([v, l]) => (
                   <button key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port: v === 'oracle' ? 1521 : 5432 })}>{l}</button>
@@ -1129,9 +1131,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <h4>Keep metadata fresh</h4>
               <select value={form.refreshMinutes} onChange={set('refreshMinutes')}>{REFRESH.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               <small className="hint">Runs while this page is open, for the connection linked after an import. Refresh keeps your TableGroups and table positions; other manual edits to imported tables are replaced.</small>
+              </fieldset>
               <div className="row">
                 <button onClick={test} disabled={!!busy}>{busy === 'test' ? 'Connecting…' : 'Test connection'}</button>
-                <button onClick={save} disabled={!!busy}>{busy === 'save' ? 'Saving…' : 'Save'}</button>
+                {!form.shared && <button onClick={save} disabled={!!busy}>{busy === 'save' ? 'Saving…' : 'Save'}</button>}
               </div>
               {warnings.length > 0 && (
                 <div className="warn"><b>⚠ This credential has more access than a diagram needs</b>

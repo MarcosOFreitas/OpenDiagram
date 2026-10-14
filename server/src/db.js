@@ -29,6 +29,24 @@ create table if not exists connections (
   tls text, server_dn text, block_writable integer, schemas text, tables text, refresh_minutes integer,
   password text, ca_pem text, wallet_password text
 );
+-- shared connections (registered by an administrator): who may use them. A diagram never carries the secret, only the connection id.
+create table if not exists connection_access (
+  connection_id text not null references connections(id) on delete cascade,
+  subject_type text not null check (subject_type in ('user', 'group')),
+  subject_id integer not null,
+  primary key (connection_id, subject_type, subject_id)
+);
+-- use of shared connections and administrator actions (see audit.js)
+create table if not exists audit_log (
+  id integer primary key autoincrement,
+  at integer not null,
+  actor_id integer, actor_name text,
+  action text not null,
+  target text, connection_id text, diagram_id text,
+  ok integer not null default 1,
+  detail text
+);
+create index if not exists audit_log_at on audit_log (at);
 create table if not exists diagrams (
   id text primary key,
   owner_id integer not null references users(id) on delete cascade,
@@ -96,6 +114,8 @@ const userCols = db.prepare('pragma table_info(users)').all().map((c) => c.name)
 for (const [name, ddl] of [['role', "text not null default 'member'"], ['disabled', 'integer not null default 0'], ['must_change_password', 'integer not null default 0']]) {
   if (!userCols.includes(name)) db.exec(`alter table users add column ${name} ${ddl}`);
 }
+const connCols = db.prepare('pragma table_info(connections)').all().map((c) => c.name);
+if (!connCols.includes('shared')) db.exec('alter table connections add column shared integer not null default 0'); // 1 = registered by an administrator for people and groups
 const diagramCols = db.prepare('pragma table_info(diagrams)').all().map((c) => c.name);
 if (!diagramCols.includes('version')) db.exec('alter table diagrams add column version integer not null default 1'); // +1 on every content save: edit-conflict detection and history
 const shareCols = db.prepare('pragma table_info(shares)').all().map((c) => c.name);

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from './api.js';
+import AdminConnections from './AdminConnections.jsx';
+import AdminAudit from './AdminAudit.jsx';
 
 // Administration overlay: users, groups (flat; one user can be in several) and instance settings
 export default function Admin({ me, onClose, notify, onSettings }) {
@@ -61,7 +63,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
         <div className="admin-head">
           <h2>Administration</h2>
           <div className="dtabs">
-            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['audit', 'Audit log'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
           </div>
           <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
         </div>
@@ -137,6 +139,9 @@ export default function Admin({ me, onClose, notify, onSettings }) {
               </div>
             ))}
           </>)}
+
+          {tab === 'connections' && <AdminConnections users={users} groups={groups} act={act} setErr={setErr} />}
+          {tab === 'audit' && <AdminAudit setErr={setErr} />}
 
           {tab === 'settings' && settings && (
             <div className="admin-settings">

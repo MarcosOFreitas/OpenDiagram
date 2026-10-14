@@ -1,6 +1,7 @@
 // diagrams, share links and comments (all scoped to the owning account)
 import { randomBytes, randomUUID } from 'node:crypto';
 import { db } from './db.js';
+import { canUseShared } from './store.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const bad = (msg, statusCode = 400) => Object.assign(new Error(msg), { statusCode });
@@ -53,7 +54,7 @@ export function getForUser(user, id) {
   const role = r && roleFor(user, r);
   if (!role) throw bad('diagram not found', 404);
   const out = { ...shape(r), role, ownerName: r.owner_name };
-  if (role !== 'owner') out.source = null;
+  if (role !== 'owner') out.source = out.source && canUseShared(user, out.source.connId) ? out.source : null; // others see the link only when it points at a shared connection they may use (never a private one)
   return out;
 }
 

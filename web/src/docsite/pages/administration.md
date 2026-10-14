@@ -13,6 +13,19 @@ Administrators open the panel from the **avatar menu → Administration**.
 
 Flat groups (no hierarchy). Create a group, add or remove members. A person can be in several groups. Groups are used to share diagrams with many people at once.
 
+## Connections
+
+**Connections** registers **shared database connections**: one read-only credential that chosen people and groups can use without seeing it. See [Shared connections](shared-connections).
+
+## Audit log
+
+**Audit log** lists, newest first, what happened and who did it:
+
+- the **use of shared connections**: test, list tables, import and refresh, with the diagram, whether it worked and a short detail (schemas, number of tables, or the error);
+- every **change made in the Administration panel**: users, passwords reset, groups, members, settings and shared connections (the route and the ids only; never passwords or other contents).
+
+Filter by kind, search a person, connection, diagram or detail, load more, or **Download CSV** (formula-safe for spreadsheets). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
+
 ## Settings
 
 | Setting | Effect |
@@ -36,4 +49,4 @@ docker compose exec app node src/cli.js list-users
 
 ## What administrators can see
 
-Every diagram of the organization (to open, edit, comment, share and delete). They **never** see another person's saved connections or credentials.
+Every diagram of the organization (to open, edit, comment, share and delete). They **never** see another person's *personal* saved connections or credentials. The shared connections they register themselves are the exception: they manage them, and still cannot read the password back.

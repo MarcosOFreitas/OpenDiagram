@@ -80,13 +80,23 @@ Any number per target key (`"<schema>.<table>"`, `"<schema>.<table>.<column>"`, 
 
 ## Database connections
 
-Private to the account; secrets AES-256-GCM encrypted (`APP_SECRET`); another account can never list or use them (`404`). **Sharing connections inside a group is not implemented yet** (roadmap): today each person registers their own. See [03](03-connections-import.md).
+Private to the account; secrets AES-256-GCM encrypted (`APP_SECRET`); another account can never list or use them (`404`). See [03](03-connections-import.md).
+
+### Shared connections (B1) and the audit log
+- `connections.shared = 1` marks a connection registered by an **administrator** (`/api/admin/connections`: `GET`, `POST` create/update with `id`, `PUT /:id/access` `{ users, groups }` replaces the grants, `DELETE /:id`). Grants live in `connection_access (connection_id, subject_type, subject_id)`; an administrator may use every shared connection, others through a grant to them or to one of their groups (`canUseShared`). Shared connections stay when the administrator who registered them is deleted (ownership moves to the deleting administrator); deleting a group or user removes their grants.
+- `GET /api/connections` (`store.listFor`) returns the account's own connections plus the shared ones it may use. For a **member** a shared connection shows `name, type, host, port, database, tls, schemas, tables, refreshMinutes` and `shared: true`; `user` is empty, no `serverDn`, no `hasCa`, never a secret. The private routes (`POST`/`DELETE /api/connections`) can never touch a shared one (`404`).
+- **A shared connection is used exactly as registered**: `resolve()` ignores every field of the request except the schema/table selection (`id` only), so a person can never send the stored credential to another host or user. `assertHostAllowed` still applies.
+- Diagram link: a diagram's `source` (connection id, schemas, tables) is returned to non-owners only when it points at a shared connection they may use; with edit access to the diagram **and** to the connection they can refresh (the page's ↻ button), others get `source: null`. The automatic refresh timer runs only in the owner's page.
+- **Audit log** (`audit_log`, `server/src/audit.js`): every test / list tables / import / refresh through a **shared** connection (`connection.test|tables|import|refresh`; who, connection name and id, the diagram when the person can open it, ok / failed, detail: schemas and counts or the error message) and every non-GET request under `/api/admin/*` (`admin.post|put|patch|delete`, route pattern and path params only, never a body). Personal connections are not logged and administrators cannot read their use. `GET /api/admin/audit?limit&before&action&q&since&until` and `GET /api/admin/audit.csv` (formula-safe) are administrator-only; 180 days of retention, purged at start and daily. The log never blocks the action it describes.
+- UI: Administration → **Connections** (`AdminConnections.jsx`: register, edit, test, delete, give access to groups and people) and **Audit log** (`AdminAudit.jsx`: filter, search, load more, CSV); the Database drawer shows shared connections with a *shared* tag and a read-only form.
+- Not done: per-connection limits (rate, hours), notifying someone about failed uses, a log of sign-ins, scheduled refresh (next on the roadmap).
 
 ## Outbound host policy (SSRF)
 
 `DB_HOST_POLICY`: `open` (default; any host — fine on your own network), `public-only` (reject hosts resolving to loopback/private/link-local/CGNAT/multicast addresses — for public hosting), `allowlist` (`DB_HOST_ALLOWLIST`). Checked before Test/Import/Refresh. Known gap: DNS is resolved once for the check and again by the driver (rebinding window).
 
 ## Acceptance criteria
+- Shared connections: only administrators register them; members with a grant (user or group) can test/import/refresh but never see the user, password or CA, and cannot redirect them; revoking a grant stops the use at once; every use and every administrator change is in the audit log.
 
 - [x] The first account is the administrator; once one exists public sign-up is closed (also reflected in `/auth/me`); the admin setting opens it for members.
 - [x] Administrators create users (chosen or generated temporary password), change roles, disable/enable (sessions end at once, login refused), reset passwords (old sessions end), delete users; members get 403 on every admin route.

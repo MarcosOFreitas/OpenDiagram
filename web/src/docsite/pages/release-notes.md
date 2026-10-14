@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Shared connections and audit log
+
+- Administrators register **shared database connections** (read-only credential) for people and groups; members use them without seeing the secret, and editors with access to the connection can refresh linked diagrams.
+- An **audit log** (180 days, filters, CSV) of the use of shared connections and of every administrator action.
+
 ## Presence
 
 - Avatars of the people who have the diagram open, with what they look at or edit, an outline on the table they selected, and a bar when someone saved a newer version.

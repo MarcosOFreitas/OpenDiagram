@@ -14,7 +14,7 @@ Today only tables, columns, PK/FK and indexes are imported.
 
 ### B. Collaboration (original plan, steps 4 and 5)
 
-- **B1. Group-owned database connections** (*not done*): an administrator or group owner registers a connection once (read-only credential); members use it to import and refresh without seeing the secret; clear rules for who may use it; **audit log** of who used which connection and when. Sensitive: revisit [05](05-security.md) first.
+- **B1. Shared database connections** (**done**; see [09](09-accounts-sharing.md): administrator-only registration, grants to people and groups, members see name/type/host/database, editors with access can refresh, audit log of 180 days). The original idea: an administrator or group owner registers a connection once (read-only credential); members use it to import and refresh without seeing the secret; clear rules for who may use it; **audit log** of who used which connection and when. Sensitive: revisit [05](05-security.md) first.
 - **B2. SSO** (*future feature, not scheduled*): OIDC login for organisations; the target integration is **AWS Cognito** (OIDC), LDAP only if someone asks.
 - Already delivered from the original plan: step 3 — sharing with people, groups and links with view/comment/edit, flat groups, administration ([09](09-accounts-sharing.md)).
 

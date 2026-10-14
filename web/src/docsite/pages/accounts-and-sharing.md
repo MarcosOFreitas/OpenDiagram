@@ -10,7 +10,7 @@ One installation is one organization. People sign in with **e-mail and password*
 
 ## Private by default
 
-Diagrams and saved database connections are **private** to the account that owns them. Nobody sees them until you share. Connections and their credentials are **never** shared, only the diagram.
+Diagrams and saved database connections are **private** to the account that owns them. Nobody sees them until you share. Your own connections and their credentials are **never** shared, only the diagram. The exception is a [shared connection](shared-connections) registered by an administrator, which people use without seeing its credential.
 
 ## Sharing a diagram
 

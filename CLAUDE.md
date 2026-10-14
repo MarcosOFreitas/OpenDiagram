@@ -21,7 +21,7 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 ## Layout
 
 - `server/src/index.js` — Fastify routes (auth, connections, schemas/import, diagrams, shares, comments, `/api/shared/:token`) + CSRF guard, login requirement, security headers, SPA fallback, static UI from `server/public`.
-- `server/src/db.js` (SQLite via built-in `node:sqlite`, schema), `auth.js` (scrypt, roles, sessions, throttling, settings), `admin.js` (users/groups/settings/directory + last-admin guard), `diagrams.js` (diagrams, access grants, links, comments), `policy.js` (SSRF host policy), `cli.js` (operator tool: create-admin, reset-password, list-users).
+- `server/src/db.js` (SQLite via built-in `node:sqlite`, schema), `auth.js` (scrypt, roles, sessions, throttling, settings), `admin.js` (users/groups/settings/directory + last-admin guard), `diagrams.js` (diagrams, access grants, links, comments), `policy.js` (SSRF host policy), `audit.js` (audit log), `presence.js` (who has a diagram open, in memory), `lineage.js` (column lineage of views from their SQL), `cli.js` (operator tool: create-admin, reset-password, list-users).
 - `server/src/introspect.js` — per-engine catalog queries (`pg_catalog`, `ALL_*` views) → neutral model `{tables, refs}`; read-only session setup; TLS; privilege checks.
 - `server/src/dbml.js` — neutral model → DBML text.
 - `server/src/store.js` — saved connections per account (SQLite); secrets AES-256-GCM encrypted with `APP_SECRET`.
@@ -38,7 +38,7 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 ## Security invariants (do not weaken)
 
 1. Every DB session must stay read-only: Postgres `BEGIN READ ONLY` + `default_transaction_read_only=on`; Oracle `SET TRANSACTION READ ONLY`. Only catalog queries; never read user table data.
-2. Never return or log secrets (`password`, `caPem`, `walletPassword`). `store.list()` strips them; `get()` decrypts only server-side.
+2. Never return or log secrets (`password`, `caPem`, `walletPassword`). `store.list()`/`listFor()` strip them; `get()`/`getForUse()` decrypt only server-side. A **shared** connection (registered by an administrator) is used exactly as registered: `resolve()` must keep ignoring request fields for it, and every use goes through `audited()` into the audit log (never log secrets or request bodies).
 3. Oracle connect descriptor is built from user input — keep the `SAFE` validation in `oraConnectString`.
 4. A failed privilege check is reported as a warning, never treated as "safe".
 5. Authorization lives in the server, never in the UI: roles are `admin`/`member`; `/api/admin/*` requires admin; a diagram's effective level is owner > admin (administrators on others' diagrams: everything except the owner's `source`/connections) > edit > comment > view (`roleFor` in `diagrams.js`); the instance must keep one active admin (`guardLastAdmin`); accounts with `mustChangePassword` can only call `/api/auth/*`; every `/api` route except `health`, `auth/*`, `shared/*` requires a session; resources of other accounts answer 404; share-link routes must check the link's access level (`view < comment < edit`) and require login for `comment`/`edit`. Never put `source`, connections or secrets in a `/api/shared` payload.
@@ -70,7 +70,7 @@ Next steps, in the agreed order (details in `.specs/06-roadmap.md` and `.specs/1
 3. ~~Data lineage~~ **done**: `// lineage:` comments (`web/src/lineage.js`), import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows with focus and filters. Lineage also feeds Arrange and the Docs view/exports. Column lineage of views is read from their SQL (`server/src/lineage.js`, `pgsql-ast-parser`).
 4. ~~Sticky notes~~ **done** (`NoteNode` in `App.jsx`, top-level `Note` blocks; spec 02). **Presence done** (`server/src/presence.js`, heartbeat per tab; spec 09); real-time co-editing (Yjs) only if needed. Decided not to build: sticky note colours, drawing lineage links by dragging.
 5. **API tokens, CLI and the MCP connector** (an agent user whose permissions are the existing grants; audit log) — last step before making the repository public; re-read `.specs/05-security.md` first.
-6. Still open from before: **B1** group-owned connections with an audit log (an administrator registers a read-only connection once, groups use it without seeing the secret); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets.
+6. Still open from before: ~~B1~~ **done** (shared connections + audit log, spec 09); **B2** SSO is a future feature (AWS Cognito via OIDC). **A3** is closed: Oracle only through a connection string with TLS, no wallets.
 Afterwards: server-side scheduled refresh (decided: after B1, which provides the audit log; plan in `.specs/06-roadmap.md`), account hardening, public deployment.
 
 Machines: the project is developed on two machines. **mq1-home** is the first one (Windows 11, Docker Desktop); its local Docker volume only holds throw-away test data and nothing from it is needed elsewhere. Local state (volumes, saved connections, test accounts, browser storage) is never shared between machines: git is the only channel.

@@ -44,10 +44,12 @@ export function updateUser(id, patch, actingId) {
   return auth.userById(id);
 }
 
-export function deleteUser(id) {
+export function deleteUser(id, actorId) {
   const u = row(id);
   guardLastAdmin(u, true);
+  if (actorId && actorId !== id) db.prepare('update connections set owner_id = ? where owner_id = ? and shared = 1').run(actorId, id); // shared connections outlive the administrator who registered them
   db.prepare("delete from diagram_access where subject_type = 'user' and subject_id = ?").run(id);
+  db.prepare("delete from connection_access where subject_type = 'user' and subject_id = ?").run(id);
   db.prepare('delete from users where id = ?').run(id); // cascades: sessions, their diagrams/connections, memberships; comments keep their text with no user
 }
 
@@ -69,6 +71,7 @@ export function renameGroup(id, name) {
 }
 export function deleteGroup(id) {
   db.prepare("delete from diagram_access where subject_type = 'group' and subject_id = ?").run(id);
+  db.prepare("delete from connection_access where subject_type = 'group' and subject_id = ?").run(id);
   if (!db.prepare('delete from groups where id = ?').run(id).changes) throw bad('group not found', 404);
 }
 export function addMember(groupId, userId) {

@@ -23,7 +23,7 @@
 - [ ] `APP_SECRET` set from a secret manager; document rotation; consider per-record keys.
 - [x] Security headers + CSP, login/sign-up throttling; [ ] HTTPS termination (reverse proxy + `COOKIE_SECURE=1` / `TRUST_PROXY=1`), [ ] general rate limiting on `/api/*`.
 - [ ] Decide whether the hosted service stores database credentials at all (alternative: credentials used once, never persisted).
-- [ ] Audit log for connection use; size/time limits on imports.
+- [x] Audit log for the use of shared connections and administrator actions ([09](09-accounts-sharing.md)); [ ] size/time limits on imports; [ ] sign-in events in the log.
 - [ ] E-mail verification, self-service password reset, account self-deletion, MFA/SSO, audit log (admin actions, connection use).
 - [ ] Dependency scan in CI; container runs as non-root; read-only filesystem except `/data`.
 - [ ] Privacy notice: only schema metadata is read; no table data leaves the database.

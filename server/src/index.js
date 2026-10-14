@@ -6,6 +6,7 @@ import * as store from './store.js';
 import * as auth from './auth.js';
 import * as dg from './diagrams.js';
 import * as presence from './presence.js';
+import * as audit from './audit.js';
 import * as admin from './admin.js';
 import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
@@ -41,10 +42,10 @@ app.addHook('onSend', async (_req, reply) => {
 });
 
 // saved connection (if `id`) overlaid with the draft fields from the form; empty values keep the stored ones
-async function resolve(b, owner) {
-  const saved = b.id ? store.get(owner, b.id) : {};
+async function resolve(b, user) {
+  const saved = b.id ? store.getForUse(user, b.id) : {};
   if (b.id && !saved) throw bad('connection not found', 404);
-  const draft = Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+  const draft = saved.shared ? {} : Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== '')); // a shared connection is used exactly as registered: a request can never point its credentials somewhere else
   const c = { ...saved, ...draft };
   if (!['postgres', 'oracle'].includes(c.type)) throw bad('type must be postgres or oracle');
   if (!c.host || !c.database || !c.user) throw bad('host, database and user are required');
@@ -90,13 +91,33 @@ app.get('/api/admin/users', (req) => { adminOnly(req); return admin.listUsers();
 app.post('/api/admin/users', async (req) => { adminOnly(req); return admin.createUser(req.body ?? {}); });
 app.patch('/api/admin/users/:id', (req) => { adminOnly(req); return { user: admin.updateUser(uid(req), req.body ?? {}, req.user.id) }; });
 app.post('/api/admin/users/:id/reset-password', async (req) => { adminOnly(req); return { tempPassword: await auth.adminSetPassword(uid(req), req.body?.password) }; });
-app.delete('/api/admin/users/:id', (req) => { adminOnly(req); admin.deleteUser(uid(req)); return { ok: true }; });
+app.delete('/api/admin/users/:id', (req) => { adminOnly(req); admin.deleteUser(uid(req), req.user.id); return { ok: true }; });
 app.get('/api/admin/groups', (req) => { adminOnly(req); return admin.listGroups(); });
 app.post('/api/admin/groups', (req) => { adminOnly(req); return { id: admin.createGroup(req.body?.name) }; });
 app.patch('/api/admin/groups/:id', (req) => { adminOnly(req); admin.renameGroup(uid(req), req.body?.name); return { ok: true }; });
 app.delete('/api/admin/groups/:id', (req) => { adminOnly(req); admin.deleteGroup(uid(req)); return { ok: true }; });
 app.put('/api/admin/groups/:id/members/:uid', (req) => { adminOnly(req); admin.addMember(uid(req), Number(req.params.uid)); return { ok: true }; });
 app.delete('/api/admin/groups/:id/members/:uid', (req) => { adminOnly(req); admin.removeMember(uid(req), Number(req.params.uid)); return { ok: true }; });
+// every administrator action that changes something is audited (route and ids only: never the request body, which may hold passwords)
+app.addHook('onResponse', async (req, reply) => {
+  if (req.method === 'GET' || !req.user || !req.url.startsWith('/api/admin/')) return;
+  audit.log(req.user, `admin.${req.method.toLowerCase()}`, { target: String(req.routeOptions?.url || req.url).replace('/api/admin', ''), ok: reply.statusCode < 400, detail: JSON.stringify(req.params ?? {}) });
+});
+
+// shared database connections: registered once by an administrator (read-only credential), used by chosen people and groups without seeing the secret
+app.get('/api/admin/connections', (req) => { adminOnly(req); return store.listShared(); });
+app.post('/api/admin/connections', async (req) => {
+  adminOnly(req);
+  const b = req.body ?? {};
+  if (!['postgres', 'oracle'].includes(b.type)) throw bad('type must be postgres or oracle');
+  if (!b.name || !b.host || !b.database || !b.user) throw bad('name, host, database and user are required');
+  await assertHostAllowed(b.host);
+  return { id: store.upsert(req.user.id, b, { shared: true }) };
+});
+app.put('/api/admin/connections/:id/access', (req) => { adminOnly(req); store.setAccess(req.params.id, req.body ?? {}); return { ok: true }; });
+app.delete('/api/admin/connections/:id', (req) => { adminOnly(req); if (!store.removeShared(req.params.id)) throw bad('shared connection not found', 404); return { ok: true }; });
+app.get('/api/admin/audit', (req) => { adminOnly(req); return audit.list(req.query ?? {}); });
+app.get('/api/admin/audit.csv', (req, reply) => { adminOnly(req); reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="audit-log.csv"'); return audit.csv(audit.list({ ...(req.query ?? {}), limit: 5000 })); });
 app.get('/api/admin/settings', (req) => { adminOnly(req); return admin.getSettings(); });
 app.put('/api/admin/settings', (req) => { adminOnly(req); return admin.putSettings(req.body ?? {}); });
 
@@ -105,29 +126,46 @@ app.get('/api/directory/users', (req) => admin.searchUsers(req.query?.q, req.use
 app.get('/api/directory/groups', () => admin.directoryGroups());
 
 // ---------- saved connections (private to the account)
-app.get('/api/connections', (req) => store.list(req.user.id));
+app.get('/api/connections', (req) => store.listFor(req.user)); // own + shared ones the account may use
 app.post('/api/connections', (req) => ({ id: store.upsert(req.user.id, req.body ?? {}) }));
 app.delete('/api/connections/:id', (req) => (store.remove(req.user.id, req.params.id), { ok: true }));
 
 // test + list schemas; also reports credentials that can do more than read metadata
+// every use of a SHARED connection goes to the audit log (who, which connection, which diagram, whether it worked)
+const diagramOf = (req) => { try { return typeof req.body?.diagramId === 'string' ? dg.getForUser(req.user, req.body.diagramId).id : null; } catch { return null; } }; // only a diagram the person can open
+async function audited(req, c, action, detail, run) {
+  try {
+    const r = await run();
+    if (c.shared) audit.log(req.user, `connection.${action}`, { target: c.name, connectionId: c.id, diagramId: diagramOf(req), detail: detail(r) });
+    return r;
+  } catch (e) {
+    if (c.shared) audit.log(req.user, `connection.${action}`, { target: c.name, connectionId: c.id, diagramId: diagramOf(req), ok: false, detail: e.message });
+    throw e;
+  }
+}
 app.post('/api/schemas', async (req) => {
-  const c = await resolve(req.body ?? {}, req.user.id);
-  const schemas = await listSchemas(c);
-  return { schemas, warnings: await checkPrivileges(c, schemas), readOnly: true };
+  const c = await resolve(req.body ?? {}, req.user);
+  return audited(req, c, 'test', (r) => `${r.schemas.length} schemas${r.warnings.length ? `, ${r.warnings.length} warning(s)` : ''}`, async () => {
+    const schemas = await listSchemas(c);
+    return { schemas, warnings: await checkPrivileges(c, schemas), readOnly: true };
+  });
 });
 app.post('/api/tables', async (req) => {
   const { schemas } = req.body ?? {};
   if (!schemas?.length) throw bad('select at least one schema');
-  return { tables: await listTables(await resolve(req.body, req.user.id), schemas) };
+  const c = await resolve(req.body, req.user);
+  return audited(req, c, 'tables', (r) => `${schemas.join(', ')}: ${r.tables.length} tables listed`, async () => ({ tables: await listTables(c, schemas) }));
 });
 app.post('/api/import', async (req) => {
   const { schemas, tables } = req.body ?? {};
   if (!schemas?.length) throw bad('select at least one schema');
-  const c = await resolve(req.body, req.user.id);
-  const warnings = await checkPrivileges(c, schemas);
-  if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
-  const model = await importModel(c, schemas, tables);
-  return { dbml: toDbml(model), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
+  const c = await resolve(req.body, req.user);
+  return audited(req, c, req.body?.purpose === 'refresh' ? 'refresh' : 'import', (r) => `${schemas.join(', ')}: ${r.tables} tables, ${r.refs} refs`, async () => {
+    const warnings = await checkPrivileges(c, schemas);
+    if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
+    const model = await importModel(c, schemas, tables);
+    return { dbml: toDbml(model), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
+  });
 });
 
 // ---------- diagrams: own and shared with me (directly or through a group)
@@ -242,4 +280,5 @@ app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
+audit.purge(); setInterval(audit.purge, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days
 await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });
