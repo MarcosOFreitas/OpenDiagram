@@ -18,6 +18,9 @@ Turn the DBML into readable database documentation: browse tables, columns, cons
 - **Comments (app-only, multi-author):** click the dashed area to add a comment on the project (overview), a table, or a column (*Comment* column); several comments per target, each with author and date, posted with the *Post* button or Ctrl+Enter (Esc cancels). Stored per diagram in the app's SQLite (`comments` table; API in [09](09-accounts-sharing.md)), keyed by `"<schema>.<table>"`, `"<schema>.<table>.<column>"` or `"__project"`. Who can comment is decided by the diagram owner through share-link levels; authors delete their own comments, the owner deletes any. They are **never** written to DBML or to any connected database, survive refresh/re-import (same keys) and are included read-only (with author) in the `.html`/`.md` exports.
 - Same React component renders the in-app view and the exported HTML (`renderToStaticMarkup`), so they cannot drift; the search script (`initDocs`) is inlined via `toString()` and must stay self-contained.
 
+## Changelog
+The Docs view lists the diagram's history (`GET /api/diagrams/:id/versions`, 50 newest: name, author, date, summary, "current") in a **Changelog** section after the overview, with a link in the sidebar. Only people who can edit see it (the history holds earlier content). The standalone HTML and the Markdown export carry **only the named versions** (an exported file can travel). `buildModel` is unchanged: the list is a separate `changelog` prop of `DocsPage` / `standaloneHtml` / `toMarkdown`.
+
 ## Acceptance criteria
 
 - [x] Sidebar lists tables by group, enums and Overview; search narrows to matching tables/columns.

@@ -208,7 +208,22 @@ function Table({ model, t, collapsed, ctx }) {
   );
 }
 
-export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
+// changelog: history entries [{ version, label, author, summary, savedAt, current }], newest first (editors only in the app; the exports keep the named ones)
+function Changelog({ items }) {
+  return (
+    <section id="dx-changelog">
+      <div className="dx-sub">Changelog</div>
+      <ul className="plain">{items.map((v) => (
+        <li key={`${v.id}-${v.version}`}>
+          <b>{v.label || `Version ${v.version}`}</b>{v.current && <span className="chip">current</span>} <small className="note">{v.author || 'Original'} · {when(v.savedAt)}</small>
+          <div className="note">{v.summary}</div>
+        </li>
+      ))}</ul>
+    </section>
+  );
+}
+
+export function DocsPage({ model, title, theme, ctx, collapsed = new Set(), changelog = [] }) {
   const sections = ordered(model);
   const heading = title || model.name || 'Database documentation';
   return (
@@ -217,7 +232,7 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
         <h1>{heading}</h1>
         <input className="dx-search" placeholder="Search tables…" aria-label="Search tables" />
         <div className="dx-tools"><button type="button" className="dx-expand">Expand all</button><button type="button" className="dx-collapse">Collapse all</button></div>
-        <ul><li data-s="overview"><a href="#dx-overview">Overview</a></li></ul>
+        <ul><li data-s="overview"><a href="#dx-overview">Overview</a></li>{changelog.length > 0 && <li data-s="changelog"><a href="#dx-changelog">Changelog</a></li>}</ul>
         {sections.map((s) => (
           <div key={s.title}>
             <h4>{s.title}</h4>
@@ -265,6 +280,7 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set() }) {
               </table>
             </>)}
           </section>
+          {changelog.length > 0 && <Changelog items={changelog} />}
           {sections.map((s) => s.tables.map((t) => <Table key={`${s.title}.${t.id}`} model={model} t={t} collapsed={collapsed} ctx={ctx} />))}
           {model.enums.map((e) => (
             <details key={e.name} className="dx-table" id={slug(`enum_${e.name}`)} open={!collapsed.has(slug(`enum_${e.name}`))}>
@@ -291,7 +307,7 @@ const STORE_KEY = 'docsCollapsed';
 const readCollapsed = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]')); } catch { return new Set(); } };
 
 // in-app view: remembers which tables are collapsed (per browser); comments are saved through onComment
-export function DocsView({ model, title, theme, comments, me, canComment, isOwner, onAdd, onDelete }) {
+export function DocsView({ model, title, theme, comments, me, canComment, isOwner, onAdd, onDelete, changelog = [] }) {
   const host = useRef(null);
   const collapsed = useRef(readCollapsed()); // initial state only: afterwards <details> keeps its own open state
   useEffect(() => {
@@ -302,12 +318,12 @@ export function DocsView({ model, title, theme, comments, me, canComment, isOwne
     el.addEventListener('toggle', save, true); // `toggle` does not bubble
     return () => el.removeEventListener('toggle', save, true);
   }, [model]);
-  return <div className="dx-host" ref={host}><style>{docsCss}</style><DocsPage model={model} title={title} theme={theme} ctx={{ cmap: commentMap(comments), canComment, canDelete: (c) => !!me && (isOwner || c.userId === me.id), onAdd, onDelete }} collapsed={collapsed.current} /></div>;
+  return <div className="dx-host" ref={host}><style>{docsCss}</style><DocsPage model={model} title={title} theme={theme} changelog={changelog} ctx={{ cmap: commentMap(comments), canComment, canDelete: (c) => !!me && (isOwner || c.userId === me.id), onAdd, onDelete }} collapsed={collapsed.current} /></div>;
 }
 
 // self-contained .html file: inline CSS + the small script, no external requests; comments are included read-only
-export function standaloneHtml(model, title, comments = []) {
+export function standaloneHtml(model, title, comments = [], changelog = []) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const body = renderToStaticMarkup(<DocsPage model={model} title={title} ctx={{ cmap: commentMap(comments), canComment: false }} />);
+  const body = renderToStaticMarkup(<DocsPage model={model} title={title} changelog={changelog} ctx={{ cmap: commentMap(comments), canComment: false }} />);
   return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title || model.name || 'Database documentation')}</title><style>html,body{margin:0;height:100%}.dx-host{height:100%}${docsCss}</style></head><body><div class="dx-host" id="dx-root">${body}</div><script>(${initDocs.toString()})(document.getElementById('dx-root'))</script></body></html>\n`;
 }

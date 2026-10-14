@@ -37,6 +37,8 @@ Open **More → History** (people who can **edit**, administrators and the owner
 - **Compare** shows the DBML lines that changed between that version and now (`-` only in the old version, `+` added since).
 - **Restore** makes that version the current one. It is saved as a **new version**, so what you had before is still in the history and you can undo a restore.
 
+The same list appears as the **Changelog** at the top of the [Docs view](generated-documentation) for people who can edit; the HTML and Markdown exports include only the named versions.
+
 > **Tip** Name a version before a risky change, such as a large refresh from the database or a mass edit of the text.
 
 ## Who can see the history

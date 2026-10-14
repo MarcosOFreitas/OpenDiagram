@@ -403,6 +403,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const verRef = useRef(null); // the server version this editor last loaded or saved: sent as baseVersion so a save over someone else's work is refused (409)
   const [docVersion, setDocVersion] = useState(null);
   const tabId = useRef(`${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`).current; // this browser tab, for presence
+  const [changelog, setChangelog] = useState([]); // history of this diagram for the Docs view (people who can edit)
   const [peers, setPeers] = useState([]); // other people who have this diagram open: { id, name, color, sel, editing }
   const [serverVersion, setServerVersion] = useState(null); // the version on the server as of the last presence beat
   const beatRef = useRef(null);
@@ -644,6 +645,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     return () => { stop = true; clearInterval(t); beatRef.current = null; window.removeEventListener('pagehide', bye); setPeers([]); send(true); };
   }, [doc, shareToken]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const t = setTimeout(() => beatRef.current?.(), 350); return () => clearTimeout(t); }, [activeId, saveState]); // tell the others at once what changed
+  useEffect(() => { // the Docs view lists the history; refreshed when the diagram is saved
+    if (mode !== 'docs' || !canEdit || shared || !doc?.id) { setChangelog([]); return undefined; }
+    let off = false;
+    api(`diagrams/${doc.id}/versions`).then((l) => { if (!off) setChangelog(l.slice(0, 50)); }).catch(() => { if (!off) setChangelog([]); });
+    return () => { off = true; };
+  }, [mode, canEdit, shared, doc?.id, docVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const newer = serverVersion != null && docVersion != null && serverVersion > docVersion && saveState === 'saved' && !conflict; // someone saved while we have no unsaved changes
 
   // comments (stored by the app, never in the database); refetched when the Docs view opens so other people's show up
@@ -899,8 +906,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (fmt === 'docs-html' || fmt === 'docs-md') {
         if (parsed.error) throw new Error('fix the DBML errors first');
         const m = buildModel(parsed.db, parsed.lineage);
-        if (fmt === 'docs-html') download(`${base}-docs.html`, standaloneHtml(m, title, comments));
-        else download(`${base}-docs.md`, toMarkdown(m, title, comments));
+        // an exported file can travel: it carries only the NAMED versions of the changelog (deliberate release markers), not every saved edit
+        const named = canEdit && !shared && doc?.id ? await api(`diagrams/${doc.id}/versions`).then((l) => l.filter((v) => v.label)).catch(() => []) : [];
+        if (fmt === 'docs-html') download(`${base}-docs.html`, standaloneHtml(m, title, comments, named));
+        else download(`${base}-docs.md`, toMarkdown(m, title, comments, named));
       } else if (fmt === 'dbml') download(`${base}.dbml`, dbml);
       else if (fmt === 'json') download(`${base}.json`, exporter.export(dbml, 'json'));
       else if (fmt === 'png' || fmt === 'svg') {
@@ -1036,7 +1045,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} lineage={parsed.lineage || []} onLineage={focusLineage} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
-          {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
+          {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
           <div className="dock">
             <button onClick={() => zoomOut()} title="Zoom out">−</button>
             <span>{Math.round(zoom * 100)}%</span>

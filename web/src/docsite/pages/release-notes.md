@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Docs, Oracle and cleanup
+
+- The Docs view has a **Changelog** (the saved versions, for people who can edit); the exports carry the named versions.
+- Oracle: no wallets (a connection string over TLS only); `verify`, expected DN and `noverify` are tested against a TLS proxy.
+
 ## Shared connections and audit log
 
 - Administrators register **shared database connections** (read-only credential) for people and groups; members use them without seeing the secret, and editors with access to the connection can refresh linked diagrams.

@@ -7,6 +7,7 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 - An **overview** with counts (tables, relationships, enums, groups) and the list of all relationships.
 - One card per **table**: columns with type, constraints (primary key, not null, unique), default, references, notes, the indexes, and the tables that reference it.
 - **Data lineage**, when the diagram has it: a table in the overview and, on each table, **Built from** (with the columns used) and **Feeds**, with links. See [Data lineage](data-lineage).
+- A **Changelog** of the diagram for people who can edit it: every saved version with its name, author, date and what changed, as in [History](versions-and-history).
 - **Enums** with their values.
 - The sidebar lists the tables **by table group** (with the group color), then ungrouped tables and enums.
 
@@ -24,6 +25,8 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 Documentation is not only generated text. Under the overview, each table and each column you can click **+ Add comment** to write your own note. Comments are stored by OpenDiagram (not in the database or the DBML), show who wrote them and when, and follow the [sharing permissions](accounts-and-sharing): people with *comment* access or more can add them, and you can delete your own (the owner and administrators can delete any). `Ctrl+Enter` posts the comment.
 
 ## Export
+
+The exported files carry only the **named versions** in their changelog (the releases you marked on purpose), not every saved edit, because an exported file can be passed around.
 
 **Export → Documentation (HTML)** downloads **one self-contained `.html` file** (inline styles and a small search script, no network requests) that you can host anywhere or attach to an email. It follows the dark mode of the reader's system, is print-friendly and includes the comments read-only. **Documentation (Markdown)** gives a `.md` version.
 

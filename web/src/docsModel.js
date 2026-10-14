@@ -63,7 +63,7 @@ export function ordered(model) {
 
 const esc = (s) => String(s).replaceAll('|', '\\|').replaceAll('\n', ' ');
 
-export function toMarkdown(model, title, commentList = []) {
+export function toMarkdown(model, title, commentList = [], changelog = []) {
   const byKey = new Map();
   for (const c of commentList) byKey.set(c.key, [...(byKey.get(c.key) || []), c]);
   const flat = (k) => (byKey.get(k) || []).map((c) => `${c.author}: ${c.text}`.replaceAll('\n', ' ')).join(' / ');
@@ -106,6 +106,11 @@ export function toMarkdown(model, title, commentList = []) {
         out.push('');
       }
     }
+  }
+  if (changelog.length) {
+    out.push('## Changelog', '');
+    for (const v of changelog) out.push(`- **${v.label || `Version ${v.version}`}** — ${v.author || 'Original'}, ${new Date(v.savedAt * 1000).toLocaleString()}: ${esc(v.summary)}`);
+    out.push('');
   }
   if (model.enums.length) {
     out.push('## Enums', '');
