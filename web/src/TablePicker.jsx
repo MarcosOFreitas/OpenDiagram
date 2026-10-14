@@ -76,19 +76,22 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
   const dropShown = () => setSel((s) => { const n = new Set(s); shown.forEach((i) => n.delete(i.name)); return n; });
 
   // groups: a table belongs to one group (adding it to a group removes it from the previous one)
+  // a table put in a group is imported too: tick it in the Tables tab right away (when nothing is ticked, "all" already includes it)
+  const autoSel = (names) => setSel((x) => (x.size ? new Set([...x, ...names]) : x));
   const dup = gName.trim() && gs.some((g) => g.name === gName.trim());
   const create = () => {
     const name = gName.trim();
     if (!name || dup || !gSel.size) return;
     setGs((l) => [...l.map((g) => ({ ...g, tables: g.tables.filter((t) => !gSel.has(t)) })), { name, color: gColor, tables: [...gSel] }]);
+    autoSel([...gSel]);
     setGName(''); setGSel(new Set());
   };
   const patch = (i, p) => setGs((l) => l.map((g, j) => (j === i ? { ...g, ...p } : g)));
-  const setMembers = (i, names, on) => setGs((l) => l.map((g, j) => {
+  const setMembers = (i, names, on) => { if (on) autoSel(names); setGs((l) => l.map((g, j) => {
     const set = new Set(names);
     if (j === i) return { ...g, tables: on ? [...new Set([...g.tables, ...names])] : g.tables.filter((t) => !set.has(t)) };
     return on ? { ...g, tables: g.tables.filter((t) => !set.has(t)) } : g;
-  }));
+  })); };
   const toggleGSel = (name, on) => setGSel((x) => { const n = new Set(x); if (on) n.add(name); else n.delete(name); return n; });
   const manyGSel = (names, on) => setGSel((x) => { const n = new Set(x); names.forEach((t) => (on ? n.add(t) : n.delete(t))); return n; });
 

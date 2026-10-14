@@ -115,15 +115,15 @@ function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
 
 // Many tables: dagre alone puts every table without relationships in one huge column. Lay out each connected
 // component on its own (dagre), tables without relationships in a grid, then pack the blocks in rows (~wide screen).
-function packedPositions(tables, refs) {
+// blocks of a set of tables: one per connected component (own dagre run) plus one grid for the tables without relationships
+function blocksOf(tables, refs) {
   const parent = new Map(tables.map((t) => [t.id, t.id]));
   const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
   const ends = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => parent.has(a) && parent.has(b));
   ends.forEach(([a, b]) => parent.set(find(a), find(b)));
   const comps = new Map();
   tables.forEach((t) => { const r = find(t.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); });
-  const GAP = 60, blocks = [];
-  const loose = [];
+  const blocks = [], loose = [];
   for (const ts of comps.values()) {
     if (ts.length === 1) { loose.push(ts[0]); continue; }
     const ids = new Set(ts.map((t) => t.id));
@@ -136,29 +136,51 @@ function packedPositions(tables, refs) {
     }
     blocks.push(best);
   }
-  if (loose.length) { // grid, in name order, ~square
+  if (loose.length) { // balanced columns, in name order: each table goes to the shortest column, tall tables do not stretch a whole row
+    const colW = Math.max(...loose.map(tableWidth)) + 36;
     const avgH = loose.reduce((s, t) => s + tableHeight(t), 0) / loose.length;
-    const cols = Math.max(1, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / (Math.max(...loose.map(tableWidth)) + 36))));
-    const colW = Math.max(...loose.map(tableWidth)) + 36, pos = new Map(), colH = Array(cols).fill(0); // each table goes to the shortest column: tall tables do not stretch a whole row
+    const cols = Math.max(1, Math.min(loose.length, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / colW))));
+    const pos = new Map(), colH = Array(cols).fill(0);
     loose.sort((a, b) => a.id.localeCompare(b.id)).forEach((t) => {
       const c = colH.indexOf(Math.min(...colH));
       pos.set(t.id, { x: c * colW, y: colH[c] }); colH[c] += tableHeight(t) + 36;
     });
     blocks.push({ w: cols * colW - 36, h: Math.max(...colH) - 36, pos });
   }
-  const area = blocks.reduce((s, b) => s + (b.w + GAP) * (b.h + GAP), 0);
-  const maxW = Math.max(Math.sqrt(area) * 1.8, ...blocks.map((b) => b.w));
-  const out = new Map(); let x = 0, y = 0, rowH = 0;
-  blocks.sort((a, b) => b.h - a.h).forEach((b) => {
-    if (x && x + b.w > maxW) { y += rowH + GAP; x = 0; rowH = 0; }
-    b.pos.forEach((p, id) => out.set(id, { x: x + p.x, y: y + p.y }));
-    x += b.w + GAP; rowH = Math.max(rowH, b.h);
+  return blocks;
+}
+
+// pack blocks in rows (~wide screen): -> { pos: Map id -> {x, y}, w, h }
+function shelfPack(blocks, gap = 60, aspect = 1.8) {
+  const area = blocks.reduce((s, b) => s + (b.w + gap) * (b.h + gap), 0);
+  const maxW = Math.max(Math.sqrt(area) * aspect, ...blocks.map((b) => b.w));
+  const pos = new Map(); let x = 0, y = 0, rowH = 0, w = 0;
+  [...blocks].sort((a, b) => b.h - a.h).forEach((b) => {
+    if (x && x + b.w > maxW) { y += rowH + gap; x = 0; rowH = 0; }
+    b.pos.forEach((p, id) => pos.set(id, { x: x + p.x, y: y + p.y }));
+    x += b.w + gap; rowH = Math.max(rowH, b.h); w = Math.max(w, x - gap);
   });
-  return out;
+  return { pos, w, h: y + rowH };
+}
+
+// Groups: every TableGroup is laid out on its own and becomes one block with room for its box (22px padding + 18px title),
+// so boxes never overlap; ungrouped tables are blocks as usual; then all blocks are packed together.
+function groupedPositions(tables, refs, groups) {
+  const byId = new Map(tables.map((t) => [t.id, t])), used = new Set(), PAD = 22, HEAD = 18, blocks = [];
+  for (const gr of groups) {
+    const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); });
+    if (!ts.length) continue;
+    const inner = shelfPack(blocksOf(ts, refs), 36, 1.4);
+    const pos = new Map([...inner.pos].map(([id, p]) => [id, { x: p.x + PAD, y: p.y + PAD + HEAD }]));
+    blocks.push({ pos, w: inner.w + PAD * 2, h: inner.h + PAD * 2 + HEAD });
+  }
+  blocks.push(...blocksOf(tables.filter((t) => !used.has(t.id)), refs));
+  return shelfPack(blocks, 70).pos;
 }
 
 function layout(tables, refs, old, groups = []) {
-  const pos = groups.length || tables.length < 25 ? dagrePositions(tables, refs, groups) : packedPositions(tables, refs); // groups keep their boxes: dagre compound
+  // groups -> one block per group; many tables -> packed components; few tables -> plain dagre
+  const pos = groups.length ? groupedPositions(tables, refs, groups) : tables.length < 25 ? dagrePositions(tables, refs) : shelfPack(blocksOf(tables, refs)).pos;
   return tables.map((t) => ({ id: t.id, type: 'table', position: old?.get(t.id) || pos.get(t.id), data: t }));
 }
 
