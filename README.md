@@ -1,55 +1,54 @@
 # OpenDiagram
 
-Open-source database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs), get a live diagram — **or connect to a PostgreSQL / Oracle database and generate the diagram from its metadata.**
+Open-source, self-hostable database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL / Oracle database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
 
-- **Live import** from PostgreSQL and Oracle: tables, columns, types, defaults, comments, PK, FK (with `ON DELETE`/`ON UPDATE`), indexes.
-- **Read-only by design**: every session is opened read-only and only reads catalog metadata, never table data. Credentials with excess privileges are detected and can be refused.
-- **Keep metadata fresh**: manual refresh or an automatic interval; your TableGroups and layout survive a refresh.
-- **DBML editor** (CodeMirror): syntax highlighting, autocomplete (keywords, types, tables, `table.column`), inline parser errors. Color settings (`headercolor`, `color`) get a clickable swatch that opens a color picker, plus a preset palette on `color: `.
-- **Diagram** (React Flow): auto layout, drag, search, relationship highlight, TableGroups with colors, light/dark theme.
-- **Generated documentation** (dbdocs-style): switch to *Docs* for a browsable, searchable page of tables, columns, constraints, notes and relationships. Tables collapse/expand, and you can add your own comments per table/column/project (stored only in the app, never in the database). Export as one standalone `.html` file or Markdown.
-- **Sample model included**: every new account starts with a ready-made "Online store - sample" diagram (customers, catalogue, orders, payments, with groups, enums, indexes and relationships), and the Diagrams tab can create more from it.
-- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML files; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
-- **TLS** for PostgreSQL and Oracle (TCPS), with optional custom CA.
-- **Accounts, administration and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat **groups** (a person can be in several); private diagrams (autosaved) and database connections per account; share a diagram with **people, groups or optional links**, choosing view / comment / edit for each.
-- Ships as a single Docker image with SQLite storage; no external services needed.
+**Documentation:** <http://localhost:3000/docs> once it runs (the same pages live in [`web/src/docsite/pages`](web/src/docsite/pages)). **For contributors and AI agents:** [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md), [`.specs/`](.specs/README.md). **Security:** [`SECURITY.md`](SECURITY.md).
 
-> Status: working MVP with **accounts (e-mail + password), private diagrams and optional share links**. Read [Security](#security) before exposing it beyond your own machine/network. Progress and plans live in [`.specs/`](.specs/README.md).
+## Features
+
+- **Live import** from PostgreSQL and Oracle: tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
+- **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL and Oracle (TCPS) with certificate verification and a custom CA.
+- **Keep metadata fresh**: manual refresh or an automatic interval (while the page is open); your TableGroups and layout survive a refresh.
+- **DBML editor** (CodeMirror 6): highlighting, autocomplete, inline parser errors, color swatches with a picker, search and replace.
+- **Diagram** (React Flow): five auto-arrange algorithms, a Tables panel (search, hide, saved views, detail levels), TableGroups with colors, draggable relationship labels, sticky notes, light and dark theme.
+- **Data lineage**: dashed arrows from source tables to the views built from them, down to the column (read from the view's SQL), or written by hand in the DBML.
+- **Generated documentation** (dbdocs-style): a browsable, searchable *Docs* view with your own comments (stored only in the app), a changelog from the named versions, and export as one standalone `.html` or Markdown.
+- **Versions and history**: every change is kept, versions can be named, compared and restored; two people saving at once get an edit-conflict dialog instead of silent overwrites; avatars show who has the diagram open.
+- **Accounts, groups and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat groups; private diagrams; share with people, groups or links (view / comment / edit, optional link password). Administrators can **register a shared database connection** that members use without seeing its credential; every use is written to an **audit log**.
+- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
+- Ships as **one Docker image with SQLite storage**; no external services.
+
+> Status: working and tested, pre-1.0. Read [Security](#security) before exposing it beyond your own machine or network. What is planned and what is deliberately not done is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md).
 
 ## Quick start
 
-Requires Docker with Compose v2 (Docker Desktop on Windows/macOS). Nothing else is needed to run it; Node 24 is only needed for [development](#develop).
+Requires Docker with Compose v2 (Docker Desktop on Windows and macOS). Node 24 is only needed for [development](#develop).
 
 ```bash
+git clone https://github.com/MarcosOliveira-Intelicity/rea_dbdiagram.git && cd rea_dbdiagram
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
 docker compose up -d --build    # app on :3000 + demo Postgres
-docker compose --profile oracle up -d   # optional: demo Oracle Free (first start is slow)
+docker compose --profile oracle up -d   # optional: demo Oracle Free (the first start is slow)
 ```
 
-Open <http://localhost:3000> and **create the first account — it becomes the administrator** (it also adopts connections saved by older versions). From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups; public sign-up stays closed unless you open it. The demo databases are reachable **from the app container** with these hosts:
+Open <http://localhost:3000> and **create the first account: it becomes the administrator**. From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups. Public sign-up stays closed unless you open it. New accounts start with a sample diagram, "Online store - sample". Alternatively create the administrator from the command line: `docker compose exec app node src/cli.js create-admin <email> <password>`.
+
+The demo databases are reachable **from the app container** with these hosts:
 
 | DB | Host | Port | Database / service | User / password |
 |----|------|------|--------------------|-----------------|
-| Postgres | `demo-pg` | 5432 | `demo` | `postgres`/`demo` (superuser → triggers guardrail warnings), `writer`/`writer` (can write → warning), `reader`/`reader` (select only → clean) |
+| Postgres | `demo-pg` | 5432 | `demo` | `postgres`/`demo` (superuser: triggers guardrail warnings), `writer`/`writer` (can write: warning), `reader`/`reader` (select only: clean) |
 | Postgres + TLS (self-signed) | `demo-pg-tls` | 5432 | `demo` | `postgres`/`demo` |
 | Oracle | `demo-oracle` | 1521 | `FREEPDB1` | `shop`/`shop` |
-| Oracle over TLS | `demo-oracle-tls` (alias `oracle.demo.test`) | 2484 | `FREEPDB1` | `shop`/`shop`; self-signed certificate CN `oracle.demo.test` trusted by the app (`demo/oracle-tls`), used by `server/test-oracle-tls.mjs` |
+| Oracle over TLS | `demo-oracle-tls` (alias `oracle.demo.test`) | 2484 | `FREEPDB1` | `shop`/`shop`; the certificate (CN `oracle.demo.test`, in `demo/oracle-tls`) is throw-away and trusted by the app |
 
-Schema to import: `shop` (Postgres) / `SHOP` (Oracle).
+Schema to import: `shop` (Postgres) or `SHOP` (Oracle). The Oracle demo creates its user and tables on the first start (allow a minute or two). If the tables are ever missing, load them once: `docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql`. To re-run the Postgres demo init after editing `demo/pg.sql`: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
 
-The Oracle demo creates the `shop` user and its tables on first start (allow a minute or two for it to be ready). If the tables are ever missing, load them once:
-
-```bash
-docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql
-```
-
-To re-run the Postgres demo init (e.g. after editing `demo/pg.sql`) recreate its anonymous volume: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
-
-The demo databases are only for trying and testing the app; remove them (and the `demo-*` services) for a real deployment.
+The demo databases are for trying and testing only; **remove the `demo-*` services for a real deployment** (their passwords are public).
 
 ### Backup and moving to another machine
 
-Everything the app stores (accounts, diagrams, comments, saved connections) is one SQLite file in the `appdata` volume. Saved connection passwords are encrypted with `APP_SECRET`, so a restore needs the **same** `APP_SECRET`.
+Everything the app stores (accounts, diagrams, comments, saved connections, audit log) is one SQLite file in the `appdata` volume. Saved connection passwords are encrypted with `APP_SECRET`, so a restore needs the **same** `APP_SECRET`.
 
 ```bash
 docker compose cp app:/data ./backup                 # backup (the app can keep running)
@@ -60,71 +59,71 @@ docker compose cp ./backup/. app:/data && docker compose restart app
 
 ## Using it
 
-0. **Diagrams** tab: your diagrams (new accounts start with the sample shop model; *Start from a template* or *New blank diagram* for more) and the ones shared with you; everything autosaves. **Share** tab: give a person or a group view/comment/edit access, or create an optional link. **Administration** (administrators, avatar menu): users, groups, settings; administrators can also open and manage every diagram of the organisation (never other people's saved connections).
-1. **More → Database** → fill host/port/database (Oracle: service name), user and password → **Test connection**. You get the schema list plus any privilege warnings.
-2. Tick schemas (optionally restrict to table names) → **Import**. The connection is saved and linked to the diagram.
-3. Edit the DBML on the left; the diagram updates live. **More → Documentation** opens the full documentation (also at `/docs`) with DBML examples for `Ref`, `TableGroup` colors, `headercolor`, indexes, enums.
-4. **↻** in the top bar re-reads the metadata; set an interval in the connection for automatic refresh (runs while the page is open).
-5. **Docs** (top bar) shows generated documentation for the DBML — click a table header to collapse it, click a comment area to add a note; **Export**: DBML, SQL per dialect, JSON, PNG, SVG, documentation (HTML / Markdown). **More → View**: theme, grid, edge style, hide types/indexes, editor line wrapping. Drag the edge of the editor to resize it; Ctrl+F searches and replaces.
+1. **More → Database**: host, port, database (Oracle: service name), user and password → **Test connection**. You get the schema list and any privilege warnings. Tick schemas (optionally **All tables - choose specific ones** to pick tables) → **Import**. The connection is saved and linked to the diagram; the top bar then shows a refresh button, and the connection can refresh on an interval.
+2. Edit the DBML on the left; the diagram updates live. Drag the editor's edge to resize it; Ctrl+F searches and replaces; Ctrl+K opens the Tables panel.
+3. **Docs** (top bar) shows generated documentation for the DBML: click a table header to collapse it, click a comment area to add a note. **Export** offers DBML, SQL per dialect, JSON, PNG, SVG and the documentation (HTML / Markdown). **More → View**: theme, grid, edge style, detail level, editor line wrapping.
+4. **More → Diagrams**: your diagrams and the ones shared with you (start from a template or a blank diagram); everything autosaves. **More → History**: versions, compare, restore. **Share**: give a person or a group view / comment / edit access, or create a link. **Administration** (administrators, avatar menu): users, groups, shared connections, audit log, settings. Administrators can open and manage every diagram of the instance, but never other people's personal connections.
+5. **More → Documentation** opens the full guide (also at `/docs`), with DBML examples and one page per feature.
 
 ## Configuration
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_SECRET` | `dev-secret-change-me` | Key for AES-256-GCM encryption of saved passwords / CA PEMs. **Set it** outside local dev; changing it invalidates saved connections. |
+| `APP_SECRET` | `dev-secret-change-me` | Key for AES-256-GCM encryption of saved passwords and CA PEMs. **Set it** outside local development; changing it invalidates saved connections. |
 | `PORT` | `3000` | HTTP port. |
-| `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite: accounts, diagrams, connections, comments) lives (Docker volume `appdata`). **Back it up.** |
-| `ALLOW_SIGNUP` | empty | Empty: the administrator decides (default closed after the first account). `1` opens self-registration, `0` forces it closed. |
-| `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private/loopback/link-local) or `allowlist` (+ `DB_HOST_ALLOWLIST`). |
+| `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite) lives (Docker volume `appdata`). **Back it up.** |
+| `ALLOW_SIGNUP` | empty | Empty: the administrator decides (closed after the first account). `1` opens self-registration, `0` forces it closed. |
+| `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private, loopback and link-local addresses) or `allowlist` (+ `DB_HOST_ALLOWLIST`, comma-separated host names). |
 | `COOKIE_SECURE` / `TRUST_PROXY` | `0` | Set `1` when served over HTTPS / behind a reverse proxy. |
 
 ## Develop
 
 ```bash
-# API (needs Node 24: uses the built-in node:sqlite); data goes to ./server/data (gitignored)
-cd server && npm install && npm start          # http://localhost:3000 — the first account you create is the administrator
+# API (Node 24: uses the built-in node:sqlite); data goes to ./server/data (git-ignored)
+cd server && npm install && npm start          # http://localhost:3000; the first account you create is the administrator
 # UI with hot reload, proxying /api to :3000
 cd web && npm install && npm run dev           # http://localhost:5173
 # production build into server/public
 cd web && npm run build
 ```
 
-Tests (the Docker stack must be running; see [`.specs/07-testing.md`](.specs/07-testing.md)). They need an administrator of the stack under test; create a throw-away one with the CLI. `BASE=http://host:port` points them at another address (default `http://localhost:3000`):
+Verification is end-to-end (no unit-test framework, no linter): the scripts are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test; create a throw-away one with the CLI. `BASE=http://host:port` points them elsewhere.
 
 ```bash
 docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'
 export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-password'
-node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, SSRF policy
-node server/test-guardrails.mjs        # read-only/privilege guardrails + PostgreSQL TLS modes
-cd web && npm install && node roundtrip.mjs   # DB import → export → re-import per format (needs the oracle profile; `npm install` once for @dbml/core)
+node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, shared connections, audit log, SSRF policy
+node server/test-guardrails.mjs        # read-only / privilege guardrails + PostgreSQL TLS modes
+node server/test-oracle-tls.mjs        # Oracle TLS modes (needs --profile oracle)
+cd web && npm install && node roundtrip.mjs   # DB import -> export -> re-import per format (needs the oracle profile)
+node web/uiaudit.mjs                   # UI audit of every screen (needs a throw-away instance and Chrome)
 ```
 
-Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI) · `demo/` (sample databases) · `.specs/` (product/architecture specs) · `CLAUDE.md` (guide for AI coding agents).
+Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI and the documentation site) · `demo/` (sample databases) · `.specs/` (product, architecture and security specs) · [`AGENTS.md`](AGENTS.md) (guide for AI coding agents). See [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute.
 
 ## Security
 
-Fine for your machine or a trusted network as is. **Before hosting it for other people** set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, and read the checklist below.
+Fine for your machine or a trusted network as is. **Before hosting it for other people**: set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, remove the demo services, and read the checklist in [`.specs/05-security.md`](.specs/05-security.md). To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 - Accounts use e-mail + password (scrypt), HttpOnly SameSite cookies, login throttling and a cross-origin write guard. Administrators create accounts and reset passwords (there is no e-mail verification or self-service "forgot password" yet); if every administrator is locked out use `docker compose exec app node src/cli.js create-admin <email> <password>`.
-- Saved database connections are private to their account (not even administrators can use them); secrets are encrypted at rest. Administrators can open, edit and delete any diagram of the organisation. Share links never expose connections or credentials.
+- Personal database connections are private to their account (not even administrators can use them); secrets are encrypted at rest. A *shared* connection is registered by an administrator, used exactly as registered, and every use is logged. Share links never expose connections or credentials.
 - Every database session is read-only (metadata only); credentials with excess privileges are detected and can be refused; TLS with certificate verification is supported.
-
-Details, threat model and a pre-deployment checklist: [`.specs/05-security.md`](.specs/05-security.md).
 
 ## Known limitations
 
-- PostgreSQL and Oracle only (live import). Views, enums, sequences, triggers and comments on non-table objects are not imported yet.
-- Oracle SQL **files** cannot be imported (parser limitation) — use the live Oracle import. JSON is export-only.
-- Exporting SQL for a different engine than the source needs manual edits (e.g. `nextval(...)` defaults, `character varying`).
-- Auto-refresh runs in the browser; it stops when the page is closed.
-- Sharing works with people, groups and links, but accounts are only created by administrators (no e-mail invitations); share links are bearer secrets. No e-mail verification, self-service password reset, SSO or account self-deletion yet; saved database connections cannot be shared with a group yet.
-- Oracle TLS (TCPS): `verify` checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` also tested against the `demo-oracle-tls` proxy (`node server/test-oracle-tls.mjs`). Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS`.
+- PostgreSQL and Oracle only for live import; functions and procedures are not imported. MySQL / SQL Server work as SQL file import and export targets.
+- Oracle SQL **files** cannot be imported (parser limitation): use the live Oracle import. JSON is export-only.
+- Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
+- Auto-refresh runs in the browser and stops when the page is closed; there is no server-side scheduled refresh yet.
+- Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.
+- No e-mail verification, self-service password reset, SSO or account self-deletion yet; accounts are created by administrators (no e-mail invitations); share links are bearer secrets.
+- Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS`.
 
 ## Credits and disclaimer
 
-Built on [`@dbml/core`](https://github.com/holistics/dbml) (Apache-2.0), [React Flow](https://reactflow.dev) (MIT), [CodeMirror 6](https://codemirror.net) (MIT), [dagre](https://github.com/dagrejs/dagre) (MIT), [html-to-image](https://github.com/bubkoo/html-to-image) (MIT), [node-postgres](https://node-postgres.com) (MIT), [node-oracledb](https://node-oracledb.readthedocs.io) (Apache-2.0/UPL), [Fastify](https://fastify.dev) (MIT).
+Built on [`@dbml/core`](https://github.com/holistics/dbml) (Apache-2.0), [React Flow](https://reactflow.dev) (MIT), [CodeMirror 6](https://codemirror.net) (MIT), [dagre](https://github.com/dagrejs/dagre) (MIT), [html-to-image](https://github.com/bubkoo/html-to-image) (MIT), [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser) (MIT), [node-postgres](https://node-postgres.com) (MIT), [node-oracledb](https://node-oracledb.readthedocs.io) (Apache-2.0 / UPL), [Fastify](https://fastify.dev) (MIT). The UI/UX review rules were checked with the [ui-ux-pro-max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT, vendored under `.claude/skills` with its notice).
 
-OpenDiagram is an independent project, **not affiliated with or endorsed by dbdiagram.io / Holistics**. It is a clean-room implementation of comparable behaviour; no code or assets from their service are used. DBML is an open language by Holistics.
+OpenDiagram is an independent project, **not affiliated with or endorsed by dbdiagram.io or Holistics**. It is a clean-room implementation of comparable behaviour; no code or assets from their service are used. DBML is an open language by Holistics.
 
 ## License
 
