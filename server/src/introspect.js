@@ -141,8 +141,7 @@ const oraSchemas = (c) => oraWith(c, async (conn) =>
   (await conn.execute(`select distinct t.owner from all_tables t join all_users u on u.username=t.owner where u.oracle_maintained='N' order by 1`)).rows.map((r) => r[0]));
 
 const oraTables = (c, schemas) => oraWith(c, async (conn) => {
-  const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
-  const inl = schemas.map((_, i) => `:s${i}`).join(',');
+  const [binds, inl] = inBinds(schemas);
   return (await conn.execute(`select t.owner "schema", t.table_name "name", (select count(*) from all_mviews m where m.owner=t.owner and m.mview_name=t.table_name) "view" from all_tables t where t.owner in (${inl})
     and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' and t.table_name not like 'MLOG$\\_%' escape '\\' and t.table_name not like 'RUPD$\\_%' escape '\\'
     union all select v.owner, v.view_name, 1 from all_views v where v.owner in (${inl}) order by 1,2`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows.map((r) => ({ ...r, view: !!r.view }));
@@ -157,8 +156,7 @@ function oraType(r) {
 }
 
 const oraImport = (c, schemas) => oraWith(c, async (conn) => {
-  const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
-  const inl = schemas.map((_, i) => `:s${i}`).join(',');
+  const [binds, inl] = inBinds(schemas);
   const q = async (sql) => (await conn.execute(sql.replaceAll('@IN', inl), binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
   const tableRows = await q(`select t.owner "schema", t.table_name "name", c.comments "comment" from all_tables t
     left join all_tab_comments c on c.owner=t.owner and c.table_name=t.table_name and c.table_type='TABLE'
@@ -234,6 +232,7 @@ async function pgPrivileges(c, schemas) {
   });
 }
 
+const inBinds = (v) => [Object.fromEntries(v.map((x, i) => [`s${i}`, x])), v.map((_, i) => `:s${i}`).join(',')]; // named binds + their :s0,:s1 list for an IN (...)
 const ORA_RISKY = /(^|\s)(ANY|DBA|GRANT|CREATE TABLE|CREATE PROCEDURE|CREATE VIEW|CREATE SEQUENCE|CREATE TRIGGER|UNLIMITED TABLESPACE)\b/;
 const ORA_READONLY = /^(SELECT|READ|ANALYZE|DEBUG|FLASHBACK|QUERY REWRITE|EXECUTE) ANY|^SELECT ANY|^READ ANY/;
 async function oraPrivileges(c, schemas) {
@@ -242,10 +241,9 @@ async function oraPrivileges(c, schemas) {
     const w = [];
     const roles = (await rows('select role from session_roles')).map((r) => r.ROLE);
     for (const role of ['DBA', 'RESOURCE']) if (roles.includes(role)) w.push(`has the ${role} role`);
-    const privs = (await rows('select privilege from session_privs')).map((r) => r.PRIVILEGE).filter((p) => ORA_RISKY.test(p) && !/^(SELECT|READ|ANALYZE|DEBUG|FLASHBACK|QUERY REWRITE) ANY/.test(p) && !ORA_READONLY.test(p));
+    const privs = (await rows('select privilege from session_privs')).map((r) => r.PRIVILEGE).filter((p) => ORA_RISKY.test(p) && !ORA_READONLY.test(p));
     if (privs.length) w.push(`system privileges beyond read: ${privs.slice(0, 6).join(', ')}${privs.length > 6 ? ` (+${privs.length - 6})` : ''}`);
-    const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
-    const inl = schemas.map((_, i) => `:s${i}`).join(',') || "''";
+    const [binds, inl0] = inBinds(schemas), inl = inl0 || "''";
     const [{ N }] = await rows(`select count(*) n from all_tab_privs_recd where privilege in ('INSERT','UPDATE','DELETE') and owner in (${inl})`, binds);
     if (N > 0) w.push('has INSERT/UPDATE/DELETE grants on objects in the selected schemas');
     const me = (await rows("select sys_context('USERENV','CURRENT_USER') u from dual"))[0].U;

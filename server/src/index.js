@@ -42,12 +42,13 @@ app.addHook('onSend', async (_req, reply) => {
 });
 
 // saved connection (if `id`) overlaid with the draft fields from the form; empty values keep the stored ones
+const assertType = (t) => { if (!['postgres', 'oracle'].includes(t)) throw bad('type must be postgres or oracle'); };
 async function resolve(b, user) {
   const saved = b.id ? store.getForUse(user, b.id) : {};
   if (b.id && !saved) throw bad('connection not found', 404);
   const draft = saved.shared ? {} : Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== '')); // a shared connection is used exactly as registered: a request can never point its credentials somewhere else
   const c = { ...saved, ...draft };
-  if (!['postgres', 'oracle'].includes(c.type)) throw bad('type must be postgres or oracle');
+  assertType(c.type);
   if (!c.host || !c.database || !c.user) throw bad('host, database and user are required');
   c.tls = ['off', 'verify', 'noverify'].includes(c.tls) ? c.tls : 'off';
   await assertHostAllowed(c.host);
@@ -62,9 +63,7 @@ app.get('/api/health', () => ({ ok: true }));
 const startSession = (reply, req, user) => reply.header('set-cookie', auth.sessionCookie(auth.createSession(user.id), req));
 app.get('/api/auth/me', (req) => ({ user: req.user, signup: auth.signupAllowed(), firstRun: auth.userCount() === 0, org: auth.orgName(), groups: req.user ? auth.groupsOf(req.user.id) : [] }));
 app.post('/api/auth/register', async (req, reply) => {
-  const first = auth.userCount() === 0;
   const user = await auth.register(req.body ?? {}, req.ip);
-  if (first) { const n = store.adoptLegacy(user.id); if (n) req.log.info(`adopted ${n} legacy connection(s) for ${user.email}`); }
   startSession(reply, req, user);
   return { user };
 });
@@ -89,7 +88,7 @@ const adminOnly = (req) => { if (req.user?.role !== 'admin') throw bad('administ
 const uid = (req) => { const n = Number(req.params.id); if (!Number.isInteger(n)) throw bad('invalid id'); return n; };
 app.get('/api/admin/users', (req) => { adminOnly(req); return admin.listUsers(); });
 app.post('/api/admin/users', async (req) => { adminOnly(req); return admin.createUser(req.body ?? {}); });
-app.patch('/api/admin/users/:id', (req) => { adminOnly(req); return { user: admin.updateUser(uid(req), req.body ?? {}, req.user.id) }; });
+app.patch('/api/admin/users/:id', (req) => { adminOnly(req); return { user: admin.updateUser(uid(req), req.body ?? {}) }; });
 app.post('/api/admin/users/:id/reset-password', async (req) => { adminOnly(req); return { tempPassword: await auth.adminSetPassword(uid(req), req.body?.password) }; });
 app.delete('/api/admin/users/:id', (req) => { adminOnly(req); admin.deleteUser(uid(req), req.user.id); return { ok: true }; });
 app.get('/api/admin/groups', (req) => { adminOnly(req); return admin.listGroups(); });
@@ -109,7 +108,7 @@ app.get('/api/admin/connections', (req) => { adminOnly(req); return store.listSh
 app.post('/api/admin/connections', async (req) => {
   adminOnly(req);
   const b = req.body ?? {};
-  if (!['postgres', 'oracle'].includes(b.type)) throw bad('type must be postgres or oracle');
+  assertType(b.type);
   if (!b.name || !b.host || !b.database || !b.user) throw bad('name, host, database and user are required');
   await assertHostAllowed(b.host);
   return { id: store.upsert(req.user.id, b, { shared: true }) };
@@ -169,7 +168,7 @@ app.post('/api/import', async (req) => {
 });
 
 // ---------- diagrams: own and shared with me (directly or through a group)
-const LEVEL = { view: 0, comment: 1, edit: 2, admin: 3, owner: 4 }; // 'admin' = administrator on someone else's diagram
+const LEVEL = { ...dg.RANK, admin: 3, owner: 4 }; // 'admin' = administrator on someone else's diagram
 const can = (role, min) => LEVEL[role] >= LEVEL[min];
 app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));

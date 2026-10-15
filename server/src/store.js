@@ -1,12 +1,11 @@
 // Saved database connections, one set per account. Secrets (password, CA PEM) are
 // encrypted with AES-256-GCM keyed by APP_SECRET; they never leave the server (list() strips them).
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, renameSync } from 'node:fs';
-import { db, DIR } from './db.js';
+import { db } from './db.js';
 
 const KEY = scryptSync(process.env.APP_SECRET || 'dev-secret-change-me', 'dbdiagram-open', 32);
 const SECRETS = ['password', 'caPem'];
-const COL = { password: 'password', caPem: 'ca_pem' }; // (the old wallet_password column is no longer used: wallets are not supported)
+const COL = { password: 'password', caPem: 'ca_pem' }; // secret field -> column
 
 const enc = (s) => { const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', KEY, iv); const d = Buffer.concat([c.update(s, 'utf8'), c.final()]); return Buffer.concat([iv, c.getAuthTag(), d]).toString('base64'); };
 const dec = (s) => { if (!s) return ''; const b = Buffer.from(s, 'base64'), d = createDecipheriv('aes-256-gcm', KEY, b.subarray(0, 12)); d.setAuthTag(b.subarray(12, 28)); return Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8'); };
@@ -89,25 +88,9 @@ export const removeShared = (id) => db.prepare('delete from connections where id
 // replaces who may use a shared connection: { users: [ids], groups: [ids] }
 export function setAccess(id, { users = [], groups = [] } = {}) {
   if (!db.prepare('select 1 from connections where id = ? and shared = 1').get(id)) throw Object.assign(new Error('shared connection not found'), { statusCode: 404 });
-  const ok = (rows, table, ids) => ids.map(Number).filter((n) => Number.isInteger(n) && db.prepare(`select 1 from ${table} where id = ?`).get(n));
+  const ok = (table, ids) => ids.map(Number).filter((n) => Number.isInteger(n) && db.prepare(`select 1 from ${table} where id = ?`).get(n));
   db.prepare('delete from connection_access where connection_id = ?').run(id);
   const ins = db.prepare('insert or ignore into connection_access (connection_id, subject_type, subject_id) values (?, ?, ?)');
-  for (const u of ok(users, 'users', users)) ins.run(id, 'user', u);
-  for (const g of ok(groups, 'groups', groups)) ins.run(id, 'group', g);
-}
-
-// one-time: connections saved by the pre-accounts version (connections.json) go to the first account created
-export function adoptLegacy(owner) {
-  const f = `${DIR}/connections.json`;
-  if (!existsSync(f)) return 0;
-  let n = 0;
-  for (const c of json(readFileSync(f, 'utf8'), [])) {
-    const tls = c.tls ?? (c.ssl ? 'noverify' : 'off');
-    const row = [randomUUID(), owner, c.name, c.type, c.host, +c.port, c.database, c.user, tls, c.serverDn || '', c.blockWritable ? 1 : 0,
-      JSON.stringify(c.schemas ?? []), JSON.stringify(c.tables ?? []), c.refreshMinutes || 0, c.password || enc(''), c.caPem || enc('')];
-    db.prepare(`insert into connections (id, owner_id, name, type, host, port, database, db_user, tls, server_dn, block_writable, schemas, tables, refresh_minutes, password, ca_pem) values (${'?,'.repeat(15)}?)`).run(...row);
-    n++;
-  }
-  renameSync(f, `${f}.migrated`);
-  return n;
+  for (const u of ok('users', users)) ins.run(id, 'user', u);
+  for (const g of ok('groups', groups)) ins.run(id, 'group', g);
 }

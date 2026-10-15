@@ -15,7 +15,10 @@ create table if not exists users (
   email text unique not null,
   name text not null,
   password_hash text not null,
-  created_at integer not null
+  created_at integer not null,
+  role text not null default 'member',
+  disabled integer not null default 0,
+  must_change_password integer not null default 0
 );
 create table if not exists sessions (
   token_hash text primary key,
@@ -27,7 +30,8 @@ create table if not exists connections (
   owner_id integer not null references users(id) on delete cascade,
   name text, type text, host text, port integer, database text, db_user text,
   tls text, server_dn text, block_writable integer, schemas text, tables text, refresh_minutes integer,
-  password text, ca_pem text, wallet_password text
+  password text, ca_pem text,
+  shared integer not null default 0 -- 1 = registered by an administrator for people and groups
 );
 -- shared connections (registered by an administrator): who may use them. A diagram never carries the secret, only the connection id.
 create table if not exists connection_access (
@@ -51,14 +55,16 @@ create table if not exists diagrams (
   id text primary key,
   owner_id integer not null references users(id) on delete cascade,
   title text not null, dbml text not null, source text, layout text,
-  created_at integer not null, updated_at integer not null
+  created_at integer not null, updated_at integer not null,
+  version integer not null default 1 -- +1 on every content save: edit-conflict detection and history
 );
 create table if not exists shares (
   id text primary key,
   diagram_id text not null references diagrams(id) on delete cascade,
   token text unique not null,
   access text not null check (access in ('view','comment','edit')),
-  created_at integer not null
+  created_at integer not null,
+  password_hash text -- optional link password (scrypt)
 );
 create table if not exists diagram_versions (
   id integer primary key autoincrement,
@@ -108,17 +114,3 @@ create index if not exists idx_comments_diagram on comments(diagram_id);
 create index if not exists idx_diagrams_owner on diagrams(owner_id);
 create index if not exists idx_connections_owner on connections(owner_id);
 `);
-
-// columns added after the first release (create table above only runs on a fresh database)
-const userCols = db.prepare('pragma table_info(users)').all().map((c) => c.name);
-for (const [name, ddl] of [['role', "text not null default 'member'"], ['disabled', 'integer not null default 0'], ['must_change_password', 'integer not null default 0']]) {
-  if (!userCols.includes(name)) db.exec(`alter table users add column ${name} ${ddl}`);
-}
-const connCols = db.prepare('pragma table_info(connections)').all().map((c) => c.name);
-if (!connCols.includes('shared')) db.exec('alter table connections add column shared integer not null default 0'); // 1 = registered by an administrator for people and groups
-const diagramCols = db.prepare('pragma table_info(diagrams)').all().map((c) => c.name);
-if (!diagramCols.includes('version')) db.exec('alter table diagrams add column version integer not null default 1'); // +1 on every content save: edit-conflict detection and history
-const shareCols = db.prepare('pragma table_info(shares)').all().map((c) => c.name);
-if (!shareCols.includes('password_hash')) db.exec('alter table shares add column password_hash text'); // optional link password (scrypt)
-// the oldest account is the administrator when nobody is (databases created before roles existed)
-db.exec("update users set role = 'admin' where id = (select min(id) from users) and not exists (select 1 from users where role = 'admin')");

@@ -16,7 +16,6 @@ One installation = one organisation. People have **e-mail + password** accounts 
 - Throttling (in memory): 8 failed logins / 15 min per (IP, e-mail); 30 sign-ups / 15 min per IP. `TRUST_PROXY=1` behind a reverse proxy.
 - CSRF: `SameSite=Lax` plus rejection (403) of non-GET requests whose `Origin` host differs from `Host`.
 - Not implemented: e-mail verification, self-service "forgot password" (an administrator resets it, or the operator CLI), MFA, SSO (OIDC/LDAP — roadmap).
-- The first account also adopts connections saved by the pre-accounts version (`connections.json` → `.migrated`) and its browser's old local diagram becomes its first diagram.
 
 ## Administration (administrators only, `/api/admin/*`, UI: avatar menu → **Administration**; errors show inside the panel because it sits above the toasts)
 

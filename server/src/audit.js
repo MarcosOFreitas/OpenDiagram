@@ -2,8 +2,7 @@
 // only who, what, which connection / diagram, whether it worked and a short detail (counts, schema names, an error message).
 import { db } from './db.js';
 
-const DAY = 86400;
-export const RETENTION_DAYS = 180;
+const RETENTION = 180 * 86400; // seconds
 const now = () => Math.floor(Date.now() / 1000);
 
 export function log(actor, action, { target, connectionId, diagramId, ok = true, detail } = {}) {
@@ -32,4 +31,4 @@ export function csv(rows) {
   return [head.join(','), ...rows.map((r) => [new Date(r.at * 1000).toISOString(), r.actor, r.action, r.target, r.diagramId, r.ok ? 'yes' : 'no', r.detail].map(cell).join(','))].join('\n') + '\n';
 }
 
-export const purge = () => db.prepare('delete from audit_log where at < ?').run(now() - RETENTION_DAYS * DAY).changes;
+export const purge = () => db.prepare('delete from audit_log where at < ?').run(now() - RETENTION).changes;

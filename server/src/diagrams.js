@@ -62,8 +62,7 @@ export function getForUser(user, id) {
 const manages = (actor, ownerId) => ownerId === actor.id || actor.role === 'admin';
 export function getOwned(actor, id) {
   const r = db.prepare('select * from diagrams where id = ?').get(id);
-  if (r && !manages(actor, r.owner_id)) throw bad('diagram not found', 404);
-  if (!r) throw bad('diagram not found', 404);
+  if (!r || !manages(actor, r.owner_id)) throw bad('diagram not found', 404);
   return shape(r);
 }
 

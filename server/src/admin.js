@@ -27,7 +27,7 @@ export async function createUser({ email, name, role = 'member', password }) {
   return { user, tempPassword: temp };
 }
 
-export function updateUser(id, patch, actingId) {
+export function updateUser(id, patch) {
   const u = row(id);
   if (patch.role !== undefined && !['admin', 'member'].includes(patch.role)) throw bad('role must be admin or member');
   guardLastAdmin(u, (patch.role !== undefined && patch.role !== 'admin') || patch.disabled === true);
