@@ -447,11 +447,11 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .brand { display: inline-flex; align-items: center; gap: 8px; }
 .logo { display: inline-grid; place-items: center; margin: 0; }
 .dock { gap: 2px; }
-.dock button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; }
+.dock > button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; } /* direct children only: the Arrange popover lives inside the dock */
 .dock svg { width: 16px; height: 16px; display: block; }
-.dock button.algo-wide, .dock button[title^="Auto arrange"] { display: inline-flex; align-items: center; gap: 6px; width: auto; padding: 0 10px 0 8px; font-size: 13px; font-weight: 500; }
-.dock .algo-toggle { width: 24px; padding: 0; }
-.dock span { display: inline-grid; place-items: center; height: 32px; font-size: 13px; }
+.dock > button[title^="Auto arrange"] { display: inline-flex; align-items: center; gap: 6px; width: auto; padding: 0 10px 0 8px; font-size: 13px; font-weight: 500; }
+.dock > .algo-toggle { width: 24px; padding: 0; }
+.dock > span { display: inline-grid; place-items: center; height: 32px; font-size: 13px; }
 .dock .sep { height: 20px; margin: 0 4px; }
 .dx-host { animation: od-rise .22s var(--ease); }
 .canvas[data-mode="diagram"] > .react-flow { animation: od-fade .22s ease-out; }

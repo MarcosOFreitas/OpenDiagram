@@ -31,6 +31,12 @@ Review done with the `ui-ux-pro-max` skill (web/desktop rules: accessibility, ta
 | Docs view | contrast, narrow window, transition | ok |
 | Administration: Users, Groups, Connections (+ register form), Audit log, Settings | labels, buttons, CSV link | ok |
 | Documentation site `/docs` | 375px, brand | ok |
-| Table picker, edit-conflict dialog, find/replace bar, shared-link view `/s/<token>` | same control look (CSS); not driven one by one in this round | not audited |
+| Table picker (Tables and Groups tabs) | targets (colour swatches 24px), labels | ok |
+| Edit-conflict dialog | `role=dialog`, name, focus, contrast | ok |
+| Find/replace bar (Ctrl+F) | targets (close 26px), labels | ok |
+| Shared-link view `/s/<token>` | same audit as the main screen | ok |
+| Canvas nodes | names (`Table x`), collapse toggle target, icons as SVG, secondary text contrast | ok |
 
-Not covered: Windows high-contrast mode, screen-reader pass, tablet landscape, the third-party "React Flow" attribution link (library).
+Screen-reader pass: checked through the accessibility tree only (landmarks banner / region "DBML editor" / main "Diagram" / complementary "Side panel", tablist, names on every control, nodes named, dialogs `role=dialog` + `aria-modal` + focus moved in, kept inside and restored, closed drawer `inert`, toasts `role=status|alert`). It was not run with a real screen reader (NVDA/VoiceOver).
+
+Not covered: a real screen reader, Windows high-contrast mode, tablet landscape, the third-party "React Flow" attribution link (library).
