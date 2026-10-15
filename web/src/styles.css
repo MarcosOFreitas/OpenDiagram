@@ -498,3 +498,8 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .shell[data-theme="dark"] .admin .warn { background: #fffbeb; color: #78350f; border-color: #fcd34d; } /* the Administration card is white in both themes */
 .shell[data-theme="dark"] .admin .warn small { color: #92400e; }
 .shell[data-theme="dark"] .admin .ghost { color: #5b6472 !important; }
+
+/* long names, hosts and service names (for example an Oracle Cloud descriptor) wrap inside their card instead of overflowing it */
+.card b, .card small, .group-head b, .group-head small { min-width: 0; overflow-wrap: anywhere; }
+.card .badge, .card .chip, .card .ghost { flex: none; }
+.group-head { flex-wrap: wrap; }

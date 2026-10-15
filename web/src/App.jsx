@@ -874,7 +874,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const save = run('save', async () => { await persist(); notify('ok', 'Connection saved'); });
   const importNow = run('import', async () => {
     const tables = tableSel;
-    const id = await persist({ schemas: picked, tables });
+    const id = form.shared ? form.id : await persist({ schemas: picked, tables }); // a shared connection is used as registered: it is never saved (or changed) from here
     const r = await api('import', { id, schemas: picked, tables, ddl: fullDdl });
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
     setDbml(withGroups(r.dbml, tableGroups ?? parsed.groups)); setWarnings(r.warnings || []); // groups are re-applied: a new import must not lose them
@@ -902,7 +902,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
+  const listSchemas = async (id) => { // a saved connection that was never imported has no schemas to offer yet: list them, as the Test connection button would
+    setBusy('test');
+    try { const r = await api('schemas', { id }); setSchemas(r.schemas); setPicked(r.schemas.length === 1 ? r.schemas : []); setWarnings(r.warnings || []); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); }
+  };
+  const pick = (c) => { if (!c.schemas?.length) listSchemas(c.id); setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
   const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
   const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
 
@@ -1120,7 +1124,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {conns.map((c) => (
                 <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
                   <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
-                  <div className="grow"><b>{c.name}</b><small>{c.host}:{c.port}/{c.database}</small></div>
+                  <div className="grow"><b>{c.name}</b><small>{`${c.host}:${c.port}/${c.database}`.replace(/([./_])/g, '$1​')}</small></div>
                   {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete">✕</button>}
                 </div>
               ))}
