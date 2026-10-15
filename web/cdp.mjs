@@ -12,7 +12,7 @@ export async function launch({ port = 9444, width = 1280, height = 800, focus = 
   const bin = CANDIDATES.find((p) => existsSync(p));
   if (!bin) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
   const profile = mkdtempSync(join(tmpdir(), 'od-cdp-'));
-  const proc = spawn(bin, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
+  const proc = spawn(bin, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', ...(process.env.CI ? ['--no-sandbox'] : []), '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
   let wsUrl;
   for (let i = 0; i < 60 && !wsUrl; i++) { await sleep(300); try { wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl; } catch { /* starting */ } }
   if (!wsUrl) throw new Error('Chrome did not start');

@@ -1,0 +1,68 @@
+{
+ "menu": {
+  "opened": true,
+  "outsideCloses": true,
+  "insideKeeps": true,
+  "escapeCloses": true
+ },
+ "exportMenu": [
+  "DIV:Image",
+  "BUTTON:PNG image.png",
+  "BUTTON:SVG image.svg",
+  "DIV:SQL",
+  "BUTTON:PostgreSQL.sql",
+  "BUTTON:MySQL.sql",
+  "BUTTON:SQL Server.sql",
+  "BUTTON:Oracle.sql",
+  "DIV:Other",
+  "BUTTON:DBML.dbml",
+  "BUTTON:JSON.json",
+  "BUTTON:Documentation (HTML).html",
+  "BUTTON:Documentation (Markdown).md",
+  "HR:",
+  "BUTTON:Copy DBML to clipboard"
+ ],
+ "arrange": {
+  "opened": true,
+  "insideKeeps": true,
+  "outsideCloses": true,
+  "escapeCloses": true
+ },
+ "search": {
+  "all": "",
+  "order": "order_items,orders,payments",
+  "dimOrder": 5,
+  "group": "categories,products,reviews",
+  "dimGroup": 5,
+  "column": "customers",
+  "wildcard": "order_items",
+  "cleared": true
+ },
+ "icons": "{\"dock\":[\"Zoom out:1\",\"Zoom in:1\",\"Fit to screen:1\",\"Collapse all tables:1\",\"Expand all tables:1\",\"Highlight relationships (show their names):1\",\"Add a sticky note (a Note block in the DBML):1\",\"Auto arrange (Auto):1\",\"Choose the arrange algorithm:1\"],\"panelIc\":[\"Save what you see now as a new view:1\",\"Filters:1\",\"Hide the tables listed below:1\",\"Hide all tables of this group:1\",\"Hide all tables of this group:1\",\"Hide all tables of this group:1\"]}",
+ "copy": "Clipboard blocked",
+ "brokenView": "Light|Curved|Full",
+ "picker": {
+  "cards": 6,
+  "start": 0,
+  "afterSelectShown": 6,
+  "afterClearShown": 0,
+  "afterOneClick": 1,
+  "afterClearAll": 0,
+  "groupCards": 6
+ },
+ "shared": {
+  "listed": true,
+  "schemasListedOnSelect": 2,
+  "importEnabled": true,
+  "imported": true
+ },
+ "groupsCount": {
+  "ticked": 3,
+  "footer": "3 selected of 6 · 1 group(s)",
+  "fullDdlBox": true,
+  "importedTables": "shop.customers,shop.orders,shop.v_customer_orders"
+ },
+ "fullDdl": {
+  "createView": true
+ }
+}

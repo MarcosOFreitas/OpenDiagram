@@ -22,7 +22,7 @@ Open <http://localhost:3000> and create the first account (it becomes the admini
 
 ## Checks
 
-There is no linter. Unit tests (`cd server && npm test`, `cd web && npm test`) run in seconds without Docker, in CI and, once enabled with `git config core.hooksPath .githooks`, before every commit; end-to-end scripts cover what a unit test cannot. A bug fix comes with a regression test that fails on the old code; a feature comes with tests for its logic. The scripts and what they need are in [`.specs/07-testing.md`](.specs/07-testing.md). At minimum, before opening a pull request:
+There is no linter. Unit tests (`cd server && npm test`, `cd web && npm test`) run in seconds without Docker, in CI and, once enabled with `git config core.hooksPath .githooks`, before every commit; the CI `e2e` job (`.github/ci-e2e.sh`) runs the end-to-end scripts, the UI audit and the behaviour fingerprint, which cover what a unit test cannot. A bug fix comes with a regression test that fails on the old code; a feature comes with tests for its logic. The scripts and what they need are in [`.specs/07-testing.md`](.specs/07-testing.md). At minimum, before opening a pull request:
 
 1. `cd web && npx vite build` and `node --check server/src/*.js` pass.
 2. The e2e scripts that cover what you touched pass (`server/test-auth.mjs`, `server/test-guardrails.mjs`, `web/roundtrip.mjs`, ...). Create a throw-away administrator with `docker compose exec app node src/cli.js create-admin ...` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`.
