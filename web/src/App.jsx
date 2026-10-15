@@ -497,7 +497,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [title, setTitle] = useState('');
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [error, setError] = useState('');
   const [conns, setConns] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [schemas, setSchemas] = useState([]);
@@ -601,9 +600,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         let list = await api('diagrams');
         let id = store('lastDiagram');
         if (!list.some((x) => x.id === id)) id = list[0]?.id;
-        if (!id) { // first sign-in: whatever the browser kept from the pre-accounts version, else the sample shop model
+        if (!id) { // first sign-in: the sample shop model
           const first = TEMPLATES[0];
-          id = (await api('diagrams', store('dbml') ? { title: store('title') || 'Untitled diagram', dbml: store('dbml') } : { title: first.title, dbml: first.dbml })).id;
+          id = (await api('diagrams', { title: first.title, dbml: first.dbml })).id;
           list = await api('diagrams');
         }
         if (off) return;
@@ -698,6 +697,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
 
   dbmlRef.current = dbml;
   const parsed = useMemo(() => parse(dbml), [dbml]);
+  const error = parsed.error || '';
   const lastGood = useRef(null);
   if (!parsed.error) lastGood.current = parsed;
   const docModel = useMemo(() => (mode === 'docs' && lastGood.current?.db ? buildModel(lastGood.current.db, lastGood.current.lineage) : null), [mode, parsed]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -708,8 +708,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }, [parsed, dbml]);
   const editorInfo = useMemo(() => (lastGood.current ? { tables: lastGood.current.tables.map((t) => ({ name: t.name, columns: t.fields.map((f) => f.name) })) } : null), [parsed]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (parsed.error) return setError(parsed.error);
-    setError('');
+    if (parsed.error) return;
     const fkCols = {};
     parsed.refs.forEach((r) => (fkCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames));
     const keyCols = {};
@@ -946,7 +945,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import'], ['history', 'History']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : [])];
   const tabName = Object.fromEntries(tabs);
   const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', history: 'History', share: 'Share', account: 'Account' };
-  const primary = ['share'].filter((k) => tabName[k]); // everything else lives under "Export" / "More"
   const LABEL = { view: 'view only', comment: 'can comment', edit: 'can edit', admin: 'administrator access' };
   const open = (t) => setDrawer(drawer === t ? null : t);
   useEffect(() => { store('editorW', String(editorW)); }, [editorW]);
@@ -997,7 +995,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </div>
         <div className="grow" />
         {canEdit && source && linked && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
-        {primary.map((k) => <button key={k} className={`tbtn ${drawer === k ? 'on' : ''}`} onClick={() => open(k)}>{tabName[k]}</button>)}
+        {tabName.share && <button className={`tbtn ${drawer === 'share' ? 'on' : ''}`} onClick={() => open('share')}>{tabName.share}</button>}
         <Menu trigger="Export" title="Download the diagram or its documentation"
           items={[{ header: 'Image' }, ...EXPORTS.filter(([k]) => ['png', 'svg'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
             { header: 'SQL' }, ...EXPORTS.filter(([k]) => ['postgres', 'mysql', 'mssql', 'oracle'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
@@ -1007,7 +1005,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           items={[...['diagrams', 'connect', 'import', 'history', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
             { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
         {user
-          ? <Menu align="right" title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
+          ? <Menu title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
             items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
               ...(user.role === 'admin' ? [{ key: 'admin', label: 'Administration', hint: 'users, groups, settings', onClick: () => setShowAdmin(true) }] : []),
               { sep: true }, { key: 'out', label: 'Sign out', danger: true, onClick: onLogout }]} />

@@ -4,7 +4,7 @@ import { dbml } from '../Editor.jsx';
 
 // Tiny Markdown renderer for the documentation pages (no dependency): headings, paragraphs, lists, tables,
 // fenced code (with a Copy button), blockquote callouts (> **Note** ...), rules and inline code / bold / italic / links.
-export const slugify = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*_]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slugify = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, '').replace(/[`*_]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // screenshots: ![alt](file.png) on its own line, files live in ./img (bundled by Vite)
 const IMGS = import.meta.glob('./img/*.{png,jpg,webp}', { query: '?url', import: 'default', eager: true });

@@ -1,0 +1,77 @@
+// Visual regression for refactors: screenshots of static screens (no timestamps, no random ids), then a pixel comparison.
+//   BASE=http://localhost:3110 SNAP_EMAIL=... SNAP_PASSWORD=... node web/visualsnap.mjs snap <outDir>
+//   node web/visualsnap.mjs compare <dirA> <dirB>      # exit 1 when any screen differs
+// Run `snap` against a THROW-AWAY instance (it creates a diagram), once on the old build and once on the new one, both on a
+// fresh instance with the same administrator, so the screens are comparable. Motion is forced to "reduce" so nothing is mid-animation.
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { launch, sleep } from './cdp.mjs';
+
+const [mode, a, b] = process.argv.slice(2);
+const BASE = process.env.BASE || 'http://localhost:3110';
+
+if (mode === 'compare') {
+  const B = await launch({ port: 9561 });
+  const files = readdirSync(a).filter((f) => f.endsWith('.png')).sort();
+  let bad = 0;
+  for (const f of files) {
+    let other; try { other = readFileSync(join(b, f)); } catch { console.log(`MISSING ${f}`); bad++; continue; }
+    const mine = readFileSync(join(a, f));
+    if (Buffer.compare(mine, other) === 0) { console.log(`same      ${f}`); continue; }
+    const n = await B.ev(`(async () => { const load = (b64) => new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.src = 'data:image/png;base64,' + b64; });
+      const [x, y] = await Promise.all([load(${JSON.stringify(mine.toString('base64'))}), load(${JSON.stringify(other.toString('base64'))})]);
+      if (x.width !== y.width || x.height !== y.height) return -1;
+      const c = (i) => { const k = document.createElement('canvas'); k.width = i.width; k.height = i.height; const g = k.getContext('2d'); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
+      const p = c(x), q = c(y); let d = 0; for (let i = 0; i < p.length; i += 4) if (Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2]) > 12) d++; return d; })()`);
+    console.log(`DIFFERENT ${f}  ${n < 0 ? 'size changed' : n + ' pixels'}`); bad++;
+  }
+  await B.close();
+  console.log(bad ? `${bad} screen(s) differ` : 'all screens identical');
+  process.exit(bad ? 1 : 0);
+}
+
+const EMAIL = process.env.SNAP_EMAIL, PASS = process.env.SNAP_PASSWORD;
+if (mode !== 'snap' || !a || !EMAIL || !PASS) { console.error('usage: see the header of the file'); process.exit(2); }
+if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000'); process.exit(2); }
+mkdirSync(a, { recursive: true });
+const { TEMPLATES } = await import('./src/templates.js');
+
+let cookie = '';
+const api = async (method, path, body) => { const r = await fetch(BASE + path, { method, headers: { 'content-type': 'application/json', origin: BASE, ...(cookie ? { cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }); const s = r.headers.get('set-cookie'); if (s) cookie = s.split(';')[0]; const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`${method} ${path} -> ${r.status}`); return j; };
+await api('POST', '/api/auth/login', { email: EMAIL, password: PASS });
+const id = (await api('POST', '/api/diagrams', { title: 'Online store - sample', dbml: TEMPLATES[0].dbml })).id;
+
+const B = await launch({ port: 9562 });
+const { ev, cdp, viewport } = B;
+await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+const HELP = `window.H = { w: (ms) => new Promise((r) => setTimeout(r, ms)),
+  btn: (t, root = document) => [...root.querySelectorAll('button,a,summary')].find((x) => x.textContent.trim().startsWith(t)),
+  click: async (t, root = document) => { const b = window.H.btn(t, root); if (!b) throw new Error('no button: ' + t); b.click(); await window.H.w(450); },
+  more: async (item) => { await window.H.click('More', document.querySelector('header.top')); await window.H.click(item, document.querySelector('.menu-pop')); await window.H.w(500); },
+  account: async (item) => { [...document.querySelectorAll('header.top .menu > .tbtn')].pop().click(); await window.H.w(300); await window.H.click(item, document.querySelector('.menu-pop')); await window.H.w(500); } };`;
+const go = async (path, { auth = true, theme = 'light', local = {} } = {}) => {
+  await cdp('Network.clearBrowserCookies'); await cdp('Page.navigate', { url: BASE + '/' }); await sleep(500);
+  await ev(`(async () => { localStorage.clear(); ${auth ? `await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ${JSON.stringify(EMAIL)}, password: ${JSON.stringify(PASS)} }) });` : ''} localStorage.setItem('view', JSON.stringify({ theme: ${JSON.stringify(theme)}, grid: true })); localStorage.setItem('lastDiagram', ${JSON.stringify(id)}); localStorage.setItem('tablesPanel', '0'); for (const [k, v] of Object.entries(${JSON.stringify(local)})) localStorage.setItem(k, v); })()`);
+  await cdp('Page.navigate', { url: BASE + path }); await sleep(2600); await ev(HELP);
+};
+const shot = async (name) => { await sleep(500); await ev('document.activeElement && document.activeElement.blur()'); const { data } = await cdp('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(a, `${name}.png`), Buffer.from(data, 'base64')); console.log('  ', name); };
+const S = [
+  ['login', () => go('/', { auth: false }), 'desktop'],
+  ['main', () => go('/'), 'desktop'], ['main-dark', () => go('/', { theme: 'dark' }), 'desktop'], ['main-phone', () => go('/'), 'phone'],
+  ['menu-more', async () => { await go('/'); await ev(`H.click('More', H.btn('More').closest('header'))`); }, 'desktop'],
+  ['menu-export', async () => { await go('/'); await ev(`H.click('Export', document.querySelector('header.top'))`); }, 'desktop'],
+  ['menu-account', async () => { await go('/'); await ev(`(async () => { [...document.querySelectorAll('header.top .menu > .tbtn')].pop().click(); await H.w(300); })()`); }, 'desktop'],
+  ['drawer-view', async () => { await go('/'); await ev(`H.more('View')`); }, 'desktop'],
+  ['drawer-import', async () => { await go('/'); await ev(`H.more('Import')`); }, 'desktop'],
+  ['drawer-database', async () => { await go('/'); await ev(`H.more('Database')`); }, 'desktop'],
+  ['share', async () => { await go('/'); await ev(`H.click('Share', document.querySelector('header.top'))`); }, 'desktop'],
+  ['tables-panel', () => go('/', { local: { tablesPanel: '1' } }), 'desktop'],
+  ['arrange-popover', async () => { await go('/'); await ev(`document.querySelector('.algo-toggle').click(); H.w(300)`); }, 'desktop'],
+  ['docs-view', async () => { await go('/'); await ev(`H.click('Docs', document.querySelector('.mode'))`); }, 'desktop'],
+  ['docs-view-dark', async () => { await go('/', { theme: 'dark' }); await ev(`H.click('Docs', document.querySelector('.mode'))`); }, 'desktop'],
+  ['admin-users', async () => { await go('/'); await ev(`(async () => { await H.account('Administration'); })()`); }, 'desktop'],
+  ['admin-settings', async () => { await go('/'); await ev(`(async () => { await H.account('Administration'); await H.click('Settings', document.querySelector('.admin-head .dtabs')); })()`); }, 'desktop'],
+  ['docsite', () => go('/docs/dbml', { auth: false }), 'desktop'],
+];
+for (const [name, fn, vp] of S) { await viewport(...(vp === 'phone' ? [375, 812, true] : [1280, 800])); await fn(); await shot(name); }
+await B.close(); process.exit(0);

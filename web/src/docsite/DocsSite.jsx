@@ -1,5 +1,5 @@
 import { Ic } from '../Icons.jsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './docsite.css';
 import { PAGES, NAV, ORDER } from './nav.js';
 import { render } from './md.jsx';
@@ -27,7 +27,6 @@ export default function DocsSite() {
   const [open, setOpen] = useState({});
   const [spy, setSpy] = useState('');
   const slug = slugOf(path), page = PAGES[slug];
-  const main = useRef(null);
 
   const go = (to, hash = '') => {
     const url = `${base}/${to === 'introduction' ? '' : to}${hash}`.replace(/\/$/, '') || base;
@@ -103,7 +102,7 @@ export default function DocsSite() {
             ))}
         </aside>
 
-        <main className="ds-main" ref={main}>
+        <main className="ds-main">
           {page ? (
             <article>
               <h1>{page.title}</h1>
