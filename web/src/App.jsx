@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import { Parser, exporter, importer } from '@dbml/core';
@@ -537,6 +537,15 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [activeEdge, setActiveEdge] = useState(null); // clicked relationship: focus it and its two tables
   const [drag, setDrag] = useState(false);
   const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
+  const modeBox = useRef(null); // the blue pill of the Diagram | Docs switch slides to the selected tab
+  const [pill, setPill] = useState(null), [pillReady, setPillReady] = useState(false);
+  const placePill = useCallback(() => {
+    const b = modeBox.current?.querySelector('[aria-selected="true"]');
+    if (b) setPill((o) => (o && o.x === b.offsetLeft && o.w === b.offsetWidth ? o : { x: b.offsetLeft, w: b.offsetWidth }));
+  }, []);
+  useLayoutEffect(() => { placePill(); }); // every render: the bar appears after the diagram has loaded, and the tab labels change with the width
+  useEffect(() => { window.addEventListener('resize', placePill); return () => window.removeEventListener('resize', placePill); }, [placePill]);
+  useEffect(() => { if (!pill || pillReady) return undefined; const t = setTimeout(() => setPillReady(true), 80); return () => clearTimeout(t); }, [pill, pillReady]); // no slide on the first paint
   const edW = Math.min(editorW, Math.max(240, window.innerWidth - 56)); // never wider than the screen
   const editorShown = editorOpen && mode !== 'docs'; // the Docs view takes the whole width; the editor comes back with the Diagram view
   const [comments, setComments] = useState([]);
@@ -977,7 +986,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             {peers.length > 4 && <span className="peer more" title={peers.slice(4).map((p) => p.name).join(', ')}>+{peers.length - 4}</span>}
           </div>
         )}
-        <div className="mode" role="tablist" aria-label="View mode">
+        <div className="mode" role="tablist" aria-label="View mode" ref={modeBox}>
+          <span className={`mode-pill ${pillReady ? 'ready' : ''}`} aria-hidden="true" style={pill ? { transform: `translateX(${pill.x}px)`, width: pill.w } : { opacity: 0 }} />
           <button role="tab" aria-selected={mode === 'diagram'} className={mode === 'diagram' ? 'on' : ''} onClick={() => setMode('diagram')}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><rect x="9.5" y="10" width="5" height="4" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M4 6v4h5.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>Diagram
           </button>
