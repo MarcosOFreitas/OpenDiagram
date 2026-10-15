@@ -117,7 +117,7 @@ Fine for your machine or a trusted network as is. **Before hosting it for other 
 - Auto-refresh runs in the browser and stops when the page is closed; there is no server-side scheduled refresh yet.
 - Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.
 - No e-mail verification, self-service password reset, SSO or account self-deletion yet; accounts are created by administrators (no e-mail invitations); share links are bearer secrets.
-- Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS`.
+- Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS` (mount the PEM and set it on the `app` service in `docker-compose.yml`).
 
 ## Credits and disclaimer
 
