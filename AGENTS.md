@@ -20,7 +20,7 @@ cd web && npx vite build                      # build into ../server/public; als
 node --check server/src/*.js                  # quick syntax check of the API
 ```
 
-There is **no unit-test framework and no linter**. Verification = the end-to-end scripts below plus driving the UI in a browser. All scripts accept `BASE=http://host:port` (default `http://localhost:3000`). Server tests need an administrator of the instance under test; create a throw-away one:
+There is **no linter**. Verification = unit tests (fast, no Docker) + the end-to-end scripts below + driving the UI in a browser. All scripts accept `BASE=http://host:port` (default `http://localhost:3000`). Server tests need an administrator of the instance under test; create a throw-away one:
 `docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'`, then `export TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=...`.
 
 ```bash
@@ -42,6 +42,7 @@ node web/behaviorcheck.mjs           # refactors: behaviour fingerprint of menus
 
 - `server/src/` plain ESM JavaScript, no build step. `index.js` Fastify routes + hooks (CSRF origin guard, login requirement, forced password change, security headers, SPA fallback); `db.js` SQLite schema and migrations; `auth.js` scrypt passwords, sessions, throttling, settings; `admin.js` users/groups/settings and the last-administrator guard; `diagrams.js` diagrams, versions, grants, links, comments, `roleFor`; `store.js` saved connections (secrets AES-256-GCM with `APP_SECRET`) and shared connections; `policy.js` SSRF host policy; `audit.js` audit log; `presence.js` who has a diagram open (memory only); `lineage.js` column lineage of views (SQL parsing); `introspect.js` per-engine catalog queries to a neutral model, read-only session setup, TLS, privilege checks; `dbml.js` neutral model to DBML; `cli.js` operator tool (`create-admin`, `reset-password`, `list-users`).
 - `web/src/` React 18 + Vite, JSX, no TypeScript. `App.jsx` root (auth gate, `/s/<token>` route) and `Workspace` (top bar, drawers, canvas, autosave, refresh); `Editor.jsx` CodeMirror 6 DBML editor; `Auth.jsx`, `Admin*.jsx`, `Library.jsx`, `SharePanel.jsx`, `History.jsx`, `TablePicker.jsx`, `TablesPanel.jsx`, `Menu.jsx`; `Icons.jsx` shared SVG icons; `a11y.js` accessible names and dialog focus handling; `docsModel.js` + `DocsPage.jsx` the generated documentation (view and standalone HTML/Markdown export); `lineage.js` the lineage comments; `templates.js` starter diagrams; `styles.css` all app styles; `docsite/` the public documentation site served at `/docs` (`pages/*.md` is the content).
+- `server/test/*.test.js` and `web/src/*.test.{js,jsx}` unit tests ([`.specs/07-testing.md`](.specs/07-testing.md) lists what each pins down); `.github/workflows/ci.yml` runs them with the build on every push and pull request.
 - `web/*.mjs` and `server/test-*.mjs` e2e and UI tools (above). `web/cdp.mjs` is the tiny Chrome DevTools driver they share and `web/fixtures.mjs` the API client and the accounts/diagrams the audit and picture tools seed.
 - `demo/` sample databases (PostgreSQL, Oracle, TLS proxies) for manual and e2e testing. `.specs/` product, architecture and security specs. `server/public` is a build artifact (git-ignored).
 

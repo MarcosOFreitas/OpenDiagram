@@ -1,6 +1,6 @@
 # 07 — Testing
 
-There is no unit-test framework. Verification is a set of end-to-end and pure scripts plus manual UI checks, and a UI audit tool. All accept `BASE=http://host:port` (default `http://localhost:3000`) and need an administrator of that stack (`TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`).
+Verification has three layers (the test pyramid). Unit tests are the base: fast, no Docker, run on every commit and in CI. End-to-end scripts and the UI tools sit on top and need a running stack. The e2e and UI scripts accept `BASE=http://host:port` (default `http://localhost:3000`) and need an administrator of that stack (`TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`).
 
 ## Setup
 

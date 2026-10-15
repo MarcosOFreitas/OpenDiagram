@@ -89,7 +89,7 @@ cd web && npm install && npm run dev           # http://localhost:5173
 cd web && npm run build
 ```
 
-Verification is end-to-end (no unit-test framework, no linter): the scripts and what each needs are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test: create a throw-away one with `docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`; `BASE=http://host:port` points them at another address (default `http://localhost:3000`).
+Unit tests run in seconds without Docker (`cd server && npm test`, `cd web && npm test`) and in CI; the rest of the verification is end-to-end (no linter): the scripts and what each needs are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test: create a throw-away one with `docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`; `BASE=http://host:port` points them at another address (default `http://localhost:3000`).
 
 Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI and the documentation site) · `demo/` (sample databases) · `.specs/` (product, architecture and security specs) · [`AGENTS.md`](AGENTS.md) (guide for AI coding agents). See [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute.
 
