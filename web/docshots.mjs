@@ -6,86 +6,39 @@
 //   docker exec shots-app node src/cli.js create-admin docs@example.com 'docs-shots-password-1'
 //   BASE=http://localhost:3100 SHOTS_EMAIL=docs@example.com SHOTS_PASSWORD=docs-shots-password-1 node web/docshots.mjs [only-name ...]
 // The demo PostgreSQL (`demo-pg`, docker compose up -d) must be reachable from the app container.
-import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { launch, sleep } from './cdp.mjs';
+import { Api, seedTeam } from './fixtures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, 'src/docsite/img');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const EMAIL = process.env.SHOTS_EMAIL, PASS = process.env.SHOTS_PASSWORD;
-const CHROME = process.env.CHROME || ['C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].find((p) => { try { return spawn(p, ['--version']).pid > 0; } catch { return false; } });
 const W = 1100, H = 700, ONLY = process.argv.slice(2);
 if (!EMAIL || !PASS) { console.error('set SHOTS_EMAIL and SHOTS_PASSWORD (an administrator of the throw-away instance)'); process.exit(2); }
 if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000 (your working instance); use a throw-away one, see the header'); process.exit(2); }
 const { TEMPLATES } = await import('./src/templates.js');
 const SAMPLE = TEMPLATES[0].dbml;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- API (fixtures)
-class Api {
-  cookie = '';
-  async call(method, path, body) {
-    const r = await fetch(BASE + path, { method, headers: { 'content-type': 'application/json', origin: BASE, ...(this.cookie ? { cookie: this.cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-    const set = r.headers.get('set-cookie'); if (set) this.cookie = set.split(';')[0];
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(`${method} ${path} -> ${r.status} ${j.error || ''}`);
-    return j;
-  }
-}
-const admin = new Api(), maya = new Api();
+// ---------- fixtures (API)
+const admin = new Api(BASE);
 await admin.call('POST', '/api/auth/login', { email: EMAIL, password: PASS });
 const me = (await admin.call('GET', '/api/auth/me')).user;
 if (me.role !== 'admin') throw new Error('the account must be an administrator');
-const users = await admin.call('GET', '/api/admin/users');
-if (users.length > 1 || (await admin.call('GET', '/api/diagrams')).length) console.warn('warning: the instance is not empty; the pictures may show other data');
+if ((await admin.call('GET', '/api/admin/users')).length > 1 || (await admin.call('GET', '/api/diagrams')).length) console.warn('warning: the instance is not empty; the pictures may show other data');
 await admin.call('PATCH', `/api/admin/users/${me.id}`, { name: 'Alex Morgan' }).catch(() => {});
-
-const MAYA_PASS = 'Maya-shots-pass-1';
-let mayaUser = users.find((u) => u.email === 'maya@example.com');
-if (!mayaUser) { await admin.call('POST', '/api/admin/users', { email: 'maya@example.com', name: 'Maya Santos', password: 'Maya-temp-pass-0' }); mayaUser = (await admin.call('GET', '/api/admin/users')).find((u) => u.email === 'maya@example.com'); }
-await maya.call('POST', '/api/auth/login', { email: 'maya@example.com', password: 'Maya-temp-pass-0' }).catch(() => maya.call('POST', '/api/auth/login', { email: 'maya@example.com', password: MAYA_PASS }));
-await maya.call('POST', '/api/auth/password', { current: 'Maya-temp-pass-0', next: MAYA_PASS }).catch(() => {});
-const groupId = (await admin.call('POST', '/api/admin/groups', { name: 'Analytics' })).id;
-await admin.call('PUT', `/api/admin/groups/${groupId}/members/${mayaUser.id}`, {}).catch(() => {});
-
-const DB = { host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader' };
-const shared = await admin.call('POST', '/api/admin/connections', { type: 'postgres', name: 'Demo shop (read-only)', ...DB, tls: 'off' });
-await admin.call('PUT', `/api/admin/connections/${shared.id}/access`, { groups: [groupId], users: [] });
-// use it as Maya so the audit log has a real story
-await maya.call('POST', '/api/schemas', { id: shared.id });
-const imp = await maya.call('POST', '/api/import', { id: shared.id, schemas: ['shop'] });
-const lineageDbml = imp.dbml + '\n\nNote note_1 {\n  \'Views are drawn with dashed arrows from the tables they read.\'\n}\n';
-
-const shop = (await admin.call('POST', '/api/diagrams', { title: 'Online store - sample', dbml: SAMPLE })).id;
-const lin = (await admin.call('POST', '/api/diagrams', { title: 'Shop (PostgreSQL)', dbml: lineageDbml })).id;
-// versions for History and the changelog
-const edits = [
-  [SAMPLE.replace('  phone varchar(30)\n', '  phone varchar(30)\n  birth_date date\n'), 'Added customer birth date'],
-  [SAMPLE.replace('  phone varchar(30)\n', '  phone varchar(30)\n  birth_date date\n').replace('  is_default boolean', '  country char(2)\n  is_default boolean'), 'Country on addresses'],
-];
-for (const [dbml, label] of edits) { await admin.call('PUT', `/api/diagrams/${shop}`, { dbml }); await admin.call('POST', `/api/diagrams/${shop}/versions`, { label }); await sleep(1100); }
-await admin.call('POST', `/api/diagrams/${shop}/access`, { type: 'user', subjectId: mayaUser.id, access: 'edit' });
-await admin.call('POST', `/api/diagrams/${lin}/access`, { type: 'user', subjectId: mayaUser.id, access: 'edit' });
+const base = SAMPLE.replace('  phone varchar(30)\n', '  phone varchar(30)\n  birth_date date\n');
+const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-shots-pass-1',
+  lineageExtra: "\n\nNote note_1 {\n  'Views are drawn with dashed arrows from the tables they read.'\n}\n", // a sticky note for the lineage picture
+  versions: [[base, 'Added customer birth date'], [base.replace('  is_default boolean', '  country char(2)\n  is_default boolean'), 'Country on addresses']] });
 await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
-const audit = (await admin.call('GET', '/api/admin/audit?limit=500')).length;
-console.log(`fixtures ready (diagrams ${shop.slice(0, 8)}, ${lin.slice(0, 8)}; audit rows ${audit})`);
+console.log(`fixtures ready (diagrams ${shop.slice(0, 8)}, ${lin.slice(0, 8)})`);
 
 // ---------- Chrome over CDP
-const profile = mkdtempSync(join(tmpdir(), 'docshots-'));
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=9333', `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', '--disable-gpu', `--window-size=${W},${H}`, 'about:blank'], { stdio: 'ignore' });
-let wsUrl;
-for (let i = 0; i < 60 && !wsUrl; i++) { await sleep(300); try { wsUrl = (await (await fetch('http://127.0.0.1:9333/json')).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl; } catch { /* starting */ } }
-if (!wsUrl) throw new Error('Chrome did not start');
-const ws = new WebSocket(wsUrl); await new Promise((r) => ws.addEventListener('open', r));
-let seq = 0; const waiting = new Map(); const events = [];
-ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } else events.push(d.method); });
-const cdp = (method, params = {}) => new Promise((res, rej) => { const id = ++seq; waiting.set(id, (d) => (d.error ? rej(new Error(`${method}: ${d.error.message}`)) : res(d.result))); ws.send(JSON.stringify({ id, method, params })); });
-const ev = async (expression) => { const r = await cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
-await cdp('Page.enable');
-await cdp('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+const B = await launch({ port: 9333, width: W, height: H, focus: false });
+const { cdp, ev } = B;
 
 // helpers that live in the page
 const HELP = `window.H = {
@@ -161,7 +114,7 @@ try {
     await shot('lineage-notes-presence'); clearInterval(beat);
   }
 } finally {
-  ws.close(); chrome.kill(); await sleep(500); try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold the profile */ }
+  await B.close();
 }
 console.log('done; review every picture before committing (no personal data, nothing cut off)');
 process.exit(0);

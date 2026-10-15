@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { launch, sleep } from './cdp.mjs';
+import { Api, seedTeam } from './fixtures.mjs';
 
 const BASE = process.env.BASE || 'http://localhost:3100', EMPTY = process.env.BASE_EMPTY;
 const EMAIL = process.env.AUDIT_EMAIL, PASS = process.env.AUDIT_PASSWORD;
@@ -21,35 +22,11 @@ const { TEMPLATES } = await import('./src/templates.js');
 const SAMPLE = TEMPLATES[0].dbml;
 
 // ---------- fixtures (API)
-class Api {
-  cookie = '';
-  async call(method, path, body, base = BASE) {
-    const r = await fetch(base + path, { method, headers: { 'content-type': 'application/json', origin: base, ...(this.cookie ? { cookie: this.cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-    const set = r.headers.get('set-cookie'); if (set) this.cookie = set.split(';')[0];
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(`${method} ${path} -> ${r.status} ${j.error || ''}`);
-    return j;
-  }
-}
-const admin = new Api(), maya = new Api();
+const admin = new Api(BASE);
 await admin.call('POST', '/api/auth/login', { email: EMAIL, password: PASS });
-await admin.call('POST', '/api/admin/users', { email: 'maya@example.com', name: 'Maya Santos', password: 'Maya-temp-pass-0' });
 await admin.call('POST', '/api/admin/users', { email: 'temp@example.com', name: 'Temp User', password: 'Temp-pass-0000' }); // stays "must change password"
-const list = await admin.call('GET', '/api/admin/users');
-const mayaId = list.find((u) => u.email === 'maya@example.com').id;
-await maya.call('POST', '/api/auth/login', { email: 'maya@example.com', password: 'Maya-temp-pass-0' });
-await maya.call('POST', '/api/auth/password', { current: 'Maya-temp-pass-0', next: 'Maya-audit-pass-1' });
-const group = (await admin.call('POST', '/api/admin/groups', { name: 'Analytics' })).id;
-await admin.call('PUT', `/api/admin/groups/${group}/members/${mayaId}`, {});
-const DB = { host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader' };
-const shared = await admin.call('POST', '/api/admin/connections', { type: 'postgres', name: 'Demo shop (read-only)', ...DB, tls: 'off' });
-await admin.call('PUT', `/api/admin/connections/${shared.id}/access`, { groups: [group], users: [] });
-const imp = await maya.call('POST', '/api/import', { id: shared.id, schemas: ['shop'] });
-const shop = (await admin.call('POST', '/api/diagrams', { title: 'Online store - sample', dbml: SAMPLE + '\n\nNote note_1 {\n  \'A sticky note\'\n}\n' })).id;
-const lin = (await admin.call('POST', '/api/diagrams', { title: 'Shop (PostgreSQL)', dbml: imp.dbml })).id;
-for (const [i, label] of ['First', 'Second'].entries()) { await admin.call('PUT', `/api/diagrams/${shop}`, { dbml: SAMPLE.replace('  phone varchar(30)\n', `  phone varchar(30)\n  extra_${i} int\n`) }); await admin.call('POST', `/api/diagrams/${shop}/versions`, { label: `${label} version` }); await sleep(1100); }
-await admin.call('POST', `/api/diagrams/${shop}/access`, { type: 'user', subjectId: mayaId, access: 'edit' });
-await admin.call('POST', `/api/diagrams/${lin}/access`, { type: 'user', subjectId: mayaId, access: 'edit' });
+const versions = ['First', 'Second'].map((label, i) => [SAMPLE.replace('  phone varchar(30)\n', `  phone varchar(30)\n  extra_${i} int\n`), `${label} version`]);
+const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-audit-pass-1', sampleExtra: "\n\nNote note_1 {\n  'A sticky note'\n}\n", versions });
 const open = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
 const locked = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view', password: 'link-secret-1' });
 await maya.call('POST', `/api/diagrams/${shop}/comments`, { body: 'A comment from Maya', target: 'table:customers' }).catch(() => {});
