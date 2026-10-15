@@ -561,7 +561,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     toastTimer.current = setTimeout(() => setToast(null), type === 'err' ? 7000 : 3000);
   }, []);
   const loadConns = useCallback(() => (shared ? Promise.resolve() : api('connections').then(setConns).catch((e) => notify('err', e.message))), [notify, shared]);
-  useEffect(() => { loadConns(); }, [loadConns]);
+  const connectOpen = drawer === 'connect';
+  useEffect(() => { loadConns(); }, [loadConns, connectOpen, showAdmin]); // also when the Database drawer opens and when Administration closes: a connection registered or shared there appears without a reload
 
   // what the current role may do
   const access = doc?.access; // owner | edit | comment | view
