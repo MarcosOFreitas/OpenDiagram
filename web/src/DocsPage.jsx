@@ -64,7 +64,7 @@ td .cmt{margin:0}
 .cmt-actions button:disabled{opacity:.5;cursor:default}
 .dx-body{overflow-x:auto}
 .dx-table:not([open])>.dx-body{display:none}
-.dx td:last-child .cmt,.dx td:last-child .cmt-in{min-width:170px}
+.dx td:last-child .cmt,.dx td:last-child .cmt-in{min-width:120px}.dx td{overflow-wrap:anywhere}
 .cmt-in{min-height:52px;display:block}
 @media (max-width:760px){.dx{flex-direction:column}.dx-nav,.dx.nav-closed .dx-nav{width:100%;max-height:40%;padding:16px 12px;border-right:1px solid var(--line);overflow:auto}.dx-toggle,.dx-grip{display:none!important}.dx-main{padding:20px}}
 @media print{.dx{display:block;height:auto}.dx-nav,.dx-toggle,.dx-grip{display:none}.dx-main{overflow:visible}}

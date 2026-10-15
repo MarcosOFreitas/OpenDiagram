@@ -16,7 +16,7 @@ export default function AdminAudit({ setErr }) {
       <div className="audit-bar">
         <select value={action} onChange={(e) => setAction(e.target.value)} aria-label="Kind of event">{FILTERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <input placeholder="Search person, connection, diagram or detail" value={q} onChange={(e) => setQ(e.target.value)} />
-        <a className="tbtn" href={`/api/admin/audit.csv?${new URLSearchParams({ ...(action ? { action } : {}), ...(q.trim() ? { q: q.trim() } : {}) })}`} download>Download CSV</a>
+        <a className="btn" href={`/api/admin/audit.csv?${new URLSearchParams({ ...(action ? { action } : {}), ...(q.trim() ? { q: q.trim() } : {}) })}`} download>Download CSV</a>
       </div>
       <small className="hint">Kept for 180 days. It records the use of <b>shared</b> connections (test, list tables, import, refresh) and every change made in the Administration panel. Personal connections are private and are not recorded.</small>
       {rows && rows.length === 0 && <small className="hint">Nothing recorded for this filter.</small>}

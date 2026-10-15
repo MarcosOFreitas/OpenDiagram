@@ -73,11 +73,6 @@ header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex
 .dbody > * { flex-shrink: 0; } /* children with overflow (e.g. .schemas) must not collapse when the content is taller than the drawer */
 .dbody h4 { margin: 8px 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .dbody h4 a { color: var(--accent); cursor: pointer; text-transform: none; letter-spacing: 0; }
-.dbody button { padding: 8px 12px; border: 1px solid #d5dbe5; border-radius: 6px; background: #f7f9fc; }
-.dbody button:hover:not(:disabled) { background: #eef2f9; }
-.dbody button:disabled { opacity: .5; cursor: not-allowed; }
-.dbody button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.dbody button.primary:hover:not(:disabled) { background: #1d4fd0; }
 .row { display: flex; gap: 8px; } .row > * { flex: 1; min-width: 0; } .row .port { flex: 0 0 76px; }
 .seg { display: flex; border: 1px solid #d5dbe5; border-radius: 7px; overflow: hidden; }
 .seg button { flex: 1; border: 0 !important; border-radius: 0 !important; background: #fff !important; }
@@ -183,9 +178,6 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .admin-head .x { border: 0; background: transparent; font-size: 16px; color: #6b7280; }
 .admin-body { padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
 .admin-form { display: grid; grid-template-columns: 1.4fr 1fr 150px 1.2fr auto; gap: 8px; }
-.admin-form button, .admin-table button, .group-head button, .admin-settings button { padding: 7px 12px; border: 1px solid #d5dbe5; border-radius: 6px; background: #f7f9fc; }
-.admin-form button.primary, .admin-settings button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.admin-form button:disabled, .admin-table button:disabled { opacity: .45; cursor: not-allowed; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .admin-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .admin-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -370,3 +362,83 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .conn-form { display: flex; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid var(--line, #e3e7ee); border-radius: 10px; }
 .audit-bar { display: flex; gap: 8px; align-items: center; } .audit-bar input { flex: 1; } .audit-bar select { width: auto; }
 .admin-table.audit td { vertical-align: top; font-size: 12.5px; } .admin-table.audit tr.bad td { background: rgba(239, 68, 68, .08); } .audit-detail { max-width: 340px; overflow-wrap: anywhere; color: #4b5563; }
+
+/* ===== UI foundation: tokens, one shared control look, motion =====
+   Everything below is a layer over the rules above. Buttons and fields in drawers, dialogs and the administration
+   panel share one look (zero-specificity base, so specific rules such as .seg, .tp-sw or .ghost still win).
+   Motion only uses opacity/transform and never touches canvas nodes (performance); it is off for prefers-reduced-motion. */
+:root {
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --ctl: 34px; --ctl-sm: 28px;
+  --ease: cubic-bezier(.2, .7, .2, 1); --t-fast: .12s; --t: .18s;
+  --focus: 0 0 0 3px rgba(37, 99, 235, .32);
+  --btn-bg: #f7f9fc; --btn-hover: #eef2f9; --btn-line: #d5dbe5; --accent-hover: #1d4fd0;
+}
+
+/* controls */
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button, a.btn) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--ctl); padding: 0 14px;
+  border: 1px solid var(--btn-line); border-radius: var(--r-md); background: var(--btn-bg); color: inherit; font-weight: 500;
+  text-decoration: none; white-space: nowrap; user-select: none;
+  transition: background var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast), opacity var(--t-fast);
+}
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button, a.btn):hover:not(:disabled) { background: var(--btn-hover); }
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button, a.btn):active:not(:disabled) { transform: translateY(1px); }
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button):disabled { opacity: .5; cursor: not-allowed; }
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button.primary, a.btn.primary) { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+:where(.dbody, .admin-body, .tp-foot, .tp-bar, .tp-row, .newer, .hist-name, .conn-form) :where(button.primary, a.btn.primary):hover:not(:disabled) { background: var(--accent-hover); }
+/* compact buttons inside rows and cards */
+.admin-table td.actions button, .group-head button, .card.hist button, .newer button, .btn.sm { min-height: var(--ctl-sm); padding: 0 10px; font-size: 12px; }
+.grid button { padding: 8px 12px; }
+/* a lone primary action does not stretch across a column */
+.admin-body > button { align-self: flex-start; }
+.audit-bar .btn { flex: none; }
+.audit-bar > * { height: var(--ctl); }
+
+/* fields: one height, one focus ring */
+:where(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]), select) { height: var(--ctl); }
+.admin-table select, .group-members select { height: var(--ctl-sm); }
+.top input { height: 30px; }
+input, select, textarea { border-radius: var(--r-md); transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--focus); }
+.tpn input:focus, .tpn select:focus { outline: none; box-shadow: var(--focus); }
+:where(button, a, summary, [tabindex]):focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.top :where(button, a):focus-visible { outline-offset: -2px; }
+
+/* shared surfaces */
+.card, .tp-card, .tpn-row, .tpn-sh, .menu-pop button, .algo-pop button, .dock button, .tbtn, .top .mode button, .tpn-ic, .tpn-chip, .tp-g, .group-card {
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast), transform var(--t-fast);
+}
+.dock button:active, .tbtn:active, .tpn-ic:active:not(:disabled) { transform: translateY(1px); }
+.card, .tp-card, .group-card, .tp-g, .tp-new, .share, .conn-form, .ex { border-radius: var(--r-lg); }
+.menu-pop, .algo-pop, .dock { border-radius: var(--r-lg); }
+.tpn-chip, .chip, .chip-access { border-radius: 999px; }
+.dtabs button { transition: color var(--t-fast), border-color var(--t-fast); }
+.dtabs button:hover:not(.on) { color: #1f2937; }
+.shell[data-theme="dark"] .dtabs button:hover:not(.on) { color: #fff; }
+
+/* the auth card keeps its own primary button: same radius/height as the rest */
+.auth-card .primary { height: var(--ctl); border-radius: var(--r-md); transition: background var(--t-fast), transform var(--t-fast); }
+.auth-card .primary:hover:not(:disabled) { background: var(--accent-hover); }
+.auth-card .primary:active:not(:disabled) { transform: translateY(1px); }
+
+/* motion */
+@keyframes od-fade { from { opacity: 0; } }
+@keyframes od-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+@keyframes od-drop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes od-rise { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+@keyframes od-slide-r { from { opacity: 0; transform: translateX(16px); } }
+@keyframes od-toast { from { opacity: 0; transform: translate(-50%, -10px); } }
+.admin { animation: od-fade var(--t) ease-out; }
+.admin-card { animation: od-pop .22s var(--ease); }
+.menu-pop { animation: od-drop var(--t-fast) var(--ease); transform-origin: top; }
+.algo-pop { animation: od-rise var(--t-fast) var(--ease); transform-origin: bottom right; }
+.toast { animation: od-toast .2s var(--ease); }
+.tpn { animation: od-slide-r .2s var(--ease); }
+.dbody, .auth-card { animation: od-fade var(--t) ease-out; }
+.newer { animation: od-drop .2s var(--ease); }
+.savestate { transition: color var(--t); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+.dock { transition: left var(--t) var(--ease); } /* follows the side panels instead of hiding under them */
+.mini, .tpn-toggle { transition: right var(--t) var(--ease); }

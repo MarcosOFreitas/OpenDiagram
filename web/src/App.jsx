@@ -1046,7 +1046,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
-          <div className="dock">
+          <div className="dock" style={{ left: `calc(50% - ${((drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0)) / 2}px)` }}>
             <button onClick={() => zoomOut()} title="Zoom out">−</button>
             <span>{Math.round(zoom * 100)}%</span>
             <button onClick={() => zoomIn()} title="Zoom in">+</button>
