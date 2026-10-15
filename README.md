@@ -25,7 +25,7 @@ Open-source, self-hostable database diagramming tool in the spirit of dbdiagram.
 Requires Docker with Compose v2 (Docker Desktop on Windows and macOS). Node 24 is only needed for [development](#develop).
 
 ```bash
-git clone https://github.com/MarcosOliveira-Intelicity/rea_dbdiagram.git && cd rea_dbdiagram
+git clone https://github.com/MarcosOliveira-Intelicity/OpenDiagram.git && cd OpenDiagram
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
 docker compose up -d --build    # app on :3000 + demo Postgres
 docker compose --profile oracle up -d   # optional: demo Oracle Free (the first start is slow)

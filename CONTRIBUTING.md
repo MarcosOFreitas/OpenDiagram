@@ -11,7 +11,7 @@ Thanks for helping. This project is small on purpose: the smallest change that s
 ## Set up
 
 ```bash
-git clone https://github.com/<you>/rea_dbdiagram.git   # your fork of https://github.com/MarcosOliveira-Intelicity/rea_dbdiagram
+git clone https://github.com/<you>/OpenDiagram.git   # your fork of https://github.com/MarcosOliveira-Intelicity/OpenDiagram
 cp .env.example .env                          # set APP_SECRET (openssl rand -hex 32)
 docker compose up -d --build                  # app on http://localhost:3000 + demo databases
 cd server && npm install && npm start         # or: run the API from source (Node 24)
