@@ -6,7 +6,7 @@ import { viewColumnLineage } from './lineage.js';
 const key = (s, n) => `${s}.${n}`;
 
 // views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists
-function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = []) {
+export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = []) {
   const tables = new Map();
   for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] });
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
