@@ -1,6 +1,11 @@
 // Parsed DBML (@dbml/core Database) -> plain documentation model, plus Markdown rendering.
 export const slug = (s) => `t_${String(s).replace(/\W+/g, '_')}`;
-const tid = (schema, name) => `${schema || 'public'}.${name}`;
+export const tid = (schema, name) => `${schema || 'public'}.${name}`;
+export function commentMap(list = []) {
+  const m = new Map();
+  for (const c of list) { if (!m.has(c.key)) m.set(c.key, []); m.get(c.key).push(c); }
+  return m;
+}
 const defaultText = (d) => (!d ? '' : d.type === 'expression' ? `\`${d.value}\`` : d.type === 'string' ? `'${d.value}'` : String(d.value));
 
 // lineage: edges from lineageEdges() ({ source, target, sCols, tCols }); each table gets `builtFrom` (its sources) and `feeds` (what is built from it)
@@ -64,8 +69,7 @@ export function ordered(model) {
 const esc = (s) => String(s).replaceAll('|', '\\|').replaceAll('\n', ' ');
 
 export function toMarkdown(model, title, commentList = [], changelog = []) {
-  const byKey = new Map();
-  for (const c of commentList) byKey.set(c.key, [...(byKey.get(c.key) || []), c]);
+  const byKey = commentMap(commentList);
   const flat = (k) => (byKey.get(k) || []).map((c) => `${c.author}: ${c.text}`.replaceAll('\n', ' ')).join(' / ');
   const out = [`# ${title || model.name || 'Database documentation'}`, ''];
   if (model.databaseType) out.push(`*Database: ${model.databaseType}*`, '');

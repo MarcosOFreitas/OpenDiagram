@@ -1,7 +1,7 @@
 // Generated database documentation (dbdocs-style): used live in the app and as a standalone HTML export.
 import { useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { slug, display, constraints, ordered, linkCols } from './docsModel.js';
+import { slug, display, constraints, ordered, linkCols, commentMap } from './docsModel.js';
 
 export const docsCss = `
 .dx{--bg:#fff;--fg:#1f2937;--muted:#5b6472;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -297,11 +297,6 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set(), chan
   );
 }
 
-export function commentMap(list = []) {
-  const m = new Map();
-  for (const c of list) { if (!m.has(c.key)) m.set(c.key, []); m.get(c.key).push(c); }
-  return m;
-}
 
 const STORE_KEY = 'docsCollapsed';
 const readCollapsed = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]')); } catch { return new Set(); } };

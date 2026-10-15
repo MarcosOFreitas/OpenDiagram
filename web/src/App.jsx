@@ -5,15 +5,15 @@ import { Parser, exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
 import { DocsView, standaloneHtml } from './DocsPage.jsx';
-import { buildModel, toMarkdown } from './docsModel.js';
+import { buildModel, toMarkdown, tid } from './docsModel.js';
 
-import { api, store, errMsg, ago, sharePassword } from './api.js';
+import { api, store, errMsg, ago, sharePassword, copyText } from './api.js';
 import AuthScreen, { PasswordForm } from './Auth.jsx';
 import Admin from './Admin.jsx';
-import Menu from './Menu.jsx';
+import Menu, { useDismiss } from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
-import TablePicker, { matcher } from './TablePicker.jsx';
+import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import History from './History.jsx';
 import { lineageEdges, closure, MANUAL } from './lineage.js';
 import TablesPanel from './TablesPanel.jsx';
@@ -24,7 +24,9 @@ const lum = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) r
 const readable = (hex) => (1.05 / (lum(hex) + 0.05) >= (lum(hex) + 0.05) / 0.059 ? '#fff' : '#111827'); // white vs near-black: whichever contrasts more
 import { BLANK, TEMPLATES } from './templates.js';
 
-const tid = (schema, name) => `${schema || 'public'}.${name}`;
+const VIEW0 = { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
+const PAD = 22, HEAD = 18; // a TableGroup box: padding around its tables + the title strip above them (layout and drawn box must agree)
+const cid = (r) => tid(r.child.schemaName, r.child.tableName), pid = (r) => tid(r.parent.schemaName, r.parent.tableName); // a ref's two table ids
 
 // DBML text -> {tables, refs, groups} for the diagram
 // the import writes `VIEW` / `MATERIALIZED VIEW` + the SQL into the table note
@@ -175,7 +177,7 @@ function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
     gr.tables.forEach((id) => { if (g.hasNode(id) && !grouped.has(id)) { g.setParent(id, `g:${gr.name}`); grouped.add(id); } });
   });
   refs.forEach((r) => {
-    const a = tid(r.child.schemaName, r.child.tableName), b = tid(r.parent.schemaName, r.parent.tableName);
+    const a = cid(r), b = pid(r);
     if (g.hasNode(a) && g.hasNode(b)) g.setEdge(a, b);
   });
   dagre.layout(g);
@@ -187,7 +189,7 @@ function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
 // Snowflake: the most connected table in the center, its neighbours in rings (breadth-first levels) around it
 function snowflakeBlock(ts, cr) {
   const byId = new Map(ts.map((t) => [t.id, t])), adj = new Map(ts.map((t) => [t.id, new Set()]));
-  cr.forEach((r) => { const a = tid(r.child.schemaName, r.child.tableName), b = tid(r.parent.schemaName, r.parent.tableName); if (a !== b && adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } });
+  cr.forEach((r) => { const a = cid(r), b = pid(r); if (a !== b && adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } });
   const center = [...ts].sort((a, b) => adj.get(b.id).size - adj.get(a.id).size || a.id.localeCompare(b.id))[0];
   const level = new Map([[center.id, 0]]), parentOf = new Map(), rings = [[center]];
   let frontier = [center.id];
@@ -216,9 +218,9 @@ function snowflakeBlock(ts, cr) {
 // Pipeline: stages left to right by dependency (referenced tables first). With TableGroups every group is a stage (its box included);
 // without groups the stages are the dependency ranks. Tables are stacked vertically, wrapping into sub-columns when a stage gets too tall.
 function pipelinePositions(tables, refs, groups) {
-  const PAD = 22, HEAD = 18, MAXH = 2600;
+  const MAXH = 2600;
   const byId = new Map(tables.map((t) => [t.id, t]));
-  const edges = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => a !== b && byId.has(a) && byId.has(b));
+  const edges = refs.map((r) => [cid(r), pid(r)]).filter(([a, b]) => a !== b && byId.has(a) && byId.has(b));
   const rankOf = (ids, deps) => { // longest dependency chain; cycles are cut where they are first met
     const memo = new Map(), seen = new Set();
     const rank = (id) => {
@@ -266,7 +268,7 @@ function pipelinePositions(tables, refs, groups) {
 function blocksOf(tables, refs, mode = 'auto') { // mode: auto (dagre per component) | snowflake | compact (everything in the balanced columns)
   const parent = new Map(tables.map((t) => [t.id, t.id]));
   const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
-  const ends = refs.map((r) => [tid(r.child.schemaName, r.child.tableName), tid(r.parent.schemaName, r.parent.tableName)]).filter(([a, b]) => parent.has(a) && parent.has(b));
+  const ends = refs.map((r) => [cid(r), pid(r)]).filter(([a, b]) => parent.has(a) && parent.has(b));
   ends.forEach(([a, b]) => parent.set(find(a), find(b)));
   const comps = new Map();
   tables.forEach((t) => { const r = find(t.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); });
@@ -274,7 +276,7 @@ function blocksOf(tables, refs, mode = 'auto') { // mode: auto (dagre per compon
   for (const ts of comps.values()) {
     if (mode === 'compact' || ts.length === 1) { loose.push(...ts); continue; }
     const ids = new Set(ts.map((t) => t.id));
-    const cr = refs.filter((r) => ids.has(tid(r.child.schemaName, r.child.tableName)) && ids.has(tid(r.parent.schemaName, r.parent.tableName)));
+    const cr = refs.filter((r) => ids.has(cid(r)) && ids.has(pid(r)));
     if (mode === 'snowflake' && ts.length > 2) { blocks.push(snowflakeBlock(ts, cr)); continue; }
     const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x + tableWidth(t))), h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
     let best = size(dagrePositions(ts, cr));
@@ -314,7 +316,7 @@ function shelfPack(blocks, gap = 60, aspect = 1.8) {
 // Groups: every TableGroup is laid out on its own and becomes one block with room for its box (22px padding + 18px title),
 // so boxes never overlap; ungrouped tables are blocks as usual; then all blocks are packed together.
 function groupedPositions(tables, refs, groups, mode = 'auto') {
-  const byId = new Map(tables.map((t) => [t.id, t])), used = new Set(), PAD = 22, HEAD = 18, blocks = [];
+  const byId = new Map(tables.map((t) => [t.id, t])), used = new Set(), blocks = [];
   for (const gr of groups) {
     const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); });
     if (!ts.length) continue;
@@ -389,10 +391,10 @@ function diffSummary(oldDbml, newDbml) {
   const parts = [add && `+${add} table(s)`, rem && `−${rem} table(s)`, chg && `${chg} changed`].filter(Boolean);
   return parts.length ? parts.join(', ') : 'indexes/relationships/comments changed';
 }
-const EXPORTS = [
-  ['dbml', 'DBML', '.dbml'], ['postgres', 'PostgreSQL', '.sql'], ['mysql', 'MySQL', '.sql'], ['mssql', 'SQL Server', '.sql'],
-  ['oracle', 'Oracle', '.sql'], ['json', 'JSON', '.json'], ['png', 'PNG image', '.png'], ['svg', 'SVG image', '.svg'],
-  ['docs-html', 'Documentation (HTML)', '.html'], ['docs-md', 'Documentation (Markdown)', '.md'],
+const EXPORTS = [ // key, label, extension, group of the Export menu
+  ['dbml', 'DBML', '.dbml', 'Other'], ['postgres', 'PostgreSQL', '.sql', 'SQL'], ['mysql', 'MySQL', '.sql', 'SQL'], ['mssql', 'SQL Server', '.sql', 'SQL'],
+  ['oracle', 'Oracle', '.sql', 'SQL'], ['json', 'JSON', '.json', 'Other'], ['png', 'PNG image', '.png', 'Image'], ['svg', 'SVG image', '.svg', 'Image'],
+  ['docs-html', 'Documentation (HTML)', '.html', 'Other'], ['docs-md', 'Documentation (Markdown)', '.md', 'Other'],
 ];
 
 function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, onOrg }) {
@@ -523,7 +525,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => { store('tablesPanel', panelOpen ? '1' : '0'); }, [panelOpen]);
   const [sqlFmt, setSqlFmt] = useState('postgres');
   const [paste, setPaste] = useState('');
-  const [view, setView] = useState(() => { try { return { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light', ...JSON.parse(store('view') || '{}') }; } catch { return { edgeType: 'default', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; } });
+  const [view, setView] = useState(() => { try { return { ...VIEW0, ...JSON.parse(store('view') || '{}') }; } catch { return VIEW0; } });
   useEffect(() => { // while a named view is active, its detail level and highlight travel with the diagram (not only with this browser)
     const lr = layoutRef.current;
     if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs && lr['@lineage'] === (view.lineage !== false))) return;
@@ -710,9 +712,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => {
     if (parsed.error) return;
     const fkCols = {};
-    parsed.refs.forEach((r) => (fkCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames));
+    parsed.refs.forEach((r) => (fkCols[cid(r)] ||= []).push(...r.child.fieldNames));
     const keyCols = {};
-    parsed.refs.forEach((r) => { (keyCols[tid(r.child.schemaName, r.child.tableName)] ||= []).push(...r.child.fieldNames); (keyCols[tid(r.parent.schemaName, r.parent.tableName)] ||= []).push(...r.parent.fieldNames); });
+    parsed.refs.forEach((r) => { (keyCols[cid(r)] ||= []).push(...r.child.fieldNames); (keyCols[pid(r)] ||= []).push(...r.parent.fieldNames); });
     const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [] }));
     setNodes((old) => {
       const pos = new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]);
@@ -722,8 +724,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       return [...tn, ...notes];
     });
     setEdges(parsed.refs.map((r) => ({
-      id: r.id, source: tid(r.child.schemaName, r.child.tableName), sourceHandle: `s:${r.child.fieldNames[0]}`,
-      target: tid(r.parent.schemaName, r.parent.tableName), targetHandle: `t:${r.parent.fieldNames[0]}`,
+      id: r.id, source: cid(r), sourceHandle: `s:${r.child.fieldNames[0]}`,
+      target: pid(r), targetHandle: `t:${r.parent.fieldNames[0]}`,
       label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0], name: r.name || '' },
     })).concat((parsed.lineage || []).flatMap((l) => (l.maps.length // column mappings: one arrow per column pair; otherwise one table-level arrow
       ? l.maps.map((m, i) => ({ id: `${l.id}#${i}`, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: [m.s], tCols: [m.t], manual: l.manual, name: '' } }))
@@ -757,8 +759,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const setNotesShown = () => { if (!notesOn) setView((v) => ({ ...v, notes: true })); };
   const lineageOn = view.lineage !== false; // dashed data-lineage arrows (from the `// lineage:` comments) can be switched off
   const shown = useMemo(() => {
-    const q = search.trim().toLowerCase(), m = matcher(search), groupName = new Map((parsed.groups || []).flatMap((g) => g.tables.map((t) => [t, g.name.toLowerCase()])));
-    const hit = (t) => m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupName.get(t.id) || '').includes(q);
+    const q = search.trim(), match = tableMatcher(search), groupName = new Map((parsed.groups || []).flatMap((g) => g.tables.map((t) => [t, g.name])));
+    const hit = (t) => match(t, groupName.get(t.id));
     const sz = layoutRef.current['@sizes'] || {};
     const ends = activeEdge ? (() => { const e = edges.find((x) => x.id === activeEdge); return e ? [e.source, e.target] : null; })() : null;
     const gMembers = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
@@ -775,8 +777,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       const m = gr.tables.map((id) => byId.get(id)).filter(Boolean);
       if (!m.length) return [];
       const b = getNodesBounds(m.map((n) => ({ ...n, measured: { width: n.measured?.width ?? 220, height: n.measured?.height ?? tableHeight(n.data) } })));
-      const pad = 22, w = b.width + pad * 2, h = b.height + pad * 2 + 18;
-      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - pad, y: b.y - pad - 18 }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit, active: activeGroup === gr.name }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
+      const w = b.width + PAD * 2, h = b.height + PAD * 2 + HEAD;
+      return [{ id: `g:${gr.name}`, type: 'grp', position: { x: b.x - PAD, y: b.y - PAD - HEAD }, data: { name: gr.name, color: gr.color, w, h, canMove: canEdit, active: activeGroup === gr.name }, width: w, height: h, draggable: canEdit, dragHandle: '.grp-handle', style: { pointerEvents: 'none' }, selectable: false, focusable: false, zIndex: -1 }];
     });
     const stickies = notesOn ? nodes.filter((n) => n.type === 'note').map((n) => ({ ...n, draggable: canEdit, data: { ...n.data, w: sz[n.id]?.w, h: sz[n.id]?.h, canEdit, dark: view.theme === 'dark', autoEdit: newNote.current === n.id, onEdit: editNote, onRemove: removeNote, onSize } })) : [];
     return [...boxes, ...tables, ...stickies];
@@ -820,12 +822,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }); }, [edges, nodes, lineageOn, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
-  useEffect(() => { // close on any click outside the menu or Escape (a fixed backdrop inside the transformed dock would only cover the dock)
-    if (!algoOpen) return undefined;
-    const away = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !e.target.closest?.('.algo-pop, .algo-toggle')) setAlgoOpen(false); };
-    document.addEventListener('mousedown', away); document.addEventListener('keydown', away);
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', away); };
-  }, [algoOpen]);
+  useDismiss(algoOpen, () => setAlgoOpen(false), (t) => t.closest?.('.algo-pop, .algo-toggle')); // (a fixed backdrop inside the transformed dock would only cover the dock)
   const focusTable = (id) => { // select it and bring it to the middle (showing it if it was hidden)
     if (hidden.has(id)) setHidden([id], false);
     setActiveEdge(null); setActiveId(id);
@@ -936,7 +933,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       notify('ok', `Exported ${fmt}`);
     } catch (e) { notify('err', `Export ${fmt} failed: ${errMsg(e)}`); }
   };
-  const copyDbml = () => navigator.clipboard.writeText(dbml).then(() => notify('ok', 'DBML copied'), () => notify('err', 'Clipboard blocked'));
+  const copyDbml = () => copyText(dbml, 'DBML copied', notify);
 
   const tabs = shared
     ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View']]
@@ -997,9 +994,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         {canEdit && source && linked && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
         {tabName.share && <button className={`tbtn ${drawer === 'share' ? 'on' : ''}`} onClick={() => open('share')}>{tabName.share}</button>}
         <Menu trigger="Export" title="Download the diagram or its documentation"
-          items={[{ header: 'Image' }, ...EXPORTS.filter(([k]) => ['png', 'svg'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
-            { header: 'SQL' }, ...EXPORTS.filter(([k]) => ['postgres', 'mysql', 'mssql', 'oracle'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
-            { header: 'Other' }, ...EXPORTS.filter(([k]) => ['dbml', 'json', 'docs-html', 'docs-md'].includes(k)).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) })),
+          items={[...['Image', 'SQL', 'Other'].flatMap((g) => [{ header: g }, ...EXPORTS.filter((e) => e[3] === g).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) }))]),
             { sep: true }, { key: 'copy', label: 'Copy DBML to clipboard', onClick: copyDbml }]} />
         <Menu trigger="More" active={['diagrams', 'connect', 'import', 'history', 'view'].includes(drawer)} title="Diagrams, Database, Import, History, View, Documentation"
           items={[...['diagrams', 'connect', 'import', 'history', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
@@ -1068,9 +1063,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen" aria-label="Fit to screen"><Ic n="fit" /></button>
             <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: true }])))} title="Collapse all tables" aria-label="Collapse all tables"><Ic n="collapse" /></button>
             <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: false }])))} title="Expand all tables" aria-label="Expand all tables"><Ic n="expand" /></button>
-            <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
-            {canEdit && mode === 'diagram' && <button onClick={addNote} title="Add a sticky note (a Note block in the DBML)" aria-label="Add sticky note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z" /><path d="M14 20v-6h6" /></svg></button>}
-            {(parsed.lineage || []).length > 0 && <button className={lineageOn ? 'on' : ''} onClick={() => setView({ ...view, lineage: !lineageOn })} title={lineageOn ? 'Hide data lineage' : 'Show data lineage (dashed arrows from the source to the table built from it)'} aria-label="Data lineage"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.2" /><circle cx="5" cy="18" r="2.2" /><circle cx="19" cy="12" r="2.2" /><path d="M7 6.5c5 0 5 5.5 10 5.5M7 17.5c5 0 5-5.5 10-5.5" strokeDasharray="3 2.5" /></svg></button>}
+            <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><Ic n="refs" s={15} /></button>
+            {canEdit && mode === 'diagram' && <button onClick={addNote} title="Add a sticky note (a Note block in the DBML)" aria-label="Add sticky note"><Ic n="note" s={15} /></button>}
+            {(parsed.lineage || []).length > 0 && <button className={lineageOn ? 'on' : ''} onClick={() => setView({ ...view, lineage: !lineageOn })} title={lineageOn ? 'Hide data lineage' : 'Show data lineage (dashed arrows from the source to the table built from it)'} aria-label="Data lineage"><Ic n="lineage" s={15} /></button>}
             <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}><Ic n="arrange" />Arrange</button>
             <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm" aria-label="Choose the arrange algorithm"><Ic n="caret" /></button>
             {algoOpen && (<>

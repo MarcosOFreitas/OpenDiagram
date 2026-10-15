@@ -13,10 +13,24 @@ export function matcher(text) {
   const l = n.toLowerCase();
   return (name) => name.toLowerCase().includes(l);
 }
+// a diagram table matches a search text by schema.name, a column name or its TableGroup name (canvas dimming and the Tables panel)
+export const tableMatcher = (text) => { const m = matcher(text), ql = text.trim().toLowerCase(); return (t, groupName = '') => m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || groupName.toLowerCase().includes(ql); };
 
 const split = (name) => { const i = name.indexOf('.'); return [name.slice(0, i), name.slice(i + 1)]; };
 
 // compact searchable checklist used by the Groups tab: its selection belongs to a group, not to the import
+// one table card of the picker; `dotTitle` only differs between the two lists
+function TableCard({ item, on, onToggle, title, group, dotTitle }) {
+  const [s, n] = split(item.name);
+  return (
+    <label className={`tp-card ${on ? 'on' : ''}`} title={title}>
+      <input type="checkbox" checked={on} onChange={(e) => onToggle(item.name, e.target.checked)} />
+      <span className="tp-txt"><b>{n}</b><small>{s}{item.view && ' · view'}</small></span>
+      {group && <i className="tp-dot" style={{ background: group.color }} title={dotTitle} />}
+    </label>
+  );
+}
+
 function TableChooser({ items, value, onToggle, onMany, groupOf }) {
   const [q, setQ] = useState('');
   const shown = useMemo(() => { const m = matcher(q); return items.filter((i) => m(i.name)); }, [items, q]);
@@ -30,11 +44,7 @@ function TableChooser({ items, value, onToggle, onMany, groupOf }) {
         {shown.map((i) => {
           const g = groupOf.get(i.name);
           return (
-            <label key={i.name} className={`tp-card ${value.has(i.name) ? 'on' : ''}`} title={g && !value.has(i.name) ? `Currently in group ${g.name}: selecting moves it here` : i.name}>
-              <input type="checkbox" checked={value.has(i.name)} onChange={(e) => onToggle(i.name, e.target.checked)} />
-              <span className="tp-txt"><b>{split(i.name)[1]}</b><small>{split(i.name)[0]}{i.view && ' · view'}</small></span>
-              {g && <i className="tp-dot" style={{ background: g.color }} />}
-            </label>
+            <TableCard key={i.name} item={i} on={value.has(i.name)} onToggle={onToggle} group={g} title={g && !value.has(i.name) ? `Currently in group ${g.name}: selecting moves it here` : i.name} />
           );
         })}
         {!shown.length && <div className="hint">No table matches.</div>}
@@ -71,9 +81,10 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
-  const toggle = (name, on) => setSel((s) => { const n = new Set(s); if (on) n.add(name); else n.delete(name); return n; });
-  const addShown = () => setSel((s) => new Set([...s, ...shown.map((i) => i.name)]));
-  const dropShown = () => setSel((s) => { const n = new Set(s); shown.forEach((i) => n.delete(i.name)); return n; });
+  const flip = (setter) => (names, on) => setter((s) => { const n = new Set(s); [].concat(names).forEach((x) => (on ? n.add(x) : n.delete(x))); return n; }); // add or remove names in a Set state
+  const toggle = flip(setSel);
+  const addShown = () => toggle(shown.map((i) => i.name), true);
+  const dropShown = () => toggle(shown.map((i) => i.name), false);
 
   // groups: a table belongs to one group (adding it to a group removes it from the previous one)
   // a table put in a group is imported too: tick it in the Tables tab right away (when nothing is ticked, "all" already includes it)
@@ -92,8 +103,7 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
     if (j === i) return { ...g, tables: on ? [...new Set([...g.tables, ...names])] : g.tables.filter((t) => !set.has(t)) };
     return on ? { ...g, tables: g.tables.filter((t) => !set.has(t)) } : g;
   })); };
-  const toggleGSel = (name, on) => setGSel((x) => { const n = new Set(x); if (on) n.add(name); else n.delete(name); return n; });
-  const manyGSel = (names, on) => setGSel((x) => { const n = new Set(x); names.forEach((t) => (on ? n.add(t) : n.delete(t))); return n; });
+  const manyGSel = flip(setGSel), toggleGSel = manyGSel;
 
   const apply = () => {
     const seen = new Set();
@@ -132,17 +142,8 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
           </div>
           <div className="tp-list">
             {shown.map((i) => {
-              const [s, n] = split(i.name), g = groupOf.get(i.name), on = sel.has(i.name);
-              return (
-                <label key={i.name} className={`tp-card ${on ? 'on' : ''}`} title={i.name}>
-                  <input type="checkbox" checked={on} onChange={(e) => toggle(i.name, e.target.checked)} />
-                  <span className="tp-txt">
-                    <b>{n}</b>
-                    <small>{s}{i.view && ' · view'}</small>
-                  </span>
-                  {g && <i className="tp-dot" style={{ background: g.color }} title={`Group: ${g.name}`} />}
-                </label>
-              );
+              const g = groupOf.get(i.name);
+              return <TableCard key={i.name} item={i} on={sel.has(i.name)} onToggle={toggle} group={g} title={i.name} dotTitle={g && `Group: ${g.name}`} />;
             })}
             {!shown.length && <div className="hint">No table matches.</div>}
           </div>

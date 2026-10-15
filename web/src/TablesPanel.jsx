@@ -1,16 +1,11 @@
 import { useMemo, useState } from 'react';
-import { matcher } from './TablePicker.jsx';
+import { tid } from './docsModel.js';
+import { Ic } from './Icons.jsx';
+import { tableMatcher } from './TablePicker.jsx';
 
-const Ico = ({ children }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>;
-const Eye = ({ off }) => (off
-  ? <Ico><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M1 1l22 22" /></Ico>
-  : <Ico><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></Ico>);
-const Funnel = () => <Ico><path d="M22 3H2l8 9.46V19l4 2v-8.54z" /></Ico>;
-const Target = () => <Ico><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></Ico>;
-const Flow = () => <Ico><circle cx="5" cy="6" r="2" /><circle cx="5" cy="18" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 6c5 0 5 6 10 6M7 18c5 0 5-6 10-6" /></Ico>;
+const Eye = ({ off }) => <Ic n={off ? 'eyeOff' : 'eye'} s={15} />;
 const Chev = ({ open }) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s' }} aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>;
 
-const tid = (s, n) => `${s || 'public'}.${n}`;
 
 // Right-hand panel of the diagram: search, group by schema / TableGroup, show or hide tables on the canvas, jump to a table.
 // hidden: Set of table ids; onHide(ids, hide); onOnly(ids) = show only these; onFocus(id) = select + center.
@@ -34,8 +29,8 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
   const linIds = useMemo(() => new Set(lineage.flatMap((l) => [l.source, l.target])), [lineage]); // tables that take part in some data lineage
   const q = search.trim();
   const rows = useMemo(() => {
-    const m = matcher(q), ql = q.toLowerCase();
-    return tables.filter((t) => (!q || m(`${t.schema}.${t.name}`) || t.fields.some((f) => m(f.name)) || (groupOf.get(t.id)?.name || '').toLowerCase().includes(ql))
+    const match = tableMatcher(q);
+    return tables.filter((t) => match(t, groupOf.get(t.id)?.name)
       && (vis === 'all' || (vis === 'hidden') === hidden.has(t.id)) && (!connectedOnly || adj.get(t.id)?.size) && (!linOnly || linIds.has(t.id)));
   }, [tables, q, vis, connectedOnly, linOnly, linIds, hidden, groupOf, adj]);
 
@@ -66,9 +61,9 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
           <option value="">Main view</option>
           {views.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
-        <button className="tpn-ic" onClick={() => setNaming((n) => !n)} title="Save what you see now as a new view"><Ico><path d="M12 5v14M5 12h14" /></Ico></button>
-        {activeView && <button className="tpn-ic" onClick={() => { const n = window.prompt('Rename view', activeView); if (n) onRenameView(activeView, n); }} title="Rename this view"><Ico><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Ico></button>}
-        {activeView && <button className="tpn-ic" onClick={() => { if (window.confirm(`Delete the view "${activeView}"? The tables are not touched.`)) onDeleteView(activeView); }} title="Delete this view"><Ico><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Ico></button>}
+        <button className="tpn-ic" onClick={() => setNaming((n) => !n)} title="Save what you see now as a new view"><Ic n="plus" s={15} /></button>
+        {activeView && <button className="tpn-ic" onClick={() => { const n = window.prompt('Rename view', activeView); if (n) onRenameView(activeView, n); }} title="Rename this view"><Ic n="edit" s={15} /></button>}
+        {activeView && <button className="tpn-ic" onClick={() => { if (window.confirm(`Delete the view "${activeView}"? The tables are not touched.`)) onDeleteView(activeView); }} title="Delete this view"><Ic n="trash" s={15} /></button>}
       </div>
       {naming && (
         <div className="tpn-bar">
@@ -78,7 +73,7 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
       )}
       <div className="tpn-bar">
         <input ref={searchRef} placeholder="Search table, schema, column or group…" title="Plain text, VW_* wildcards or /regex/ (Ctrl+K)" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button className={`tpn-ic ${filtered ? 'on' : ''}`} onClick={() => setFOpen((o) => !o)} title="Filters"><Funnel /></button>
+        <button className={`tpn-ic ${filtered ? 'on' : ''}`} onClick={() => setFOpen((o) => !o)} title="Filters"><Ic n="funnel" s={15} /></button>
       </div>
       {fOpen && (
         <div className="tpn-filters">
@@ -108,8 +103,8 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
               <div key={t.id} className={`tpn-row ${activeId === t.id ? 'on' : ''} ${hidden.has(t.id) ? 'off' : ''}`} onClick={() => onFocus(t.id)} title={`${t.schema}.${t.name}`}>
                 <span className="tpn-name">{t.name}</span>
                 {by === 'group' && <small className="tpn-sch">{t.schema}</small>}
-                {linIds.has(t.id) && <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); onLineage(t.id); }} title="Show only this table and everything it is built from or feeds (data lineage)"><Flow /></button>}
-                <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); only(t); }} title="Show only this table and the ones related to it"><Target /></button>
+                {linIds.has(t.id) && <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); onLineage(t.id); }} title="Show only this table and everything it is built from or feeds (data lineage)"><Ic n="flow" s={15} /></button>}
+                <button className="tpn-ic sm hov" onClick={(e) => { e.stopPropagation(); only(t); }} title="Show only this table and the ones related to it"><Ic n="target" s={15} /></button>
                 <button className="tpn-ic sm" onClick={(e) => { e.stopPropagation(); onHide([t.id], !hidden.has(t.id)); }} title={hidden.has(t.id) ? 'Show on the diagram' : 'Hide from the diagram'}><Eye off={hidden.has(t.id)} /></button>
               </div>
             ))}

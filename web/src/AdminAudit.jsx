@@ -7,7 +7,8 @@ const when = (t) => new Date(t * 1000).toLocaleString();
 // Administration → Audit log: who used which shared connection and what the administrators changed (180 days; never any secret or request body)
 export default function AdminAudit({ setErr }) {
   const [rows, setRows] = useState(null), [action, setAction] = useState(''), [q, setQ] = useState(''), [more, setMore] = useState(false);
-  const query = (before) => new URLSearchParams({ limit: '100', ...(action ? { action } : {}), ...(q.trim() ? { q: q.trim() } : {}), ...(before ? { before } : {}) }).toString();
+  const filt = () => ({ ...(action ? { action } : {}), ...(q.trim() ? { q: q.trim() } : {}) });
+  const query = (before) => new URLSearchParams({ limit: '100', ...filt(), ...(before ? { before } : {}) }).toString();
   const load = useCallback((append) => api(`admin/audit?${query(append ? rows?.[rows.length - 1]?.id : '')}`).then((r) => { setRows((old) => (append ? [...(old || []), ...r] : r)); setMore(r.length === 100); }).catch((e) => setErr(errMsg(e))), [action, q, rows]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const t = setTimeout(() => load(false), 250); return () => clearTimeout(t); }, [action, q]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -16,7 +17,7 @@ export default function AdminAudit({ setErr }) {
       <div className="audit-bar">
         <select value={action} onChange={(e) => setAction(e.target.value)} aria-label="Kind of event">{FILTERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <input placeholder="Search person, connection, diagram or detail" value={q} onChange={(e) => setQ(e.target.value)} />
-        <a className="btn" href={`/api/admin/audit.csv?${new URLSearchParams({ ...(action ? { action } : {}), ...(q.trim() ? { q: q.trim() } : {}) })}`} download>Download CSV</a>
+        <a className="btn" href={`/api/admin/audit.csv?${new URLSearchParams(filt())}`} download>Download CSV</a>
       </div>
       <small className="hint">Kept for 180 days. It records the use of <b>shared</b> connections (test, list tables, import, refresh) and every change made in the Administration panel. Personal connections are private and are not recorded.</small>
       {rows && rows.length === 0 && <small className="hint">Nothing recorded for this filter.</small>}

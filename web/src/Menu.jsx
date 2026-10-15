@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
+// while `open`: a mouse press outside (`inside(target)` false) or Escape calls `close`
+export function useDismiss(open, close, inside) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (e.type === 'keydown' ? e.key === 'Escape' : !inside(e.target)) close(); };
+    document.addEventListener('mousedown', away); document.addEventListener('keydown', away);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', away); };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 // small dropdown used in the top bar: items = [{ key, label, hint?, on?, onClick } | { sep: true } | { header: 'text' }]
 export default function Menu({ trigger, items, active, title }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), (t) => ref.current?.contains(t));
   return (
     <div className="menu" ref={ref}>
       <button className={`tbtn ${active || open ? 'on' : ''}`} title={title} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{trigger}<span className="caret">▾</span></button>

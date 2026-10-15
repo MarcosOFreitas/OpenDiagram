@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, errMsg } from './api.js';
+import { api, errMsg, copyText } from './api.js';
 import AdminConnections from './AdminConnections.jsx';
 import AdminAudit from './AdminAudit.jsx';
 
@@ -25,7 +25,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
 
   // errors are shown inside the panel (a toast would sit behind it)
   const act = (fn, ok) => async () => { setErr(''); try { await fn(); await load(); if (ok) notify('ok', ok); } catch (e) { setErr(errMsg(e)); } };
-  const copy = (t) => navigator.clipboard.writeText(t).then(() => notify('ok', 'Copied'), () => notify('err', 'Clipboard blocked'));
+  const copy = (t) => copyText(t, 'Copied', notify);
 
   const submitUser = (e) => {
     e.preventDefault();

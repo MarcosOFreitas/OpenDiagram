@@ -32,9 +32,11 @@ node web/lineage-check.mjs           # the `// lineage:` comment parser (pure)
 cd web && node roundtrip.mjs         # import -> export -> re-import per format (needs the oracle profile)
 node web/uiaudit.mjs [screen ...]    # UI audit of every screen: light/dark, desktop/phone, keyboard (throw-away instance, see the file header)
 node web/docshots.mjs                # retakes the documentation pictures (throw-away instance, see the file header)
+node web/visualsnap.mjs snap|compare # refactors: pixel comparison of 21 screens between two builds (see the file header)
+node web/behaviorcheck.mjs           # refactors: behaviour fingerprint of menus, popovers, search and the table picker; diff old vs new build
 ```
 
-`uiaudit.mjs` and `docshots.mjs` create accounts and diagrams: run them only against a throw-away instance, never against one that holds real data. Do not claim a UI change works without loading it.
+`uiaudit.mjs`, `docshots.mjs`, `visualsnap.mjs` and `behaviorcheck.mjs` create accounts and diagrams: run them only against a throw-away instance, never against one that holds real data. For a refactor that must not change the UI, build the old and the new image, run `visualsnap.mjs snap` and `behaviorcheck.mjs` on a fresh instance of each, and require `compare` to report all screens identical and the two fingerprints to be equal. Do not claim a UI change works without loading it.
 
 ## Layout
 

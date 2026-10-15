@@ -22,6 +22,8 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 | `node web/lineage-check.mjs` | nothing (pure) | the `// lineage:` comment parser (table and column level, `(auto)` marker, merging, unknown names) and the upstream/downstream closure |
 | `node web/uiaudit.mjs [screen ...]` (needs `AUDIT_EMAIL`/`AUDIT_PASSWORD` of a throw-away instance, see its header) | a throw-away app instance with `demo-pg`; Chrome installed | UI audit of every screen in light/dark and desktop/phone: names, targets, labels, contrast, overflow, dialogs, keyboard walk ([11](11-ui-review.md)); zero findings is the bar |
 | `node web/docshots.mjs` (needs `SHOTS_EMAIL`/`SHOTS_PASSWORD` of a throw-away instance) | same | retakes the documentation pictures |
+| `node web/visualsnap.mjs snap <dir>` / `compare <dirA> <dirB>` (needs `SNAP_EMAIL`/`SNAP_PASSWORD`) | a throw-away instance per build | refactors: 21 static screens as PNG, compared pixel by pixel between the old and the new build; also reports JavaScript errors per screen |
+| `node web/behaviorcheck.mjs` (same variables) | same | refactors: JSON fingerprint of menus, popovers, search, export list, copy and the table picker; diff old vs new |
 | `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
 
 `test-auth`, `test-guardrails` and `test-oracle-tls` exit non-zero on failure (`roundtrip.mjs` only prints; read its output). Demo data drifts if you alter `shop.*` manually — the scripts assume ≥ 4 PG tables.

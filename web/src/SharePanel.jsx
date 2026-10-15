@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, errMsg } from './api.js';
+import { api, errMsg, copyText } from './api.js';
 
 const LEVELS = [
   ['view', 'Can view', 'Can see the diagram, the docs and the comments.'],
@@ -35,7 +35,7 @@ export default function SharePanel({ diagramId, notify }) {
   const act = (fn, ok) => async () => { try { await fn(); await load(); if (ok) notify('ok', ok); } catch (e) { notify('err', errMsg(e)); } };
   const grant = (type, subjectId) => act(async () => { await api(`diagrams/${diagramId}/access`, { type, subjectId, access: level }); setQ(''); setFound([]); }, 'Access granted')();
   const url = (t) => `${location.origin}/s/${t}`;
-  const copy = (t) => navigator.clipboard.writeText(url(t)).then(() => notify('ok', 'Link copied'), () => notify('err', 'Clipboard blocked'));
+  const copy = (t) => copyText(url(t), 'Link copied', notify);
   const granted = (type, id) => grants.some((g) => g.type === type && g.subjectId === id);
 
   return (
