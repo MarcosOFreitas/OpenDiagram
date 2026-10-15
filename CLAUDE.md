@@ -38,6 +38,13 @@ All three scripts accept `BASE=http://host:port` (default `http://localhost:3000
 - Errors thrown by the API carry `statusCode`; the global handler returns `{error}`. UI shows them as toasts via `notify` (inside the Admin overlay they are shown in the panel, because the overlay covers the toast area).
 - Diagram content (`dbml`, title, layout, connection link) lives on the server and autosaves; `localStorage` only keeps per-browser UI state: `view`, `docsCollapsed`, `lastDiagram`, `gen:<diagramId>` (last generated DBML for refresh diffs). Always wrap in try/catch (`store()` helper).
 
+## UI standard (applies to every UI change; details and rationale in [spec 11](.specs/11-ui-review.md))
+
+- **Reuse, do not restyle.** Buttons, fields, cards, dialogs, menus and motion come from the "UI foundation" layer at the end of `web/src/styles.css` (tokens `--r-*`, `--ctl*`, `--ease`, one control look through `:where()` selectors). No per-container button rules, no new radius/height/duration values, no fixed hex colours for text where a token exists. Icons: SVG from `Icons.jsx`, never emoji.
+- **Both themes, both widths.** A new surface must work in the light and dark theme (white surfaces such as `.admin` and `.menu-pop` reset `--muted`/`--line`) and at 375px (no horizontal scroll). Motion only with `opacity`/`transform`, never on canvas nodes, and it must respect `prefers-reduced-motion`.
+- **Accessibility floor.** Every control has an accessible name (icon buttons get `aria-label`), targets are >= 24px, text contrast >= 4.5:1 (colours coming from user data are chosen by contrast, see `readable()`), keyboard focus is always visible, dialogs use the `.admin` overlay (role, name, focus trap and focus return come from `a11y.js`), fields get a name from their placeholder/column header through `a11y.js` or a real `<label>`.
+- **Verify before committing a UI change:** rebuild, then run `node web/uiaudit.mjs <screen-name ...>` against a throw-away instance for the screens you touched (the full run takes ~20 min; run it before a release). The bar is **zero findings**. A new screen, drawer, popup or dialog is added to the script in the same commit. If the look of a documented screen changed, rerun `node web/docshots.mjs` and look at every picture.
+
 ## Security invariants (do not weaken)
 
 1. Every DB session must stay read-only: Postgres `BEGIN READ ONLY` + `default_transaction_read_only=on`; Oracle `SET TRANSACTION READ ONLY`. Only catalog queries; never read user table data.
@@ -90,6 +97,7 @@ The REA reverse-engineering MCP was only used to study the public dbdiagram.io U
 
 ## Working agreements
 
+- UI changes follow the **UI standard** section above; a change that fails `uiaudit.mjs` is not finished.
 - Smallest change that solves the problem; reuse what exists. Keep specs, README and the documentation pages (`web/src/docsite/pages/*.md`) consistent when behaviour changes.
 - Report honestly what was and was not tested (e.g. no Oracle with a real private CA was tried).
 - No attribution to third-party products in code/assets: this is a clean-room implementation, never copy code or images from dbdiagram.io.

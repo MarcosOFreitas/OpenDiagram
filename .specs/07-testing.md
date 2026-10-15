@@ -20,6 +20,8 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 | `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-oracle-tls.mjs` | app + `--profile oracle` (`demo-oracle`, `demo-oracle-tls`) | Oracle TLS modes: verify, host-name mismatch, `serverDn` accepted/refused, `noverify`, TLS off against TCPS, DN injection |
 | `node server/test-lineage.mjs` | nothing (pure) | view column lineage: SQL parsing into output column -> source column (joins, aliases, expressions, aggregates, `*`, sub-selects, CTE, UNION, view on view, Oracle upper case, unreadable SQL gives null) |
 | `node web/lineage-check.mjs` | nothing (pure) | the `// lineage:` comment parser (table and column level, `(auto)` marker, merging, unknown names) and the upstream/downstream closure |
+| `node web/uiaudit.mjs [screen ...]` (needs `AUDIT_EMAIL`/`AUDIT_PASSWORD` of a throw-away instance, see its header) | a throw-away app instance with `demo-pg`; Chrome installed | UI audit of every screen in light/dark and desktop/phone: names, targets, labels, contrast, overflow, dialogs, keyboard walk ([11](11-ui-review.md)); zero findings is the bar |
+| `node web/docshots.mjs` (needs `SHOTS_EMAIL`/`SHOTS_PASSWORD` of a throw-away instance) | same | retakes the documentation pictures |
 | `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
 
 `test-auth` and `test-guardrails` exit non-zero on failure (`roundtrip.mjs` only prints; read its output). Demo data drifts if you alter `shop.*` manually — the scripts assume ≥ 4 PG tables.
