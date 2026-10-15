@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
-import { Parser, exporter, importer } from '@dbml/core';
+import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
 import { DocsView, standaloneHtml } from './DocsPage.jsx';
-import { buildModel, toMarkdown, tid } from './docsModel.js';
+import { buildModel, toMarkdown } from './docsModel.js';
 
 import { api, store, errMsg, ago, sharePassword, copyText } from './api.js';
 import AuthScreen, { PasswordForm } from './Auth.jsx';
@@ -15,43 +15,15 @@ import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
 import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import History from './History.jsx';
-import { lineageEdges, closure, MANUAL } from './lineage.js';
+import { closure } from './lineage.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { Ic, Logo } from './Icons.jsx';
 
-// text colour with the better contrast on a header colour taken from the DBML (white on orange would fail 4.5:1)
-const lum = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0; const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; const n = parseInt(m[1], 16); return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255); };
-const readable = (hex) => (1.05 / (lum(hex) + 0.05) >= (lum(hex) + 0.05) / 0.059 ? '#fff' : '#111827'); // white vs near-black: whichever contrasts more
 import { BLANK, TEMPLATES } from './templates.js';
 
 const VIEW0 = { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
 const PAD = 22, HEAD = 18; // a TableGroup box: padding around its tables + the title strip above them (layout and drawn box must agree)
-const cid = (r) => tid(r.child.schemaName, r.child.tableName), pid = (r) => tid(r.parent.schemaName, r.parent.tableName); // a ref's two table ids
-
-// DBML text -> {tables, refs, groups} for the diagram
-// the import writes `VIEW` / `MATERIALIZED VIEW` (+ the CREATE statement when the full DDL was asked for) into the table note
-const viewKindOf = (note) => { const n = typeof note === 'string' ? note : note?.value || ''; const m = /(^|\n)(MATERIALIZED VIEW|VIEW)(\n|$)/.exec(n); return m ? (m[2] === 'VIEW' ? 'View' : 'Mat. view') : ''; };
-function parse(text) {
-  try {
-    const db = new Parser().parse(text, 'dbmlv2');
-    const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({
-      id: tid(t.schema.name, t.name), schema: t.schema.name, name: t.name, note: t.note, headerColor: t.headerColor, viewKind: viewKindOf(t.note),
-      fields: t.fields.map((f) => ({ name: f.name, type: f.type.type_name, pk: f.pk, notNull: f.not_null, unique: f.unique, note: f.note })),
-      indexes: t.indexes.map((i) => ({ name: i.name, unique: i.unique, pk: i.pk, cols: i.columns.map((c) => c.value) })),
-    }));
-    const lineage = lineageEdges(text, tables); // `// lineage:` comment lines
-    const notes = (db.notes || []).map((n) => ({ name: n.name, text: String(n.content ?? '').replace(/\s+$/, ''), start: n.token.start.offset, end: n.token.end.offset }));
-    const refs = db.schemas.flatMap((s) => s.refs).map((r) => {
-      const [a, b] = r.endpoints;
-      const [child, parent] = a.relation === '*' || b.relation === '1' ? [a, b] : [b, a];
-      return { name: r.name || '', id: r.name || `${tid(child.schemaName, child.tableName)}.${child.fieldNames}->${tid(parent.schemaName, parent.tableName)}`, child, parent };
-    });
-    const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
-    return { tables, refs, groups, lineage, notes, db };
-  } catch (e) {
-    return { error: errMsg(e), diags: e?.diags?.map((d) => ({ line: d.location?.start?.line ?? 1, col: d.location?.start?.column ?? 1, endLine: d.location?.end?.line, endCol: d.location?.end?.column, message: d.message ?? 'syntax error' })) ?? [] };
-  }
-}
 
 const ROW = 22;
 // default width from the content: the longest column name always fits, the type gets what is left (min 220, max 480)
@@ -360,37 +332,6 @@ const ALGOS = [
 const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
 const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
 
-const qid = (x) => (/^[A-Za-z_]\w*$/.test(x) ? x : `"${x.replaceAll('"', '\\"')}"`);
-// a refresh regenerates tables/refs from the database; keep the user's TableGroups (minus tables that no longer exist)
-// append TableGroup blocks (members that are not in the diagram are dropped)
-function withGroups(newDbml, groups) {
-  const n = parse(newDbml);
-  if (n.error || !groups?.length) return newDbml;
-  const have = new Set(n.tables.map((t) => t.id));
-  const blocks = groups.map((g) => ({ ...g, tables: g.tables.filter((id) => have.has(id)) })).filter((g) => g.tables.length).map((g) => {
-    const members = g.tables.map((id) => { const [sc, ...rest] = id.split('.'); return `  ${qid(sc)}.${qid(rest.join('.'))}`; });
-    return `TableGroup ${qid(g.name)}${g.color ? ` [color: ${g.color}]` : ''} {\n${members.join('\n')}\n}`;
-  });
-  return blocks.length ? `${newDbml.trimEnd()}\n\n${blocks.join('\n\n')}\n` : newDbml;
-}
-function keepGroups(oldDbml, newDbml) {
-  const o = parse(oldDbml);
-  if (o.error) return newDbml;
-  const have = new Set(newDbml.split('\n').map((l) => l.trim()));
-  const manual = oldDbml.split('\n').filter((l) => MANUAL.test(l) && !have.has(l.trim())); // data lineage written by hand survives a refresh; `(auto)` lines are regenerated
-  return withGroups(manual.length ? `${newDbml.replace(/\n*$/, '\n')}\n${manual.join('\n')}\n` : newDbml, o.groups);
-}
-function diffSummary(oldDbml, newDbml) {
-  const o = parse(oldDbml), n = parse(newDbml);
-  if (o.error || n.error) return 'schema changed';
-  const sig = (t) => t.fields.map((f) => `${f.name}:${f.type}`).join(',');
-  const om = new Map(o.tables.map((t) => [t.id, sig(t)])), nm = new Map(n.tables.map((t) => [t.id, sig(t)]));
-  let add = 0, rem = 0, chg = 0;
-  for (const [k, v] of nm) { if (!om.has(k)) add++; else if (om.get(k) !== v) chg++; }
-  for (const k of om.keys()) if (!nm.has(k)) rem++;
-  const parts = [add && `+${add} table(s)`, rem && `−${rem} table(s)`, chg && `${chg} changed`].filter(Boolean);
-  return parts.length ? parts.join(', ') : 'indexes/relationships/comments changed';
-}
 const EXPORTS = [ // key, label, extension, group of the Export menu
   ['dbml', 'DBML', '.dbml', 'Other'], ['postgres', 'PostgreSQL', '.sql', 'SQL'], ['mysql', 'MySQL', '.sql', 'SQL'], ['mssql', 'SQL Server', '.sql', 'SQL'],
   ['oracle', 'Oracle', '.sql', 'SQL'], ['json', 'JSON', '.json', 'Other'], ['png', 'PNG image', '.png', 'Image'], ['svg', 'SVG image', '.svg', 'Image'],
