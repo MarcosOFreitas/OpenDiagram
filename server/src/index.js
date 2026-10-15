@@ -100,7 +100,8 @@ app.delete('/api/admin/groups/:id/members/:uid', (req) => { adminOnly(req); admi
 // every administrator action that changes something is audited (route and ids only: never the request body, which may hold passwords)
 app.addHook('onResponse', async (req, reply) => {
   if (req.method === 'GET' || !req.user || !req.url.startsWith('/api/admin/')) return;
-  audit.log(req.user, `admin.${req.method.toLowerCase()}`, { target: String(req.routeOptions?.url || req.url).replace('/api/admin', ''), ok: reply.statusCode < 400, detail: JSON.stringify(req.params ?? {}) });
+  const target = String(req.routeOptions?.url || req.url).replace('/api/admin', '');
+  audit.log(req.user, `admin.${req.method.toLowerCase()}`, { target, connectionId: target.startsWith('/connections') ? req.params?.id : undefined, ok: reply.statusCode < 400, detail: JSON.stringify(req.params ?? {}) });
 });
 
 // shared database connections: registered once by an administrator (read-only credential), used by chosen people and groups without seeing the secret
@@ -116,6 +117,7 @@ app.post('/api/admin/connections', async (req) => {
 app.put('/api/admin/connections/:id/access', (req) => { adminOnly(req); store.setAccess(req.params.id, req.body ?? {}); return { ok: true }; });
 app.delete('/api/admin/connections/:id', (req) => { adminOnly(req); if (!store.removeShared(req.params.id)) throw bad('shared connection not found', 404); return { ok: true }; });
 app.get('/api/admin/audit', (req) => { adminOnly(req); return audit.list(req.query ?? {}); });
+app.get('/api/admin/audit/facets', (req) => { adminOnly(req); return audit.facets(); });
 app.get('/api/admin/audit.csv', (req, reply) => { adminOnly(req); reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="audit-log.csv"'); return audit.csv(audit.list({ ...(req.query ?? {}), limit: 5000 })); });
 app.get('/api/admin/settings', (req) => { adminOnly(req); return admin.getSettings(); });
 app.put('/api/admin/settings', (req) => { adminOnly(req); return admin.putSettings(req.body ?? {}); });

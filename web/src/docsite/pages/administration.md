@@ -26,7 +26,7 @@ Flat groups (no hierarchy). Create a group, add or remove members. A person can 
 
 ![Administration → Audit log, filtered to the use of shared connections.](admin-audit.jpg)
 
-Filter by kind, search a person, connection, diagram or detail, load more, or **Download CSV** (formula-safe for spreadsheets; up to the newest 5000 matching entries). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
+Filter by **Done by** (a person), **Target** (a shared database, a diagram, or Users / Groups / Settings) and **Type of operation** (administrator actions: added, changed, deleted; shared-connection use: tested, listed tables, imported, refreshed), combine them with a search text, **Clear filters**, load more, or **Download CSV** (it follows the filters) (formula-safe for spreadsheets; up to the newest 5000 matching entries). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
 
 ## Settings
 

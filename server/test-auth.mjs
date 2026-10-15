@@ -395,6 +395,30 @@ check('audit log: a refresh records the diagram it was for', r.json.some((e) => 
 r = await B('POST', '/api/import', { id: sharedId, schemas: ['shop'], diagramId: 'not-a-diagram-of-bob' });
 r = await ADMIN('GET', '/api/admin/audit?action=connection.import');
 check('audit log: a diagram id the person cannot open is not recorded', r.json.length > 0 && r.json.every((e) => e.diagramId === null || e.diagramId !== 'not-a-diagram-of-bob'));
+// filters of the Audit log: by person, by what it was about (shared connection / diagram / users), by type
+const bobId = (await ADMIN('GET', '/api/admin/audit?action=connection')).json.find((e) => e.actor === 'Bob')?.actorId;
+r = await ADMIN('GET', `/api/admin/audit?actorId=${bobId}`);
+check('audit filter: by person', !!bobId && r.json.length > 0 && r.json.every((e) => e.actorId === bobId));
+r = await ADMIN('GET', `/api/admin/audit?connectionId=${sharedId}`);
+check('audit filter: by shared connection (its uses and the administrator changes to it)', r.json.some((e) => e.action.startsWith('connection.')) && r.json.some((e) => e.action.startsWith('admin.')) && r.json.every((e) => e.connectionId === sharedId));
+r = await ADMIN('GET', `/api/admin/audit?diagramId=${lId}`);
+check('audit filter: by diagram', r.json.length > 0 && r.json.every((e) => e.diagramId === lId));
+r = await ADMIN('GET', '/api/admin/audit?scope=users');
+check('audit filter: what an administrator action was about (users)', r.json.length > 0 && r.json.every((e) => e.action.startsWith('admin.') && e.target.startsWith('/users')));
+r = await ADMIN('GET', '/api/admin/audit?action=admin.put,admin.patch');
+check('audit filter: by type, several prefixes (changed)', r.json.length > 0 && r.json.every((e) => e.action === 'admin.put' || e.action === 'admin.patch'));
+r = await ADMIN('GET', '/api/admin/audit?action=connection.import,connection.refresh');
+check('audit filter: by type (imported or refreshed)', r.json.length > 0 && r.json.every((e) => e.action === 'connection.import' || e.action === 'connection.refresh'));
+r = await ADMIN('GET', `/api/admin/audit?actorId=${bobId}&action=connection.refresh&connectionId=${sharedId}`);
+check('audit filter: filters combine', r.json.length > 0 && r.json.every((e) => e.actorId === bobId && e.action === 'connection.refresh' && e.connectionId === sharedId));
+r = await ADMIN('GET', "/api/admin/audit?actorId=1%27%20or%201%3D1&scope=users%27--");
+check('audit filter: odd input is not an injection', r.status === 200 && r.json.length === 0);
+r = await ADMIN('GET', '/api/admin/audit.csv?action=connection.import');
+check('audit filter: the CSV honours the filters', r.status === 200 && !r.json.includes('admin.put'));
+r = await ADMIN('GET', '/api/admin/audit/facets');
+check('audit facets: the people, shared connections and diagrams that appear in the log', r.status === 200 && r.json.actors.some((x) => x.id === bobId && x.name === 'Bob') && r.json.connections.some((x) => x.id === sharedId && x.name === sc.name) && r.json.diagrams.some((x) => x.id === lId), JSON.stringify(r.json).slice(0, 160));
+r = await B('GET', '/api/admin/audit/facets');
+check('audit facets: members cannot read them', r.status === 403);
 await A('DELETE', `/api/diagrams/${lId}`);
 // revoking and deleting
 r = await ADMIN('PUT', `/api/admin/connections/${sharedId}/access`, { users: [], groups: [] });

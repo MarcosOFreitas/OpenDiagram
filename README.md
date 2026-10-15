@@ -14,7 +14,7 @@ Open-source, self-hostable database diagramming tool in the spirit of dbdiagram.
 - **Data lineage**: dashed arrows from source tables to the views built from them, down to the column (read from the view's SQL), or written by hand in the DBML.
 - **Generated documentation** (dbdocs-style): a browsable, searchable *Docs* view with your own comments (stored only in the app), a changelog from the named versions, and export as one standalone `.html` or Markdown.
 - **Versions and history**: every change is kept, versions can be named, compared and restored; two people saving at once get an edit-conflict dialog instead of silent overwrites; avatars show who has the diagram open.
-- **Accounts, groups and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat groups; private diagrams; share with people, groups or links (view / comment / edit, optional link password). Administrators can **register a shared database connection** that members use without seeing its credential; every use is written to an **audit log**.
+- **Accounts, groups and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat groups; private diagrams; share with people, groups or links (view / comment / edit, optional link password). Administrators can **register a shared database connection** that members use without seeing its credential; every use is written to an **audit log** that can be filtered by person, target and type of operation.
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - Ships as **one Docker image with SQLite storage**; no external services.
 

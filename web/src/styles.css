@@ -347,7 +347,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 /* shared connections: read-only form, administration forms, audit table */
 .conn-fs { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 9px; } .conn-fs:disabled { opacity: .7; }
 .conn-form { display: flex; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid var(--line, #e3e7ee); border-radius: 10px; }
-.audit-bar { display: flex; gap: 8px; align-items: center; } .audit-bar input { flex: 1; } .audit-bar select { width: auto; }
+.audit-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .audit-bar input { flex: 1 1 150px; min-width: 150px; } .audit-bar select { width: auto; flex: 0 1 170px; min-width: 0; }
 .admin-table.audit td { vertical-align: top; font-size: 12.5px; } .admin-table.audit tr.bad td { background: rgba(239, 68, 68, .08); } .audit-detail { max-width: 340px; overflow-wrap: anywhere; color: #4b5563; }
 
 /* ===== UI foundation: tokens, one shared control look, motion =====

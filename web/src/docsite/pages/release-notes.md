@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Audit log filters
+
+- The **Audit log** can be filtered by who did it, by target (a shared database, a diagram, users, groups, settings) and by type of operation (added, changed, deleted, tested, listed tables, imported, refreshed); the CSV follows the filters.
+
 ## Docs, Oracle and cleanup
 
 - The Docs view has a **Changelog** (the saved versions, for people who can edit); the exports carry the named versions.
