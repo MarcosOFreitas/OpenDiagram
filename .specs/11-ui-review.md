@@ -14,13 +14,13 @@ Review done with the `ui-ux-pro-max` skill (web/desktop rules: accessibility, ta
 
 | Screen / popup | Checked | Status |
 |---|---|---|
-| Sign in | layout, labels, contrast, logo | ok |
+| Sign in | layout and logo seen in a screenshot; DOM audit not run | visual only |
 | Top bar (title, Diagram/Docs, Share, Export, More, account) | alignment, names, focus, 375px | ok |
 | Canvas dock (zoom, fit, collapse/expand, highlight, note, lineage, Arrange + caret) | 32px squares on one centre line, names, 375px | ok |
 | Arrange algorithm popover | motion, contrast, keyboard | ok |
 | Export menu | names, motion | ok |
 | More menu (Diagrams, Database, Import, History, View, Documentation) | names, motion | ok |
-| Account menu (password, Administration, Sign out) | names | ok |
+| Account menu (password, Administration, Sign out) | item names only; the password form was not opened | partial |
 | Diagrams drawer | cards, delete target size/contrast | ok |
 | Database drawer | field labels, guardrail banners | ok |
 | Import drawer | field labels | ok |
@@ -39,4 +39,4 @@ Review done with the `ui-ux-pro-max` skill (web/desktop rules: accessibility, ta
 
 Screen-reader pass: checked through the accessibility tree only (landmarks banner / region "DBML editor" / main "Diagram" / complementary "Side panel", tablist, names on every control, nodes named, dialogs `role=dialog` + `aria-modal` + focus moved in, kept inside and restored, closed drawer `inert`, toasts `role=status|alert`). It was not run with a real screen reader (NVDA/VoiceOver).
 
-Not covered: a real screen reader, Windows high-contrast mode, tablet landscape, the third-party "React Flow" attribution link (library).
+Not covered: dark theme (contrast never measured), the password form and forced password change, password-protected link prompt, History compare dialog, Oracle/TLS fields and privilege banners in the Database drawer, comments in the Docs view, sticky notes and ref labels, Tables panel filters, the "newer version" bar, tablet width, phone width beyond the main screen, a real screen reader, Windows high-contrast mode, tablet landscape, the third-party "React Flow" attribution link (library).
