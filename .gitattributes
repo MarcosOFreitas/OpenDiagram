@@ -3,3 +3,4 @@
 
 # shell scripts are bind-mounted into Linux containers: must stay LF even on Windows checkouts
 *.sh text eol=lf
+.githooks/* text eol=lf
