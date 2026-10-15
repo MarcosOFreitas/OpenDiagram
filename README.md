@@ -51,10 +51,12 @@ The demo databases are for trying and testing only; **remove the `demo-*` servic
 Everything the app stores (accounts, diagrams, comments, saved connections, audit log) is one SQLite file in the `appdata` volume. Saved connection passwords are encrypted with `APP_SECRET`, so a restore needs the **same** `APP_SECRET`.
 
 ```bash
-docker compose cp app:/data ./backup                 # backup (the app can keep running)
-# on the new machine: start once, then restore and restart
+docker compose stop app                              # the database runs in WAL mode: copy it while the app is stopped
+docker compose cp app:/data ./backup                 # backup
+docker compose start app
+# on the new machine: start once, then stop, restore and start
 docker compose up -d --build
-docker compose cp ./backup/. app:/data && docker compose restart app
+docker compose stop app && docker compose cp ./backup/. app:/data && docker compose start app
 ```
 
 ## Using it
