@@ -15,6 +15,7 @@ node server/test-auth.mjs                    # e2e: accounts, roles, groups, sha
 TEST_ADMIN_*=… node server/test-oracle-tls.mjs  # e2e: Oracle TLS modes against demo-oracle-tls (needs --profile oracle)
 node server/test-guardrails.mjs              # e2e: read-only/privilege guardrails + PG TLS (stack up; also needs TEST_ADMIN_*)
 cd web && node roundtrip.mjs                 # e2e: import → export → re-import per format (needs oracle profile + TEST_ADMIN_*)
+node web/uiaudit.mjs                         # UI audit of every screen (light/dark, desktop/phone, keyboard); needs a THROW-AWAY instance, recipe in the file header; zero findings is the bar (spec 11)
 node web/docshots.mjs                        # retakes web/src/docsite/img/*.jpg with headless Chrome; needs a THROW-AWAY instance (recipe in the file header; it refuses :3000)
 ```
 

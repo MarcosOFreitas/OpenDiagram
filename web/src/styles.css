@@ -460,7 +460,8 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .ghost { min-width: 28px; min-height: 28px; color: #5b6472 !important; }
 .tpn-x { min-width: 28px; min-height: 28px; }
 .tpn-toggle { width: 28px; }
-.menu-pop small, .algo-pop button small, .card small, .hint { color: var(--muted); }
+.menu-pop small { color: #5b6472; } /* the menu stays light in the dark theme */
+.algo-pop button small, .card small, .hint { color: var(--muted); }
 .auth-card .logo { color: var(--accent); }
 
 /* phones (<= 720px): compact top bar, side panels never wider than the screen, scrollable dock */
@@ -485,3 +486,30 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .ty { color: #647084; } .nn { color: #6b7686; } .tbl-i { color: #6b7686; }
 .tbl-t { display: inline-grid; place-items: center; min-width: 22px; height: 24px; padding: 0; margin: 0 2px 0 -6px; }
 .tp-sw button { width: 24px; height: 24px; }
+
+/* keyboard focus on canvas nodes and relationships; group names and "NN" readable in both themes; larger note delete target */
+.react-flow__node:focus-visible, .react-flow__node.selectable:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; border-radius: 6px; } /* the library sets outline:none with a higher specificity */
+.react-flow__edge:focus-visible .react-flow__edge-path { stroke: #f59e0b !important; stroke-width: 3px !important; }
+.react-flow__edge:focus-visible { outline: none; }
+.grp-handle { color: color-mix(in srgb, var(--gc, #475569) 55%, #000); }
+.shell[data-theme="dark"] .grp-handle { color: color-mix(in srgb, var(--gc, #94a3b8) 55%, #fff); }
+.shell[data-theme="dark"] .nn { color: #9aa6bd; }
+.sticky-x { min-width: 20px; min-height: 20px; }
+
+/* ===== round 2 (from web/uiaudit.mjs): white surfaces keep light tokens inside the dark theme, links and ghost buttons readable on dark ===== */
+.admin, .menu-pop { --muted: #5b6472; --line: #e3e7ee; }
+.shell[data-theme="dark"] .admin code, .shell[data-theme="dark"] .menu-pop code { background: #eef2f9; color: inherit; }
+.shell[data-theme="dark"] .admin .seg button { background: #fff !important; color: #1f2937 !important; }
+.shell[data-theme="dark"] .admin .seg button.on, .shell[data-theme="dark"] .seg button.on { background: var(--accent) !important; color: #fff !important; }
+.shell[data-theme="dark"] .drawer .ghost { color: #aab4c8 !important; }
+.shell[data-theme="dark"] .dbody a, .shell[data-theme="dark"] .dbody .link { color: #8ab4ff; }
+.shell[data-theme="dark"] .warn small { color: #fcd34d; }
+.dl > span { color: #4b5563; }
+.react-flow__edge:focus-visible, .react-flow__edge.selectable:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+@media (max-width: 720px) {
+  .dock { left: 50% !important; } /* the open drawer covers the screen: no offset that would push the dock off it */
+  .algo-pop { left: 50%; right: auto; transform: translateX(-50%); width: min(360px, calc(100vw - 16px)); }
+}
+.shell[data-theme="dark"] .admin .warn { background: #fffbeb; color: #78350f; border-color: #fcd34d; } /* the Administration card is white in both themes */
+.shell[data-theme="dark"] .admin .warn small { color: #92400e; }
+.shell[data-theme="dark"] .admin .ghost { color: #5b6472 !important; }

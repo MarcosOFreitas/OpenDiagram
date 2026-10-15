@@ -18,6 +18,10 @@ import History from './History.jsx';
 import { lineageEdges, closure, MANUAL } from './lineage.js';
 import TablesPanel from './TablesPanel.jsx';
 import { Ic, Logo } from './Icons.jsx';
+
+// text colour with the better contrast on a header colour taken from the DBML (white on orange would fail 4.5:1)
+const lum = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0; const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; const n = parseInt(m[1], 16); return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255); };
+const readable = (hex) => (1.05 / (lum(hex) + 0.05) >= (lum(hex) + 0.05) / 0.059 ? '#fff' : '#111827'); // white vs near-black: whichever contrasts more
 import { BLANK, TEMPLATES } from './templates.js';
 
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
@@ -68,7 +72,7 @@ function TableNode({ data: t, selected }) {
     <NodeResizer isVisible={!!selected && !t.collapsed} minWidth={160} maxWidth={900} minHeight={80} onResize={onResize} />
     <div className={`tbl ${t.dim ? 'dim' : ''} ${t.active ? 'active' : ''} ${t.linRole ? `lin-${t.linRole}` : ''} ${t.peers?.length ? 'peered' : ''} ${t.h && !t.collapsed ? 'fixed' : ''}`} style={{ width: t.w || tableWidth(t), ...(t.h && !t.collapsed ? { height: t.h } : {}), ...(t.peers?.length ? { boxShadow: `0 0 0 2.5px ${t.peers[0].color}` } : {}) }} title={t.note || ''}>
       {t.peers?.length > 0 && <div className="peer-tag" style={{ background: t.peers[0].color }} title={t.peers.map((p) => p.name).join(', ')}>{t.peers[0].name}{t.peers.length > 1 ? ` +${t.peers.length - 1}` : ''}</div>}
-      <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
+      <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor, color: readable(t.headerColor) } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <Handle type="source" position={Position.Right} id="ls" className="hdl" /><Handle type="source" position={Position.Left} id="lsl" className="hdl" />
         <Handle type="target" position={Position.Left} id="lt" className="hdl" /><Handle type="target" position={Position.Right} id="ltr" className="hdl" />{/* table-level data lineage */}
         {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
@@ -107,7 +111,7 @@ function GroupNode({ data: g }) {
   const c = g.color || '#6b7280';
   return (
     <div style={{ width: g.w, height: g.h, border: g.active ? `2.5px solid ${c}` : `1.5px dashed ${c}`, background: g.active ? `${c}2a` : `${c}12`, boxShadow: g.active ? `0 0 0 4px ${c}33` : undefined, borderRadius: 10, pointerEvents: 'none', transition: 'background .12s, box-shadow .12s' }}>
-      <div className="grp-handle" title={g.canMove ? 'Drag to move the whole group' : undefined} style={{ color: c, fontWeight: 700, fontSize: 12, padding: '4px 10px', pointerEvents: g.canMove ? 'all' : 'none', cursor: g.canMove ? 'grab' : 'default', width: 'fit-content', maxWidth: '100%' }}>{g.name}</div>
+      <div className="grp-handle" title={g.canMove ? 'Drag to move the whole group' : undefined} style={{ '--gc': c, fontWeight: 700, fontSize: 12, padding: '4px 10px', pointerEvents: g.canMove ? 'all' : 'none', cursor: g.canMove ? 'grab' : 'default', width: 'fit-content', maxWidth: '100%' }}>{g.name}</div>
     </div>
   );
 }
@@ -803,7 +807,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const hi = view.hiRefs && !!e.data.name, text = hi ? e.data.name : e.label;
     const css = hi
       ? { background: view.theme === 'dark' ? '#111826' : '#fff', border: `1px solid ${view.theme === 'dark' ? '#2c3f66' : '#bfd3ff'}`, color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8', fontWeight: 600, fontSize: 10.5 }
-      : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : '#64748b', fontWeight: picked ? 700 : 400, fontSize: 10 };
+      : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9aa6bd' : '#526071', fontWeight: picked ? 700 : 400, fontSize: 10 };
     return { ...e, ...handles, type: 'ref', zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
   }); }, [edges, nodes, lineageOn, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
@@ -1048,7 +1052,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
-          <div className="dock" style={{ left: `calc(50% - ${((drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0)) / 2}px)` }}>
+          <div className="dock" inert={drawer && window.innerWidth <= 720 ? '' : undefined} style={{ left: `calc(50% - ${((drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0)) / 2}px)` }}>
             <button onClick={() => zoomOut()} title="Zoom out" aria-label="Zoom out"><Ic n="zoomOut" /></button>
             <span>{Math.round(zoom * 100)}%</span>
             <button onClick={() => zoomIn()} title="Zoom in" aria-label="Zoom in"><Ic n="zoomIn" /></button>

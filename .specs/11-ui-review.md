@@ -10,33 +10,23 @@ Review done with the `ui-ux-pro-max` skill (web/desktop rules: accessibility, ta
 - Pointer targets >= 24px; secondary text >= 4.5:1 (`--muted` #5b6472).
 - Phones (<= 720px): compact top bar, editor starts closed, panels never wider than the screen, dock keeps zoom/fit/Arrange.
 
-## Checklist (status: ok = audited with no findings after the fixes)
+## How it is verified
 
-| Screen / popup | Checked | Status |
-|---|---|---|
-| Sign in | layout and logo seen in a screenshot; DOM audit not run | visual only |
-| Top bar (title, Diagram/Docs, Share, Export, More, account) | alignment, names, focus, 375px | ok |
-| Canvas dock (zoom, fit, collapse/expand, highlight, note, lineage, Arrange + caret) | 32px squares on one centre line, names, 375px | ok |
-| Arrange algorithm popover | motion, contrast, keyboard | ok |
-| Export menu | names, motion | ok |
-| More menu (Diagrams, Database, Import, History, View, Documentation) | names, motion | ok |
-| Account menu (password, Administration, Sign out) | item names only; the password form was not opened | partial |
-| Diagrams drawer | cards, delete target size/contrast | ok |
-| Database drawer | field labels, guardrail banners | ok |
-| Import drawer | field labels | ok |
-| History drawer | contrast | ok |
-| View drawer | contrast | ok |
-| Share drawer (people, groups, links) | field labels | ok |
-| Tables panel | close target, counts contrast, dock/minimap offset | ok |
-| Docs view | contrast, narrow window, transition | ok |
-| Administration: Users, Groups, Connections (+ register form), Audit log, Settings | labels, buttons, CSV link | ok |
-| Documentation site `/docs` | 375px, brand | ok |
-| Table picker (Tables and Groups tabs) | targets (colour swatches 24px), labels | ok |
-| Edit-conflict dialog | `role=dialog`, name, focus, contrast | ok |
-| Find/replace bar (Ctrl+F) | targets (close 26px), labels | ok |
-| Shared-link view `/s/<token>` | same audit as the main screen | ok |
-| Canvas nodes | names (`Table x`), collapse toggle target, icons as SVG, secondary text contrast | ok |
+`node web/uiaudit.mjs` (headless Chrome with real focus, see the header of the file for the throw-away instance it needs) opens every screen below in **light and dark** theme at **desktop (1280)** and **phone (375)** and reports: control without an accessible name, pointer target < 24px, field without label, text contrast < 4.5:1, horizontal overflow, dialogs without `role`/`aria-modal`/name/focus handling/Tab trap, and a **keyboard walk** (Tab through the page: every stop must be visible and show a focus indicator). Tablet (768px) is deliberately not covered. The first-run screen needs an empty second instance: `BASE_EMPTY=http://localhost:3101 node web/uiaudit.mjs first-run`.
 
-Screen-reader pass: checked through the accessibility tree only (landmarks banner / region "DBML editor" / main "Diagram" / complementary "Side panel", tablist, names on every control, nodes named, dialogs `role=dialog` + `aria-modal` + focus moved in, kept inside and restored, closed drawer `inert`, toasts `role=status|alert`). It was not run with a real screen reader (NVDA/VoiceOver).
+Status of the last full run (after the fixes): **no findings**.
 
-Not covered: dark theme (contrast never measured), the password form and forced password change, password-protected link prompt, History compare dialog, Oracle/TLS fields and privilege banners in the Database drawer, comments in the Docs view, sticky notes and ref labels, Tables panel filters, the "newer version" bar, tablet width, phone width beyond the main screen, a real screen reader, Windows high-contrast mode, tablet landscape, the third-party "React Flow" attribution link (library).
+## Screens covered (all in both themes; phone where noted in the script)
+
+Sign in · first run (create the first account) · forced password change · main screen (top bar, dock, nodes) · Export / More / Account menus · account password form · drawers Diagrams, Import (empty and pasted), History (+ compare dialog), View, Database (empty, tested with schema list, TLS verify + CA field, Oracle tab, write-privilege warning, refresh timer) · error toast · table picker (Tables and Groups tabs) · Share (person, group, link with password) · shared link (signed out, signed in, password prompt) · Tables panel (+ filters) · Arrange popover · lineage canvas · highlight/collapse all · sticky note · selected table · "newer version" bar · Docs view (overview, changelog + comments, collapsed) · Administration: Users (+ create result, reset password), Groups, Connections (+ register form), Audit log, Settings · every page of the documentation site `/docs` (light) and its search · the downloaded documentation HTML opened from disk.
+
+## Rules learnt from the audit
+
+- The dark theme sets `--muted`/`--line` for the canvas and drawers, but the Administration card, menus and pickers stay white: tokens are reset on `.admin` / `.menu-pop` (a new white surface must do the same).
+- React Flow sets `outline: none` on nodes and edges with a higher specificity: the focus ring has its own rule.
+- Header colours come from the DBML: the text colour is picked by contrast (`readable()` in `App.jsx`), never fixed white.
+- Sizes measured inside the canvas depend on the zoom, so the audit skips them; the CSS sizes are what count.
+
+## Not covered
+
+A real screen reader (NVDA/VoiceOver), Windows high-contrast mode, tablet width, Oracle with a real TCPS server (UI fields only), the third-party "React Flow" attribution link (library).

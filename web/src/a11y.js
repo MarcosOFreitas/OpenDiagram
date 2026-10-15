@@ -28,6 +28,12 @@ const dialogs = () => {
   });
   for (let i = openDialogs.length - 1; i >= 0; i--) if (!openDialogs[i].o.isConnected) { const [{ prev }] = openDialogs.splice(i, 1); if (prev?.isConnected && !openDialogs.length) prev.focus({ preventScroll: true }); }
 };
+// if focus is dropped (the focused control was replaced by a re-render) while a dialog is open, put it back inside
+document.addEventListener('focusout', (e) => {
+  const d = openDialogs[openDialogs.length - 1];
+  if (!d || e.relatedTarget) return;
+  setTimeout(() => { if (d.card.isConnected && (!document.activeElement || document.activeElement === document.body)) (d.card.querySelector('.dtabs button.on') || d.card).focus({ preventScroll: true }); }, 0);
+});
 document.addEventListener('keydown', (e) => {
   const d = openDialogs[openDialogs.length - 1];
   if (e.key !== 'Tab' || !d?.card.isConnected) return;

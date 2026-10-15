@@ -5,8 +5,8 @@ import { slug, display, constraints, ordered, linkCols } from './docsModel.js';
 
 export const docsCss = `
 .dx{--bg:#fff;--fg:#1f2937;--muted:#5b6472;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
-.dx[data-theme=dark]{--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}
-@media (prefers-color-scheme:dark){.dx:not([data-theme]){--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}}
+.dx[data-theme=dark]{--link:#8ab4ff;--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}
+@media (prefers-color-scheme:dark){.dx:not([data-theme]){--link:#8ab4ff;--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}}
 .dx *{box-sizing:border-box}
 .dx-nav{width:var(--navw,270px);flex:none;overflow:auto;background:var(--side);border-right:1px solid var(--line);padding:16px 12px}
 .dx{position:relative}
@@ -42,7 +42,7 @@ export const docsCss = `
 .dx th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line)}
 .dx td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .dx code{background:var(--code);padding:1px 5px;border-radius:4px;font:12px ui-monospace,Consolas,monospace}
-.dx a{color:var(--accent)}
+.dx a{color:var(--link,var(--accent))}
 .b{display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;margin-right:3px;background:var(--chip);color:var(--muted)}
 .b.PK{background:#fef3c7;color:#92400e}
 .dx-sub{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 6px}

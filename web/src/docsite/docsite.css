@@ -30,12 +30,12 @@ html, body { margin: 0; }
 .ds-main h3 { font-size: 1.2rem; margin: 1.6rem 0 .6rem; font-weight: 600; scroll-margin-top: 76px; }
 .ds-main p, .ds-main li { margin: 0 0 1rem; } .ds-main li { margin-bottom: .4rem; } .ds-main ul, .ds-main ol { padding-left: 1.5rem; margin: 0 0 1rem; }
 .ds-main hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
-.ds-anchor { margin-left: -1.1em; padding-right: .3em; opacity: 0; font-weight: 400; } h2:hover .ds-anchor, h3:hover .ds-anchor { opacity: .6; } .ds-anchor:hover { text-decoration: none !important; }
+.ds-anchor { min-width: 24px; display: inline-block; margin-left: -1.4em; padding-right: .3em; opacity: 0; font-weight: 400; } h2:hover .ds-anchor, h3:hover .ds-anchor { opacity: .6; } .ds-anchor:hover { text-decoration: none !important; }
 .ds-main code { font: .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code); border: 1px solid var(--line); border-radius: 4px; padding: .1em .35em; }
 .ds-code { position: relative; margin: 0 0 1.2rem; background: var(--code); border-radius: 8px; border: 1px solid var(--line); }
 .ds-code pre { margin: 0; padding: 16px 18px; overflow: auto; font: 13.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; } .ds-code pre code { background: transparent; border: 0; padding: 0; font: inherit; }
 .ds-lang { position: absolute; top: 6px; left: 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); } .ds-code:has(.ds-lang) pre { padding-top: 26px; }
-.ds-copy { position: absolute; top: 6px; right: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px; padding: 2px 9px; cursor: pointer; opacity: 0; transition: opacity .12s; } .ds-code:hover .ds-copy { opacity: 1; }
+.ds-copy { position: absolute; top: 6px; right: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px; min-height: 24px; padding: 2px 9px; cursor: pointer; opacity: 0; transition: opacity .12s; } .ds-code:hover .ds-copy { opacity: 1; }
 .ds-callout { border-left: 5px solid #4aa3df; background: #eaf5fb; border-radius: 6px; padding: 12px 16px; margin: 0 0 1.2rem; color: #1c1e21; } .ds-callout p { margin: 4px 0 0; } .ds-callout b { font-size: 12.5px; letter-spacing: .5px; }
 .ds-callout.tip { border-color: #2ea66a; background: #e8f6ee; } .ds-callout.warning { border-color: #e6a700; background: #fff6dd; } .ds-callout.important { border-color: #d9534f; background: #fdeceb; }
 .ds[data-theme="dark"] .ds-callout { color: #e3e3e3; background: #1f2d38; } .ds[data-theme="dark"] .ds-callout.tip { background: #1d3328; } .ds[data-theme="dark"] .ds-callout.warning { background: #3a3320; } .ds[data-theme="dark"] .ds-callout.important { background: #3a2423; }
@@ -58,8 +58,8 @@ html, body { margin: 0; }
 }
 
 /* DBML syntax colours (same families as the editor) */
-.ds { --t-kw: #1d5fd1; --t-type: #0f8a5f; --t-str: #b4601a; --t-sstr: #8a6a10; --t-atom: #8a3fc4; --t-num: #c2255c; --t-com: #7a8699; --t-op: #596579; }
-.ds[data-theme="dark"] { --t-kw: #7cb7ff; --t-type: #6ee7b7; --t-str: #f0b27a; --t-sstr: #e6c17a; --t-atom: #d7a8ff; --t-num: #f78fb3; --t-com: #5f7391; --t-op: #8ea0bd; }
+.ds { --t-kw: #1d5fd1; --t-type: #0b7550; --t-str: #a4531a; --t-sstr: #7a5d0e; --t-atom: #8a3fc4; --t-num: #c2255c; --t-com: #5f6b7e; --t-op: #596579; }
+.ds[data-theme="dark"] { --t-kw: #7cb7ff; --t-type: #6ee7b7; --t-str: #f0b27a; --t-sstr: #e6c17a; --t-atom: #d7a8ff; --t-num: #f78fb3; --t-com: #8ea0bd; --t-op: #9db0cc; }
 .ds-code .tok-keyword { color: var(--t-kw); } .ds-code .tok-typeName { color: var(--t-type); } .ds-code .tok-string { color: var(--t-str); } .ds-code .tok-string2 { color: var(--t-sstr); }
 .ds-code .tok-atom { color: var(--t-atom); } .ds-code .tok-number { color: var(--t-num); } .ds-code .tok-comment { color: var(--t-com); font-style: italic; } .ds-code .tok-operator, .ds-code .tok-bracket { color: var(--t-op); }
 
