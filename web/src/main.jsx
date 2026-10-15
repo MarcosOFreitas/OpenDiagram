@@ -5,5 +5,5 @@ const root = createRoot(document.getElementById('root'));
 if (/^\/docs(\/|$)/.test(window.location.pathname)) {
   import('./docsite/DocsSite.jsx').then(({ default: DocsSite }) => root.render(<DocsSite />));
 } else {
-  Promise.all([import('@xyflow/react/dist/style.css'), import('./styles.css'), import('./App.jsx')]).then(([, , { default: App }]) => root.render(<App />));
+  Promise.all([import('@xyflow/react/dist/style.css'), import('./styles.css'), import('./App.jsx'), import('./a11y.js')]).then(([, , { default: App }, { nameFields }]) => { root.render(<App />); nameFields(); });
 }

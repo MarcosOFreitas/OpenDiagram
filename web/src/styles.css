@@ -1,6 +1,6 @@
 :root {
   --top: #0b1220; --top-2: #151f33; --ed: #0f1623; --ed-fg: #d6deeb; --gut: #5b6b86;
-  --accent: #2563eb; --bg: #f4f5f7; --line: #e3e7ee; --muted: #6b7280; --nav: #1e3a5f;
+  --accent: #2563eb; --bg: #f4f5f7; --line: #e3e7ee; --muted: #5b6472; --nav: #1e3a5f;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
@@ -33,7 +33,7 @@ header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex
 .editor textarea:focus { outline: none; }
 .status { flex: none; padding: 6px 12px; font-size: 12px; color: #8b9ab5; background: #0b111c; border-top: 1px solid #1d283b; white-space: pre-wrap; max-height: 90px; overflow: auto; }
 .status.bad { color: #ff8f8f; }
-.edge-toggle { position: absolute; z-index: 6; top: 12px; left: 0; width: 18px; height: 40px; border: 0; border-radius: 0 6px 6px 0; background: var(--ed); color: #8b9ab5; padding: 0; }
+.edge-toggle { position: absolute; z-index: 6; top: 12px; left: 0; width: 24px; height: 40px; border: 0; border-radius: 0 6px 6px 0; background: var(--ed); color: #8b9ab5; padding: 0; }
 .editor-pane:not(.closed) ~ .edge-toggle { background: #1d283b; }
 
 .canvas { position: relative; flex: 1; min-width: 0; background: var(--bg); }
@@ -280,7 +280,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .shell[data-theme="dark"] .algo-pop button small { color: #8b9ab5; }
 
 /* Tables panel (right side of the diagram) */
-.tpn { --p-bg: #fff; --p-fg: #1f2937; --p-line: #e3e7ee; --p-muted: #6b7280; --p-hover: #f1f5f9; --p-input: #fff; --p-sel: rgba(37, 99, 235, .10);
+.tpn { --p-bg: #fff; --p-fg: #1f2937; --p-line: #e3e7ee; --p-muted: #5b6472; --p-hover: #f1f5f9; --p-input: #fff; --p-sel: rgba(37, 99, 235, .10);
   position: absolute; z-index: 12; top: 0; bottom: 0; width: 320px; display: flex; flex-direction: column; background: var(--p-bg); color: var(--p-fg); border-left: 1px solid var(--p-line); box-shadow: -8px 0 24px rgba(15, 23, 42, .08); }
 .shell[data-theme="dark"] .tpn { --p-bg: #111826; --p-fg: #dbe3f1; --p-line: #263248; --p-muted: #8b9ab5; --p-hover: #1b2640; --p-input: #0b111c; --p-sel: rgba(79, 140, 255, .16); box-shadow: -8px 0 24px rgba(0, 0, 0, .35); }
 .tpn input, .tpn select { background: var(--p-input); color: var(--p-fg); border: 1px solid var(--p-line); border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%; min-width: 0; }
@@ -442,3 +442,39 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 }
 .dock { transition: left var(--t) var(--ease); } /* follows the side panels instead of hiding under them */
 .mini, .tpn-toggle { transition: right var(--t) var(--ease); }
+
+/* brand mark, dock alignment and the Diagram <-> Docs transition */
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.logo { display: inline-grid; place-items: center; margin: 0; }
+.dock { gap: 2px; }
+.dock button { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; }
+.dock svg { width: 16px; height: 16px; display: block; }
+.dock button.algo-wide, .dock button[title^="Auto arrange"] { display: inline-flex; align-items: center; gap: 6px; width: auto; padding: 0 10px 0 8px; font-size: 13px; font-weight: 500; }
+.dock .algo-toggle { width: 24px; padding: 0; }
+.dock span { display: inline-grid; place-items: center; height: 32px; font-size: 13px; }
+.dock .sep { height: 20px; margin: 0 4px; }
+.dx-host { animation: od-rise .22s var(--ease); }
+.canvas[data-mode="diagram"] > .react-flow { animation: od-fade .22s ease-out; }
+
+/* touch/pointer targets of at least 24px, and secondary icons readable (contrast >= 3:1) */
+.ghost { min-width: 28px; min-height: 28px; color: #5b6472 !important; }
+.tpn-x { min-width: 28px; min-height: 28px; }
+.tpn-toggle { width: 28px; }
+.menu-pop small, .algo-pop button small, .card small, .hint { color: var(--muted); }
+.auth-card .logo { color: var(--accent); }
+
+/* phones (<= 720px): compact top bar, side panels never wider than the screen, scrollable dock */
+@media (max-width: 720px) {
+  header.top { gap: 4px; padding: 0 8px; }
+  .top .brand { font-size: 0; gap: 0; } /* logo only */
+  .top .title { flex: 1; min-width: 40px; width: auto; }
+  .top .grow, .top .savestate, .top .chip-access, .top .peers { display: none; }
+  .top .mode { margin-left: 0; }
+  .top .mode button { font-size: 0; gap: 0; padding: 5px 10px; } /* icon only; the text stays for screen readers */
+  .tbtn { padding: 5px 8px; }
+  .drawer { width: min(350px, 100vw); }
+  .tpn { width: min(320px, 100vw); }
+  .dock .sep, .dock button[title^="Collapse"], .dock button[title^="Expand"], .dock button[title^="Highlight"], .dock button[title^="Add a sticky"] { display: none; } /* keep zoom, fit and Arrange */
+  .mini, .menu .caret { display: none; }
+  .admin { padding: 8px; }
+}

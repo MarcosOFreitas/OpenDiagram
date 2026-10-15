@@ -17,6 +17,7 @@ import TablePicker, { matcher } from './TablePicker.jsx';
 import History from './History.jsx';
 import { lineageEdges, closure, MANUAL } from './lineage.js';
 import TablesPanel from './TablesPanel.jsx';
+import { Ic, Logo } from './Icons.jsx';
 import { BLANK, TEMPLATES } from './templates.js';
 
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
@@ -510,7 +511,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const lastGen = useRef('');
   const refreshing = useRef(false);
   const dbmlRef = useRef('');
-  const [editorOpen, setEditorOpen] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(() => window.innerWidth > 720); // phones start on the diagram
   const [drawer, setDrawer] = useState(null); // null | 'connect' | 'import' | 'export' | 'view'
   const [search, setSearch] = useState('');
   const grpDrag = useRef(null); // start positions while a group box is dragged
@@ -532,6 +533,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [activeEdge, setActiveEdge] = useState(null); // clicked relationship: focus it and its two tables
   const [drag, setDrag] = useState(false);
   const [mode, setMode] = useState('diagram'); // 'diagram' | 'docs'
+  const edW = Math.min(editorW, Math.max(240, window.innerWidth - 56)); // never wider than the screen
   const editorShown = editorOpen && mode !== 'docs'; // the Docs view takes the whole width; the editor comes back with the Diagram view
   const [comments, setComments] = useState([]);
   const toastTimer = useRef(null);
@@ -959,7 +961,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   return (
     <div className="shell" data-theme={view.theme}>
       <header className="top">
-        <div className="brand"><span className="logo">◆</span> {org || 'OpenDiagram'}</div>
+        <div className="brand"><Logo /> {org || 'OpenDiagram'}</div>
         <input className="title" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="diagram title" readOnly={!manage} />
         {shared
           ? <span className="chip-access" title={`Shared by ${doc.ownerName}`}>{access === 'edit' ? (user ? 'can edit' : 'edit link — log in to edit') : access === 'comment' ? (user ? 'can comment' : 'comment link — log in to comment') : 'view only'}</span>
@@ -1006,14 +1008,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </div>
       )}
       <div className="body">
-        <section className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? editorW : 0 }}>
+        <section className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? edW : 0 }}>
           <Editor value={dbml} onChange={setDbml} diags={editorDiags} info={editorInfo} readOnly={readOnly} wrap={view.wrap} />
           <div className={`status ${error ? 'bad' : ''}`}>{error || stat}</div>
         </section>
-        {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: editorW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
-        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? editorW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
+        {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: edW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
+        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
-        <main className="canvas">
+        <main className="canvas" data-mode={mode}>
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); setActiveGroup(n.type === 'grp' ? n.data.name : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveGroup(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); setActiveGroup(null); }} nodesConnectable={false} nodesDraggable={canEdit}
@@ -1047,18 +1049,18 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
           <div className="dock" style={{ left: `calc(50% - ${((drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0)) / 2}px)` }}>
-            <button onClick={() => zoomOut()} title="Zoom out">−</button>
+            <button onClick={() => zoomOut()} title="Zoom out" aria-label="Zoom out"><Ic n="zoomOut" /></button>
             <span>{Math.round(zoom * 100)}%</span>
-            <button onClick={() => zoomIn()} title="Zoom in">+</button>
+            <button onClick={() => zoomIn()} title="Zoom in" aria-label="Zoom in"><Ic n="zoomIn" /></button>
             <i className="sep" />
-            <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen">⤢</button>
-            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: true }])))} title="Collapse all tables">⊟</button>
-            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: false }])))} title="Expand all tables">⊞</button>
+            <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen" aria-label="Fit to screen"><Ic n="fit" /></button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: true }])))} title="Collapse all tables" aria-label="Collapse all tables"><Ic n="collapse" /></button>
+            <button onClick={() => setSize(Object.fromEntries(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { c: false }])))} title="Expand all tables" aria-label="Expand all tables"><Ic n="expand" /></button>
             <button className={view.hiRefs ? 'on' : ''} onClick={() => setView({ ...view, hiRefs: !view.hiRefs })} title="Highlight relationships (show their names)" aria-label="Highlight relationships"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></svg></button>
             {canEdit && mode === 'diagram' && <button onClick={addNote} title="Add a sticky note (a Note block in the DBML)" aria-label="Add sticky note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v10l-6 6H4z" /><path d="M14 20v-6h6" /></svg></button>}
             {(parsed.lineage || []).length > 0 && <button className={lineageOn ? 'on' : ''} onClick={() => setView({ ...view, lineage: !lineageOn })} title={lineageOn ? 'Hide data lineage' : 'Show data lineage (dashed arrows from the source to the table built from it)'} aria-label="Data lineage"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.2" /><circle cx="5" cy="18" r="2.2" /><circle cx="19" cy="12" r="2.2" /><path d="M7 6.5c5 0 5 5.5 10 5.5M7 17.5c5 0 5-5.5 10-5.5" strokeDasharray="3 2.5" /></svg></button>}
-            <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}>⚙ Arrange</button>
-            <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm">▾</button>
+            <button onClick={() => relayout()} title={`Auto arrange (${(ALGOS.find((a) => a.k === view.algo) || ALGOS[0]).name})`}><Ic n="arrange" />Arrange</button>
+            <button className="algo-toggle" onClick={() => setAlgoOpen((o) => !o)} title="Choose the arrange algorithm" aria-label="Choose the arrange algorithm"><Ic n="caret" /></button>
             {algoOpen && (<>
               <div className="algo-pop" role="menu">
                 <b>Auto-arrange algorithm</b>

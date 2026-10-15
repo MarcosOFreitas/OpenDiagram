@@ -1,7 +1,8 @@
+import { Logo } from './Icons.jsx';
 import { useState } from 'react';
 import { api } from './api.js';
 
-const Brand = ({ org }) => <div className="brand"><span className="logo">◆</span> {org || 'OpenDiagram'}</div>;
+const Brand = ({ org }) => <div className="brand"><Logo /> {org || 'OpenDiagram'}</div>;
 
 // e-mail + password sign in / sign up. `signup`: public sign-up is open. `firstRun`: no account exists yet (this one becomes the administrator).
 export default function AuthScreen({ onDone, onCancel, signup = false, firstRun = false, org, hint }) {

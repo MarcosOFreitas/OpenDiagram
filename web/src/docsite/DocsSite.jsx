@@ -1,3 +1,4 @@
+import { Ic } from '../Icons.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './docsite.css';
 import { PAGES, NAV, ORDER } from './nav.js';
@@ -82,7 +83,7 @@ export default function DocsSite() {
     <div className="ds" data-theme={theme} onClick={onClick}>
       <header className="ds-top">
         <button className="ds-burger" aria-label="Menu" onClick={() => setMenu(!menu)}>☰</button>
-        <a className="ds-brand" href={base} onClick={(e) => { e.preventDefault(); go('introduction'); }}><span>◆</span> OpenDiagram</a>
+        <a className="ds-brand" href={base} onClick={(e) => { e.preventDefault(); go('introduction'); }}><span><Ic n="db" /></span> OpenDiagram</a>
         <nav className="ds-tabs"><a className="on" href={base} onClick={(e) => { e.preventDefault(); go('introduction'); }}>Docs</a><a href="/" >Go to the app</a></nav>
         <span className="ds-grow" />
         <button className="ds-search" onClick={() => setFind(true)}>Search <kbd>Ctrl+K</kbd></button>

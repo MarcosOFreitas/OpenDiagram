@@ -4,14 +4,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { slug, display, constraints, ordered, linkCols } from './docsModel.js';
 
 export const docsCss = `
-.dx{--bg:#fff;--fg:#1f2937;--muted:#6b7280;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+.dx{--bg:#fff;--fg:#1f2937;--muted:#5b6472;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 .dx[data-theme=dark]{--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}
 @media (prefers-color-scheme:dark){.dx:not([data-theme]){--bg:#0e1420;--fg:#dbe3f1;--muted:#8b9ab5;--line:#263248;--side:#111826;--chip:#1a2438;--code:#151d2e;--cmt:#2b2410;--cmtline:#6b5314;--cmtfg:#fcd34d}}
 .dx *{box-sizing:border-box}
 .dx-nav{width:var(--navw,270px);flex:none;overflow:auto;background:var(--side);border-right:1px solid var(--line);padding:16px 12px}
 .dx{position:relative}
 .dx.nav-closed .dx-nav{width:0;padding:0;border-right:0;overflow:hidden}
-.dx-toggle{position:absolute;top:12px;z-index:5;width:18px;height:40px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--side);color:var(--muted);padding:0;cursor:pointer;font:inherit;line-height:1}
+.dx-toggle{position:absolute;top:12px;z-index:5;width:24px;height:40px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--side);color:var(--muted);padding:0;cursor:pointer;font:inherit;line-height:1}
 .dx-grip{position:absolute;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;z-index:4}
 .dx-grip:hover{background:rgba(79,140,255,.45)}
 .dx-nav h1{font-size:15px;margin:0 0 10px;padding:0 6px}

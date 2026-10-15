@@ -19,5 +19,6 @@ Living specifications for OpenDiagram. Rules:
 | 08 | [Generated documentation](08-documentation.md) — dbdocs-style view + HTML/Markdown export, comments | implemented |
 | 09 | [Accounts, administration, groups & sharing](09-accounts-sharing.md) — admin + users, flat groups, sharing with people/groups/links | implemented (self-hosted) |
 | 10 | [Documentation site](10-documentation-site.md) — the public `/docs` pages | implemented |
+| 11 | [UI/UX review checklist](11-ui-review.md) — rules, per-screen audit, what is not covered | implemented |
 
 Origin: behaviour of comparable tools was studied from their public web UI with [REA](https://github.com/morluto/rea) (static bundle analysis + screenshots) to pick features; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.
