@@ -17,6 +17,8 @@ connections.json
 *.pem
 *.key
 *.crt
+!demo/oracle-tls/server.pem
+!demo/oracle-tls/server.key
 *.p12
 *.pfx
 
