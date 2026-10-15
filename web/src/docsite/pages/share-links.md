@@ -25,7 +25,7 @@ The link never exposes your saved connections, credentials or the sharing settin
 
 When a link has a password, visitors first see a **Protected link** screen. Once they type it, it is remembered for that browser tab only.
 
-- Change or remove the password at any time with the **Change password** button next to the link. An empty password removes it.
+- Change or remove the password at any time with the **Add password** / **Change password** button next to the link (it asks in a small browser prompt). An empty password removes it.
 - Changing the password immediately stops the old one from working.
 - Too many wrong passwords from the same address lock the link for a few minutes (10 attempts per 15 minutes).
 - The password is stored hashed (scrypt) and is never shown again; if you forget it, set a new one.

@@ -29,7 +29,7 @@ TableGroup billing [color: #E67E22] {
 
 ## Build groups while importing
 
-In **More → Database**, the **All tables — choose specific ones…** dialog has a **Groups** tab:
+In **More → Database**, after choosing schemas, press the tables button (**All tables — choose specific ones…**, or **N table(s) selected · M group(s) — change…** once something is chosen). The **Choose tables to import** dialog has a **Groups** tab:
 
 ![The Groups tab: a new group on top and the groups of the diagram below.](table-picker-groups.jpg)
 
@@ -37,7 +37,7 @@ In **More → Database**, the **All tables — choose specific ones…** dialog 
 2. Mark the tables of the group in its own list (search, wildcards and *Select shown* work here too).
 3. **Create group.** Repeat for the other groups.
 4. Use **Edit tables** on a group to add or remove tables. Adding a table to a group moves it out of its previous group.
-5. **Use N tables**, then **Import**: the groups are written to the DBML as `TableGroup` blocks.
+5. **Use N table(s)** (or **Use all tables**), then **Import N schema(s) → diagram**: the groups are written to the DBML as `TableGroup` blocks.
 
 The groups of the current diagram are the starting point of the dialog. Tables in a group are imported even if you did not tick them.
 

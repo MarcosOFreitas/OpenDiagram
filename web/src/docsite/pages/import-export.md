@@ -12,13 +12,13 @@
 | Snowflake SQL | |
 | DBML | replaces the editor content |
 
-Syntax problems are reported with the line number.
+Syntax problems are reported in a message. Importing replaces the whole diagram text, for every format; **More → History** can bring the previous text back.
 
 > **Note** Oracle SQL files cannot be parsed. To bring an Oracle schema in, use [Import from a database](database-import) (live import), which reads the catalog directly.
 
 ## Export
 
-The **Export** menu in the top bar downloads the current diagram. The file name is the diagram title.
+The **Export** menu in the top bar downloads the current diagram. The file name is the diagram title (spaces and special characters become `_`); SQL files add the dialect, for example `shop.oracle.sql`, and documentation files end in `-docs`.
 
 | Group | Formats |
 |-------|---------|

@@ -4,9 +4,9 @@ Administrators open the panel from the **avatar menu → Administration**.
 
 ## Users
 
-- **Create** a user with an e-mail, a name and a role. You can type an initial password or let the app **generate a temporary one**, which is shown **once**.
-- A new or reset user is forced to **choose a new password** at the next sign-in; until then only the sign-in and password endpoints work.
-- **Reset password** gives a new temporary password. **Disable** blocks an account without deleting it. **Delete** removes it and its data.
+- **Add user** with an e-mail, a name and a role (member or administrator). You can type an initial password or let the app **generate a temporary one**, which is shown **once**.
+- A new or reset user is forced to **choose a new password** at the next sign-in; until then they can only sign in, change the password and open share links.
+- **Reset password** gives a new temporary password. **Disable** blocks an account without deleting it and signs the person out at once. You cannot disable, delete or change the role of your own account here. **Delete** removes it and its data.
 - The instance must always keep **one active administrator**: the app refuses to disable, delete or demote the last one.
 
 ## Groups
@@ -26,14 +26,14 @@ Flat groups (no hierarchy). Create a group, add or remove members. A person can 
 
 ![Administration → Audit log, filtered to the use of shared connections.](admin-audit.jpg)
 
-Filter by kind, search a person, connection, diagram or detail, load more, or **Download CSV** (formula-safe for spreadsheets). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
+Filter by kind, search a person, connection, diagram or detail, load more, or **Download CSV** (formula-safe for spreadsheets; up to the newest 5000 matching entries). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
 
 ## Settings
 
 | Setting | Effect |
 |---------|--------|
-| **Organisation name** | shown in the top bar instead of "OpenDiagram" |
-| **Allow public sign-up** | lets anybody create a member account. Keep it off unless the instance is for an open community. |
+| **Organisation name** | shown on the sign-in screen and in the top bar instead of "OpenDiagram" |
+| **Let people create their own account (as members)** | lets anybody create a member account. Keep it off unless the instance is for an open community. Press **Save settings**. |
 
 The environment can force these (`ALLOW_SIGNUP`), see [Self-hosting](self-hosting).
 

@@ -7,7 +7,7 @@
 | `Ctrl+K` / `⌘+K` | diagram | open the **Tables panel** and focus its search |
 | `Ctrl+K` / `⌘+K` | this documentation | search the documentation |
 | `Ctrl+Space` | editor | autocomplete |
-| `Ctrl+F` / `Ctrl+H` | editor | find / replace |
+| `Ctrl+F` | editor | find and replace bar |
 | `Esc` | dialogs, panels, menus | close |
 | `Ctrl+Enter` | a comment in Docs | post it |
 | Double-click a table header | diagram | collapse / expand the table |

@@ -13,7 +13,9 @@ OpenDiagram is an open-source tool to draw database diagrams (ERDs) by typing co
 - **Work with large diagrams**: table groups, saved views, detail levels, hiding tables, automatic layouts. See [Working with diagrams](diagram-basics).
 - **Generate documentation**: a browsable, searchable page of every table, with comments, plus a standalone HTML or Markdown export. See [Generated documentation](generated-documentation).
 - **Share and collaborate**: accounts with roles, sharing with people, groups and links (optionally password-protected). See [Accounts & permissions](accounts-and-sharing).
-- **Export** to PNG, SVG, DBML, JSON and SQL for PostgreSQL, MySQL, SQL Server and Oracle. See [Import & export](import-export).
+- **Follow the data**: dashed lineage arrows from source tables to the views built from them, down to the column. See [Data lineage](data-lineage).
+- **Keep history**: every change is saved, versions can be named, compared and restored. See [Versions & history](versions-and-history).
+- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) or DBML files from **More → Import**, and **export** to PNG, SVG, DBML, JSON and SQL for PostgreSQL, MySQL, SQL Server and Oracle. See [Import & export](import-export).
 
 ## Where to start
 

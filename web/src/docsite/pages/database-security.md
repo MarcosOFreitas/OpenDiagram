@@ -2,7 +2,7 @@
 
 ## Read-only by design
 
-- **PostgreSQL**: the session starts with `default_transaction_read_only=on` and runs inside `BEGIN READ ONLY`, with a statement timeout.
+- **PostgreSQL**: the session starts with `default_transaction_read_only=on` and runs inside `BEGIN READ ONLY`, with a 30-second statement timeout.
 - **Oracle**: the session runs `SET TRANSACTION READ ONLY` with a call timeout.
 - Only **catalog / dictionary views** are queried (`pg_catalog`, `ALL_*`). Your tables are never read.
 
@@ -22,9 +22,9 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 |------|----------|
 | **off** | no encryption |
 | **on, verify certificate** | validates the certificate chain and the host name |
-| **on, do not verify** | encrypts but does not check the certificate (not recommended) |
+| **on, do not verify** | PostgreSQL: encrypts but does not check the certificate (not recommended). Oracle: skips only the host-name check; the chain is still validated |
 
-- **Private or self-signed CA**: paste its PEM in the **CA certificate** field.
+- **PostgreSQL, private or self-signed CA**: paste its PEM in the **CA certificate** field.
 - **Oracle** is reached through a **connection string over TLS** (TCPS): host, port, service name and the TLS mode. **Wallets are not supported.** The server certificate is always validated against the certificate authorities that the **server** (the OpenDiagram process) trusts; there is no per-connection CA for Oracle. For a private CA, the administrator adds it to the server with `NODE_EXTRA_CA_CERTS=/path/ca.pem`.
 - **Oracle TLS modes:** *verify* checks the chain **and** that the certificate matches the host name; the optional **expected server certificate DN** (for example `CN=db.example.com`) replaces the host-name check with that DN. *Do not verify* skips only the name check: the chain is still validated, so a self-signed or unknown CA is still refused.
 - **Oracle Autonomous Database without wallet** works with *on, verify certificate*, using the host, the TLS port (usually 1522) and the service name.

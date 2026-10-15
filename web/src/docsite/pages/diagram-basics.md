@@ -2,9 +2,9 @@
 
 ## Navigating
 
-- **Zoom** with the mouse wheel, the **− / +** buttons or the zoom box in the dock; **⤢** fits everything on the screen.
+- **Zoom** with the mouse wheel, the **− / +** buttons or the buttons in the dock (the percentage shows the zoom); **Fit to screen** shows everything.
 - **Pan** by dragging the empty canvas. The **minimap** in the corner shows where you are.
-- The dock also has **⊟ / ⊞** (collapse or expand every table), the relationship highlight button and **Arrange** (see [Arrange](arrange)).
+- The dock also has **Collapse all tables** and **Expand all tables**, the relationship highlight button and **Arrange** (see [Arrange](arrange)).
 
 ## Selecting and focusing
 
@@ -17,7 +17,7 @@
 
 ## Moving things
 
-- **Tables**: drag by the header.
+- **Tables**: drag a table to move it (people who can edit).
 - **A whole table group**: drag the **title** of its box. The tables keep their relative positions.
 - **A relationship line**: drag its **label** to bend the line; double-click the label to reset.
 - Positions are saved with the diagram. Table positions survive a [refresh](database-import#keep-it-fresh).
@@ -34,7 +34,7 @@ Sticky notes are free text on the canvas, kept in the DBML as top-level `Note` b
 
 ![A sticky note (bottom left) on the canvas next to the tables.](lineage-notes-presence.jpg)
 
-- **Add** one with the note button in the dock (people who can edit). It appears in the middle of the screen, ready to type.
+- **Add** one with the **Add a sticky note** button in the dock (people who can edit). It appears in the middle of the screen, ready to type.
 - **Edit** by double-clicking it. The text is written back into the DBML when you click outside; Esc cancels.
 - **Move** it by dragging its top; **resize** it with the corner handles when it is selected; **delete** it with the ✕ in its corner. Its place and size are saved with the diagram.
 - **Hide** all of them with **More → View → Show sticky notes**. Arrange never moves them.

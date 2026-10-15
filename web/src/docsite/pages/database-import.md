@@ -27,11 +27,11 @@ Tick the **schemas** to read. Below them, the **All tables — choose specific o
 
 The **Groups** tab of the same dialog lets you build [Table groups](table-groups) before importing. Each group has its own list of tables, independent from the import selection. Tables you put in a group are imported too.
 
-Press **Import**. The DBML appears in the editor and the diagram is drawn. The connection stays linked to the diagram.
+Press **Import N schema(s) → diagram**. The DBML appears in the editor and the diagram is drawn. The connection stays linked to the diagram.
 
 ## What is imported
 
-- **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE` / `ON UPDATE`) and indexes.
+- **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE`; `ON UPDATE` for PostgreSQL) and indexes.
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark; the SQL definition is kept in the table note. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
 - **Data lineage** of views and materialized views (which tables they are built from, and which source column each output column comes from) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.

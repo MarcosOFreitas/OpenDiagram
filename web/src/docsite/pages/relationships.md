@@ -61,7 +61,7 @@ Ref: order_items.(order_id, product_id) > stock.(order_id, product_id)
 |--------|--------|
 | Click a line | The line turns orange and only its two tables stay in focus; the rest dims. Click the canvas to clear. |
 | Drag the label of a line | The line bends through the new point. Double-click the label to reset. |
-| **Highlight relationships** (dock button or **More → View**) | Every line turns blue and shows the name of its `Ref` instead of the cardinality. |
+| **Highlight relationships** (dock button or **More → View**) | Every line turns blue and shows the name of each named `Ref` instead of the cardinality (unnamed refs keep it). |
 | **More → View → Relationship lines** | Curved, rounded, step or straight lines. |
 
 Lines always attach to the sides of the tables that face each other, so they do not cross the tables they connect. This is recalculated while you drag a table.

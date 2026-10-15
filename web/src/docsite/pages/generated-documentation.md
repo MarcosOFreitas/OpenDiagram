@@ -24,7 +24,7 @@ The **Docs** switch in the top bar turns the same DBML into a browsable document
 
 ## Comments
 
-Documentation is not only generated text. Under the overview, each table and each column you can click **+ Add comment** to write your own note. Comments are stored by OpenDiagram (not in the database or the DBML), show who wrote them and when, and follow the [sharing permissions](accounts-and-sharing): people with *comment* access or more can add them, and you can delete your own (the owner and administrators can delete any). `Ctrl+Enter` posts the comment.
+Documentation is not only generated text. Under the overview, on each table and each column you can click **+ Add comment** to write your own note. Comments are stored by OpenDiagram (not in the database or the DBML), show who wrote them and when, and follow the [sharing permissions](accounts-and-sharing): people with *comment* access or more can add them, and you can delete your own (the owner and administrators can delete any). `Ctrl+Enter` posts the comment.
 
 ## Export
 

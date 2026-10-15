@@ -2,7 +2,7 @@
 
 ## Enums
 
-An enum is a fixed list of values you can use as a column type.
+An enum is a fixed list of values you can use as a column type. Enums are not drawn as boxes on the diagram: they are listed in the [Docs view](generated-documentation), and a column typed with an enum shows its name.
 
 ```dbml
 Enum order_status {

@@ -1,6 +1,6 @@
 # DBML: tables, fields and notes
 
-DBML (Database Markup Language) is a simple, readable language to describe a database structure. The editor understands the full language of [`@dbml/core`](https://dbml.dbdiagram.io/docs); this page covers what you will use most.
+DBML (Database Markup Language) is a simple, readable language to describe a database structure. The diagram is drawn with [`@dbml/core`](https://dbml.dbdiagram.io/docs), so any valid DBML works; this page covers what you will use most.
 
 ## Tables and columns
 
@@ -25,7 +25,7 @@ Table users {
 | `note: 'text'` | a note, shown as a tooltip and in the documentation |
 | `ref: > other.id` | inline relationship, see [Relationships](relationships) |
 
-Types are free text: `varchar(255)`, `decimal(10,2)`, `timestamp with time zone`. A type that is not a single word is quoted automatically by the importer.
+Types are free text: `varchar(255)`, `decimal(10,2)`, `integer[]`. A type that is not a single word must be quoted when you write it by hand (`"timestamp with time zone"`); the importer does this for you.
 
 ## Table settings and notes
 
@@ -65,7 +65,7 @@ Project shop {
 
 ## Sticky notes
 
-A top-level `Note` is a free text block that is not attached to a table. OpenDiagram draws it on the diagram as a **sticky note** (see [Diagram basics](diagram-basics#sticky-notes)). Use triple quotes for several lines.
+A top-level `Note` is a free text block that is not attached to a table. Its name is its title on the canvas (underscores show as spaces; quote a name that has spaces). OpenDiagram draws it on the diagram as a **sticky note** (see [Diagram basics](diagram-basics#sticky-notes)). Use triple quotes for several lines.
 
 ```dbml
 Note reminder {

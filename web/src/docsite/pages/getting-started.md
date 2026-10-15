@@ -4,7 +4,7 @@
 
 - **Left**: the DBML editor. It is the **single source of truth**: the diagram is always drawn from this text.
 - **Center**: the diagram. Drag tables, zoom with the wheel or the dock at the bottom, and click things to focus them.
-- **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export** and **More** (Diagrams, Database, Import, View, Documentation).
+- **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export**, **More** (Diagrams, Database, Import, History, View, Documentation) and your avatar (Account & password, Administration for administrators, Sign out). **Database** is only there on your own diagrams.
 - **Right edge** of the diagram: the **Tables panel** (search, group, hide and jump to tables).
 
 ![The sample model: tables, table groups (colored boxes) and relationship lines. The dock at the bottom has zoom, fit, collapse, highlight and Arrange.](diagram-overview.jpg)
@@ -13,7 +13,7 @@ Everything **autosaves** a moment after you change it ("Saved" appears next to t
 
 ## Your first diagram
 
-Every new account starts with a sample, **Online store - sample**. To start from scratch use **More → Diagrams → New blank diagram** and type:
+Every new account starts with a sample, **Online store - sample**. To start from scratch use **More → Diagrams → New blank diagram**. It starts with a tiny users/posts example: select everything (`Ctrl+A`) and replace it with:
 
 ```dbml
 Table users {
@@ -37,10 +37,10 @@ The two tables appear with a line between them. Click a table to highlight its r
 
 | What | How |
 |------|-----|
-| Autocomplete (keywords, types, tables, `table.column`) | `Ctrl+Space` |
-| Syntax errors | underlined in the code and listed in the status bar |
+| Autocomplete (keywords, types, tables, `table.column`) | opens as you type; `Ctrl+Space` forces it |
+| Syntax errors | underlined in the code; the first message is in the status bar |
 | Colors | after a `headercolor:` or `color:` value a small square opens a color picker; typing `color: ` offers presets |
-| Find and replace | `Ctrl+F` (find) and `Ctrl+H` (replace) |
+| Find and replace | `Ctrl+F` (`⌘+F` on macOS) opens the find and replace bar |
 | Wrap long lines | **More → View → Wrap long lines** |
 | Resize the editor | drag the edge between the editor and the diagram (double-click resets) |
 

@@ -14,7 +14,7 @@ Open **avatar menu → Administration → Connections**.
 
 ![Administration → Connections: a shared connection with the group that may use it.](admin-connections.jpg)
 
-1. Press **Register a shared connection** and fill in the name, host, port, database (or Oracle service name), the **read-only** database user and its password, and the TLS mode. Keep **Refuse to use this credential if it has write privileges** on: a person who tries it then gets an explanation instead of an import.
+1. Press **+ Register a shared connection** and fill in the name, host, port, database (or Oracle service name), the **read-only** database user and its password, and the TLS mode. Keep **Refuse to use this credential if it has write privileges** on (it is on by default): a person who tries it then gets an explanation instead of an import.
 2. Use **+ give access to…** on the connection to add **groups** and **people**. Remove them with the ✕ on their chip. Administrators can always use every shared connection.
 3. **Test** opens a read-only session and warns if the credential can do more than read metadata. **Edit** changes the fields (leave the password empty to keep it), **Delete** removes the connection; diagrams linked to it keep their text and can no longer refresh.
 
@@ -24,7 +24,7 @@ Shared connections belong to the organization, not to the administrator who crea
 
 ## For members
 
-In **More → Database**, shared connections appear in **Saved connections** with a **shared** tag. You see the **name, type, host and database**. The user, password and certificate are never sent to your browser, and the form is read-only.
+In **More → Database** (on your own diagrams), shared connections appear in **Saved connections** with a **shared** tag. You see the **name, type, host and database**. The user, password and certificate are never sent to your browser, and the form is read-only.
 
 You use it like any connection: **Test connection**, pick the schemas and tables, **Import**. A request can only use the connection as it was registered; it cannot point its credentials to another host.
 

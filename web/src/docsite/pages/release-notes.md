@@ -37,6 +37,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 - **Documentation site** at `/docs` (More → Documentation) replaces the Help drawer, with search, sidebar and *On this page* index.
 - Lighter top bar: **Export** menu, and rarely used actions under **More**. Clicking a TableGroup puts it in focus.
 - The sample model is in English ("Online store - sample").
+- Interface polish: one control look, visible focus rings, keyboard and dialog handling, dark-theme fixes, larger touch targets, phone layout, aligned dock icons.
 - Screenshots in the pages and DBML syntax colours; the algorithm menu of Arrange now closes when you click elsewhere.
 
 ## Diagram
@@ -58,6 +59,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 ## Sharing
 
 - Optional **password on share links**.
+- Every metadata refresh gets its own history entry.
 - Accounts, administration, groups and sharing with people, groups and links.
 
 ## First release

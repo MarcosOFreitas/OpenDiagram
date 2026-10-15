@@ -1,12 +1,12 @@
 # Arrange (automatic layout)
 
-**Arrange** in the dock lays the tables out again. The **▾** next to it chooses the algorithm; your choice is remembered.
+**Arrange** in the dock lays the tables out again. The **▾** next to it chooses the algorithm; choosing one applies it right away and is remembered in this browser.
 
 ![The Arrange button and the ▾ menu with the five algorithms.](arrange-menu.jpg)
 
 | Algorithm | What it does | Best for |
 |-----------|--------------|----------|
-| **Auto** | Packs each table group and each connected cluster on its own, tables without relationships in balanced columns, and arranges the blocks in rows. | The default. Large diagrams. |
+| **Auto** | With table groups, or 25 or more tables, packs each table group and each connected cluster on its own (a small diagram without groups is one layered layout), tables without relationships in balanced columns, and arranges the blocks in rows. | The default. Large diagrams. |
 | **Left to right** | Classic layered layout following the relationships. | Long relationship chains. |
 | **Pipeline** | Stages from left to right by dependency (referenced tables first): one stage per table group, or per dependency level when there are no groups. Tables are stacked vertically. | Data models with layers. |
 | **Snowflake** | The most connected table in the center and the related tables in rings around it. | Star and snowflake schemas. |

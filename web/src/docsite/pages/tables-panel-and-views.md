@@ -17,7 +17,7 @@ Open it with the **‹** button on the right edge of the diagram, or with `Ctrl+
 - For tables with [data lineage](data-lineage), a second icon on the row shows only that table and everything it is built from or feeds. The filter **Only tables with data lineage** lists just those tables.
 - The chip at the bottom shows everything again.
 
-Hidden tables leave their relationship lines and group boxes. They are still in the DBML and in the [Docs view](generated-documentation). **Arrange** only lays out the visible tables, and hidden ones keep their place.
+Hidden tables leave their relationship lines and group boxes. They are still in the DBML and in the [Docs view](generated-documentation). Which tables are hidden is saved with the diagram and applies to everyone who opens it. **Arrange** only lays out the visible tables, and hidden ones keep their place.
 
 ## Detail levels
 
@@ -46,7 +46,7 @@ A **view** is a named way of looking at the same diagram. It stores:
 At the top of the Tables panel:
 
 - the **list** switches views ("Main view" is the state before the first view was saved);
-- **＋** saves what you see now as a new view;
+- **＋** saves what you see now as a new view: type a name and press **Save** (or Enter);
 - **✎** renames and **🗑** deletes the current view (the tables are not touched).
 
 Switching never loses changes: what you were looking at is stored back into the view you leave. Views are saved with the diagram, so everybody who opens it sees the same.
