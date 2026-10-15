@@ -1,6 +1,6 @@
 # 09 — Accounts, administration, groups and sharing
 
-**Status:** implemented (self-hosted). Code: `server/src/{db,auth,admin,diagrams,store,policy,cli,index}.js`, `web/src/{Auth,Admin,Library,SharePanel,App}.jsx`. Verified by `server/test-auth.mjs` (91 checks) and manual browser runs ([07](07-testing.md)).
+**Status:** implemented (self-hosted). Code: `server/src/{db,auth,admin,diagrams,store,policy,audit,presence,cli,index}.js`, `web/src/{Auth,Admin,AdminConnections,AdminAudit,Library,SharePanel,History,App}.jsx`. Verified by `server/test-auth.mjs` (about 170 checks) and manual browser runs ([07](07-testing.md)).
 
 ## Model
 
@@ -50,9 +50,9 @@ Levels: **view** (diagram, docs, comments), **comment** (+ add comments, delete 
 
 | Method & path | Who | Purpose |
 |---|---|---|
-| `GET/POST /api/diagrams`, `GET/PUT/DELETE /api/diagrams/:id` | owner or granted | list (own + shared, with `role`), open, save (owner: all; edit: `dbml`,`layout`), delete (owner) |
-| `GET/POST /api/diagrams/:id/access`, `PATCH/DELETE /api/access/:aid` | owner | people/group grants |
-| `GET/POST /api/diagrams/:id/shares`, `PATCH/DELETE /api/shares/:sid` | owner | links |
+| `GET/POST /api/diagrams`, `GET/PUT/DELETE /api/diagrams/:id` | owner or granted | list (own + shared, with `role`), open, save (owner: all; edit: `dbml`,`layout`), delete (owner or administrator) |
+| `GET/POST /api/diagrams/:id/access`, `PATCH/DELETE /api/access/:aid` | owner or administrator | people/group grants |
+| `GET/POST /api/diagrams/:id/shares`, `PATCH/DELETE /api/shares/:sid` | owner or administrator | links |
 | `GET/POST/DELETE /api/diagrams/:id/comments[/:cid]` | by level | comments |
 | `GET /api/shared/:token`, `PUT …`, `POST/DELETE …/comments` | link | anonymous read; signed-in comment/edit |
 | `GET /api/directory/users?q=`, `/api/directory/groups` | any signed-in user | pick people/groups to share with (min. 2 characters, 8 results, active users only) |
@@ -66,7 +66,7 @@ Everything under `/api` except `health`, `auth/*` and `shared/*` requires a sess
 - Table `diagram_versions` (title, DBML, layout, author, summary, optional label). Entries of the same person within 10 minutes are coalesced; unnamed entries are pruned to the latest 60, named ones are kept. The first save after the feature (or on a migrated diagram) first stores the previous content as the "starting point". `summary` is computed when saving: tables added/removed by name (regex on `Table name`), plus lines added/removed.
 - Routes (edit level or above, owner and administrators; not view/comment, not links): `GET /api/diagrams/:id/versions`, `GET .../versions/:vid` (full content), `POST .../versions {label}` (name the current state), `DELETE .../versions/:vid`, `POST .../versions/:vid/restore` (saved as a new version; editors never change the title).
 - UI: **More → History** (`History.jsx`: list, name, Compare = line diff against the editor, Restore) and the conflict dialog in `App.jsx` (autosave pauses while it is open; status shows "Conflict").
-- Not done: detecting a newer version without saving (no polling, no push), a per-entry delete button, diff of the layout, history for edit-link visitors.
+- Not done: push notifications (a newer version is noticed through the presence heartbeat, every 4 s), a per-entry delete button, diff of the layout, history for edit-link visitors.
 
 ## Presence
 - `POST /api/diagrams/:id/presence` and `POST /api/shared/:token/presence` (any access level; link visitors, anonymous ones as `Guest`): body `{ tab, sel?, editing?, leave? }` (`tab` = random id of the browser tab, `[\w-]{6,40}`). Answer `{ viewers: [{ id, name, color, sel, editing }], version }`: the other people with the diagram open (several tabs of one person count once; the caller is never listed) and the current diagram version. Never returns e-mails.
@@ -110,5 +110,5 @@ Private to the account; secrets AES-256-GCM encrypted (`APP_SECRET`); another ac
 - [x] Browser: first-run/sign-in screens, Admin overlay (create user with temporary password, create group, add member, settings), group share → the member signs in with the temporary password, is forced to change it, and sees the diagram under *Shared with me* read-only with the right permission label and no Admin/Share/Database tabs.
 - [ ] `public-only` host policy verified through `/api/schemas` (only the policy functions are tested).
 - [ ] Browser check of a *comment*-level member posting a comment and an *edit*-level member saving (API covers both; UI exercised for links and owner flows).
-- [ ] E-mail verification, self-service password reset, MFA, SSO, account self-deletion, audit log, session list.
-- [ ] Group-owned (shared) database connections — next step on the roadmap.
+- [ ] E-mail verification, self-service password reset, MFA, SSO, account self-deletion, session list, a log of sign-ins.
+- [x] Shared database connections (administrator-registered, granted to people and groups, audited): covered by `test-auth`.

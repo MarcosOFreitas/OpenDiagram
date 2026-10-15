@@ -1,56 +1,41 @@
 # 06 — Roadmap
 
-Ordered by recommended sequence. Move an item to its own numbered spec when work starts.
+Status of what exists and what is planned. Move an item to its own numbered spec when work starts. Anyone is welcome to pick an item: open an issue first (see [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
 
-## Next (agreed order for the next session)
+## Planned (in this order)
 
-### A. Metadata collection ([03](03-connections-import.md))
-
-Today only tables, columns, PK/FK and indexes are imported.
-
-- **A1 (done). Import more objects**, per engine: **views** (with their columns, and the definition in a note), **enums**, **sequences**, **triggers**, and **comments on non-table objects** (views and their columns, sequences, functions…). Decide the DBML representation first — DBML has `Enum`, `Note` and `Table` but no native view/trigger/sequence — and keep `toDbml` the single generator. Update the privilege/limits notes in [03](03-connections-import.md) and the round-trip expectations in [04](04-formats.md).
-- **A2 (done). Pick specific tables inside a schema**: replace the comma-separated text filter with a table list (checkboxes, search, select all/none) fed by a new read-only "list tables" endpoint (catalog query, same guardrails as the rest) and remembered in the connection (`tables`).
-- **A3. Oracle TLS** — **decision: wallets are not supported.** Oracle is reached only through a connection string with TLS (`verify`, or `noverify`, optional server DN); `verify` without wallet works against an OCI Autonomous DB (checked by hand). The `ewallet.pem` path that reads the CA field as a wallet stays in `introspect.js` but is unsupported and unverified; remove it when convenient. `verify`, `serverDn` and `noverify` are tested against a TLS proxy (`server/test-oracle-tls.mjs`); a real server with a private CA was not tried.
-
-### B. Collaboration (original plan, steps 4 and 5)
-
-- **B1. Shared database connections** (**done**; see [09](09-accounts-sharing.md): administrator-only registration, grants to people and groups, members see name/type/host/database, editors with access can refresh, audit log of 180 days). The original idea: an administrator or group owner registers a connection once (read-only credential); members use it to import and refresh without seeing the secret; clear rules for who may use it; **audit log** of who used which connection and when. Sensitive: revisit [05](05-security.md) first.
-- **B2. SSO** (*future feature, not scheduled*): OIDC login for organisations; the target integration is **AWS Cognito** (OIDC), LDAP only if someone asks.
-- Already delivered from the original plan: step 3 — sharing with people, groups and links with view/comment/edit, flat groups, administration ([09](09-accounts-sharing.md)).
-
-## After that
-
-- **Server-side scheduled refresh** — diagrams live on the server now; run refresh without an open page, keep the last snapshot and diff history. **Decision: build it after B1** (it needs B1's audit log and an explicit connection owner). Plan: one job in the server process, every minute, over the connections that are due; minimum interval 5 min with jitter; skip a diagram while someone is editing it (presence); the result is saved as a "Refresh from database" history entry (version history exists); port `keepGroups` (groups, positions, hand-written lineage) to the server; show last run / last error on the connection; the browser timer goes away; a lock row in SQLite only if the app ever runs on more than one instance.
-- **Account hardening** — e-mail verification and self-service reset (optional SMTP), account deletion, session list, link expiry, audit log.
-- **Public deployment** — HTTPS reverse proxy, `DB_HOST_POLICY=public-only` with pinned resolved IPs, general rate limits, CI audit, free hosted instance ([05](05-security.md)).
+1. **API tokens, CLI and an MCP connector.** An agent user whose permissions per diagram and group are the existing grants; every use goes into the audit log; diagram text is untrusted input for the agent. Re-read [05](05-security.md) first: this widens the exposure of the API.
+2. **Server-side scheduled refresh.** Diagrams live on the server, so a refresh can run without an open page. Plan: one job in the server process, every minute, over the connections that are due; minimum interval 5 min with jitter; skip a diagram while someone is editing it (presence); the result is saved as a "Refresh from database" history entry; port `keepGroups` (groups, positions, hand-written lineage) to the server; show last run and last error on the connection; the browser timer goes away; a lock row in SQLite only if the app ever runs on more than one instance. It needs the audit log (done) and an explicit connection owner.
+3. **Account hardening.** E-mail verification and self-service password reset (optional SMTP), account deletion, session list, link expiry, sign-in events in the audit log.
+4. **Public deployment of a free hosted instance.** HTTPS reverse proxy, `DB_HOST_POLICY=public-only` with pinned resolved IPs, general rate limits, dependency audit in CI, container as non-root ([05](05-security.md)).
+5. **Simplicity audit with Ponytail.** A later validation round over the whole codebase with [Ponytail](https://github.com/DietrichGebert/ponytail) (`/ponytail-audit`, MIT): a ranked list of what to delete, simplify or replace with stdlib/native features. Pending: not started; run it, review each finding against the security invariants and the e2e scripts, and apply only what keeps them green.
+6. **SSO** (not scheduled): OIDC login for organisations; the target integration is AWS Cognito, LDAP only if someone asks.
 
 ## Later
 
-- Cross-dialect SQL export (type/default translation) so PG→MySQL/MSSQL and Oracle→MySQL produce valid DDL.
-- Check constraints and partition details in the import.
+- Cross-dialect SQL export (type and default translation) so PG→MySQL/MSSQL and Oracle→MySQL produce valid DDL.
+- Check constraints and partition details in the import; functions and procedures.
 - More engines: MySQL/MariaDB, SQL Server.
-- DBML `Records` (sample data) and custom properties; per-table color picker; column-level layout controls.
+- DBML custom properties; per-table color picker; column-level layout controls.
 - Schema diff between two imports (history) and "drift" notifications.
-- Realtime collaboration.
-- Mobile/narrow layout.
+- Real-time co-editing (presence and conflict detection exist). Only if usage asks for it.
+- Sticky notes: colours, Markdown, notes in the Docs view and exports.
+- UI: tablet width, a pass with a real screen reader and Windows high-contrast mode ([11](11-ui-review.md)).
+- Documentation: more pictures when screens change ([10](10-documentation-site.md)).
 
-## Next session: documentation follow-ups
+## Not planned
 
-Details in [10](10-documentation-site.md): add screenshots/GIFs (pages were proofread against the UI labels and server limits; DBML colours, release notes and a 375 px layout check are done).
+- Executing arbitrary SQL, browsing table data or sample data (against the catalog-only invariant).
+- Embedding diagrams in an iframe.
+- Drawing a lineage link by dragging (lineage is imported or written as `// lineage:` comments).
 
-## Next: ideas taken from dbdiagram's paid plan (agreed order)
+## Done
 
-1. ~~**Versions + changelog**~~ **done**: version number + 409 on conflict, history with names, compare and restore (see [09](09-accounts-sharing.md)). A newer version is noticed through presence;
-2. ~~**Data lineage**~~ **done** (see [02](02-editor-diagram.md) and [03](03-connections-import.md)): `// lineage:` comment syntax, import from `pg_depend` / `ALL_DEPENDENCIES`, dashed arrows, focus, filters. Lineage also feeds Arrange and the Docs view/exports. Column mapping of views is automatic (`pgsql-ast-parser`, spec 03). Decided not to build drawing a lineage link by dragging.
-3. ~~**Sticky notes**~~ **done** (DBML `Note` blocks as movable, editable notes on the canvas; see [02](02-editor-diagram.md)). Open: colours, Docs view, presence.
-4. Small ones: *named views* (done), *detail levels* (done), *password on share links* (done). Embed/iframe was dropped on purpose.
-5. ~~Presence~~ **done** (who has the diagram open, selection, editing, newer-version bar; spec 09). Real-time co-editing (Yjs) only if the use asks for it.
-6. API tokens, CLI and an **MCP connector** (an agent user whose permissions per diagram/group are the existing grants; audit log; diagram text is untrusted input for the agent) — last step before making the repository public; review `05-security.md` first.
-Not planned: data samples (they would read table data, against the catalog-only invariant).
-
-## Done (see git history)
-
-Since the first release notes below: table picker with groups, views/enums/sequences/triggers import (Oracle materialized views handled), packed and group-aware Arrange with five algorithms, Tables panel (search, hide, saved views), detail levels, draggable relationship labels and group boxes, resizable/collapsible tables, nearest-side relationship lines, password on share links, lighter top bar with an Export menu, English sample model, and the `/docs` documentation site.
-
-
-Accounts with roles, administration (users, flat groups, settings), operator CLI, private diagrams (autosave), sharing with people/groups/links with owner-chosen permissions, multi-author comments, administrators manage every diagram, SSRF host policy, sample shop model · DBML editor + diagram · live import PG/Oracle (tables, columns, PK/FK, indexes, table/column comments) · TableGroups/colors/themes · multi-format import/export · Help tab · generated documentation (view, comments, HTML/Markdown export; shareable through links) · read-only guardrails, privilege checks, TLS (PostgreSQL verified; Oracle partly), manual/auto refresh.
+- **Diagrams and editor**: DBML editor (highlighting, autocomplete, diagnostics, color swatches, find/replace), diagram with five Arrange algorithms (group-aware), TableGroups and colors, Tables panel with hide and saved views, detail levels, draggable relationship labels and group boxes, resizable and collapsible tables, sticky notes, light/dark theme, English sample model.
+- **Live import** from PostgreSQL and Oracle: tables, columns, PK/FK, indexes, comments, views and materialized views, enums, sequences, triggers; table picker; read-only sessions and privilege guardrails; TLS (PostgreSQL verified; Oracle `verify`, `serverDn`, `noverify` tested against a TLS proxy and `verify` against an OCI Autonomous DB, no wallets); manual and in-browser automatic refresh.
+- **Data lineage**: `// lineage:` comments, import from `pg_depend` / `ALL_DEPENDENCIES`, column-level lineage of views read from their SQL, dashed arrows, focus and filters; it also feeds Arrange and the Docs view.
+- **Formats**: multi-format SQL/DBML import, DBML/SQL/JSON/PNG/SVG export.
+- **Generated documentation**: Docs view with comments and a changelog, standalone HTML/Markdown export, shareable through links; public documentation site at `/docs`.
+- **Accounts and collaboration**: e-mail + password accounts with roles, administration (users, flat groups, settings), operator CLI, private diagrams with autosave, sharing with people/groups/links (optional link password), multi-author comments, versions with conflict detection and history (names, compare, restore), presence, administrators manage every diagram, SSRF host policy.
+- **Shared database connections**: registered by an administrator, granted to people and groups, used without exposing the credential, with an audit log (180 days).
+- **UI quality**: shared control look, motion, dark theme and phone layout, accessibility, audited screen by screen with `web/uiaudit.mjs` ([11](11-ui-review.md)).

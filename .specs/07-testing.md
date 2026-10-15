@@ -1,6 +1,6 @@
 # 07 — Testing
 
-There is no unit-test framework. Verification is three end-to-end scripts against the Docker stack plus manual UI checks. All accept `BASE=http://host:port` (default `http://localhost:3000`) and need an administrator of that stack (`TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`).
+There is no unit-test framework. Verification is a set of end-to-end and pure scripts plus manual UI checks, and a UI audit tool. All accept `BASE=http://host:port` (default `http://localhost:3000`) and need an administrator of that stack (`TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`).
 
 ## Setup
 
@@ -15,7 +15,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 | Script | Needs | Checks |
 |--------|-------|-------------|
-| `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-auth.mjs` | app + an administrator (`docker compose exec app node src/cli.js create-admin <email> <password>`) | 91: closed sign-up, admin creates users/temporary passwords/forced change, roles and 403s, last-admin guard (isolated DB), disable/enable/reset/delete, flat groups with multi-membership, directory, per-account isolation, administrator access to every diagram (no connection link, no borrowed connections), sharing with people and groups (highest level, leave/delete group, revoke), link levels, settings, CSRF, logout, headers, SSRF policy functions. Creates and removes throw-away users/groups |
+| `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-auth.mjs` | app + an administrator (`docker compose exec app node src/cli.js create-admin <email> <password>`) | about 170 checks: closed sign-up, admin creates users/temporary passwords/forced change, versions and edit conflicts (409), shared connections with grants and the audit log, link passwords and throttling, presence, roles and 403s, last-admin guard (isolated DB), disable/enable/reset/delete, flat groups with multi-membership, directory, per-account isolation, administrator access to every diagram (no connection link, no borrowed connections), sharing with people and groups (highest level, leave/delete group, revoke), link levels, settings, CSRF, logout, headers, SSRF policy functions. Creates and removes throw-away users/groups |
 | `node server/test-guardrails.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-pg-tls`, (optional `demo-oracle`) | privilege warnings (superuser/writer/reader); strict mode blocks writer, allows reader; read-only txn rejects DDL (via `psql`); PG TLS: off, verify w/o CA (fails), verify + CA PEM, noverify, verify vs non-TLS (fails); Oracle descriptor injection rejected; Oracle TCPS vs plain listener fails cleanly |
 | `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-oracle-tls.mjs` | app + `--profile oracle` (`demo-oracle`, `demo-oracle-tls`) | Oracle TLS modes: verify, host-name mismatch, `serverDn` accepted/refused, `noverify`, TLS off against TCPS, DN injection |
 | `node server/test-lineage.mjs` | nothing (pure) | view column lineage: SQL parsing into output column -> source column (joins, aliases, expressions, aggregates, `*`, sub-selects, CTE, UNION, view on view, Oracle upper case, unreadable SQL gives null) |
@@ -24,7 +24,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 | `node web/docshots.mjs` (needs `SHOTS_EMAIL`/`SHOTS_PASSWORD` of a throw-away instance) | same | retakes the documentation pictures |
 | `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
 
-`test-auth` and `test-guardrails` exit non-zero on failure (`roundtrip.mjs` only prints; read its output). Demo data drifts if you alter `shop.*` manually — the scripts assume ≥ 4 PG tables.
+`test-auth`, `test-guardrails` and `test-oracle-tls` exit non-zero on failure (`roundtrip.mjs` only prints; read its output). Demo data drifts if you alter `shop.*` manually — the scripts assume ≥ 4 PG tables.
 
 ## Manual UI checklist (browser)
 
@@ -44,7 +44,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 - Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `server/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported. A real Oracle with a private CA was not tried.
 - `DB_HOST_POLICY=public-only` / `allowlist` verified only through the policy functions, not through `/api/schemas`.
-- A comment-level / edit-level member exercising the UI (the API is covered); opening a downloaded docs `.html` from disk.
+- A comment-level / edit-level member exercising the UI (the API is covered).
 - Read-only enforcement proven with `psql`, not through the app's own pool.
 - No CI. Suggested: GitHub Actions running `docker compose up -d --build` then the guardrail script; add `npm audit`.
 - No browser automation for UI flows; tests above were driven by hand/JS in a browser pane.

@@ -2,7 +2,7 @@
 
 ## Vision
 
-Free, self-hostable database diagramming where the diagram can be **generated from a live database** (PostgreSQL, Oracle) instead of only drawn by hand, and kept up to date. Anyone can run it with one `docker compose up`; later, a hosted instance is offered free to other users.
+Free, self-hostable database diagramming where the diagram can be **generated from a live database** (PostgreSQL, Oracle) instead of only drawn by hand, and kept up to date. Anyone can run it with one `docker compose up`. A hosted instance for other people is a possible future option.
 
 ## Users
 
@@ -12,16 +12,16 @@ Free, self-hostable database diagramming where the diagram can be **generated fr
 
 ## In scope (today)
 
-DBML editor, diagram canvas, live metadata import (PG/Oracle, read-only), refresh, SQL/DBML import, multi-format export, TLS, light/dark theme.
+DBML editor, diagram canvas, live metadata import (PG/Oracle, read-only, with a table picker), refresh, SQL/DBML import, multi-format export, TLS, light/dark theme, data lineage, generated documentation, versions and history, accounts, groups and sharing (people, groups, links), shared database connections with an audit log, administration, presence.
 
 ## In scope (next)
 
-dbdocs-style documentation pages from DBML · accounts, saved diagrams, share links · server-side scheduled refresh · more engines (MySQL, SQL Server) · see [06-roadmap](06-roadmap.md).
+server-side scheduled refresh · API tokens, CLI and an MCP connector · SSO · more engines (MySQL, SQL Server) · see [06-roadmap](06-roadmap.md).
 
 ## Non-goals
 
 - Executing arbitrary SQL, browsing or exporting **table data**, or modifying the connected database — metadata only, always read-only.
-- Real-time multi-user editing (not planned for v1).
+- Real-time co-editing. Presence is shown and conflicting saves are detected, but edits are not merged live.
 - Reproducing a commercial product pixel-for-pixel or copying its code/assets.
 
 ## Principles

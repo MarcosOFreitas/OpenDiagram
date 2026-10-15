@@ -3,10 +3,11 @@
 ```
 Browser (React + CodeMirror + React Flow)
    │  DBML text (single source of truth, parsed in-browser with @dbml/core)
-   │  localStorage (UI only): view, docsCollapsed, lastDiagram, gen:<id>
+   │  localStorage (UI only): view, docsCollapsed, lastDiagram, editorW, tablesPanel, gen:<id>
    ▼  JSON over HTTP
-Fastify API ──► SQLite DATA_DIR/app.db: users, sessions, diagrams, shares, comments,
-   │                connections (secrets AES-256-GCM)
+Fastify API ──► SQLite DATA_DIR/app.db: users, sessions, settings, groups, diagrams, versions,
+   │                access grants, shares, comments, connections (secrets AES-256-GCM),
+   │                shared-connection access, audit log
    │
    ├─ introspect.js ──► PostgreSQL (pg, read-only txn)   ┐ catalog queries only
    │                └─► Oracle     (oracledb thin, RO)   ┘
@@ -19,11 +20,12 @@ One Docker image: multi-stage build — Vite builds the UI into `server/public`,
 
 | Component | Responsibility |
 |-----------|----------------|
-| `server/src/index.js` | Routes, request→connection resolution (`resolve`), privilege guardrail enforcement, error handler. |
-| `server/src/introspect.js` | Per-engine drivers: `schemas`, `import`, `privileges`; TLS config; read-only session setup; table filter. |
+| `server/src/index.js` | Routes, request→connection resolution (`resolve`), privilege guardrail enforcement, the audited use of shared connections (`audited`), CSRF Origin guard, login requirement, forced password change, security headers and CSP, SPA fallback, error handler. |
+| `server/src/introspect.js` | Per-engine drivers: `schemas`, `tables`, `import`, `privileges`; TLS config; read-only session setup; table filter. |
 | `server/src/dbml.js` | Model → DBML: quoting, types, defaults (as backtick expressions), notes, composite PK/indexes, refs with actions. |
 | `server/src/store.js` | CRUD of saved connections per account; secret handling (`undefined`/`''` keep, `null` clears); one-time adoption of the legacy `connections.json`. |
-| `server/src/db.js`, `auth.js`, `diagrams.js`, `policy.js` | SQLite schema; accounts + sessions + throttling; diagrams/shares/comments and access levels; outbound host policy. See [09](09-accounts-sharing.md). |
+| `server/src/db.js`, `auth.js`, `admin.js`, `diagrams.js`, `policy.js` | SQLite schema and migrations; accounts + sessions + throttling + settings; users, groups, settings and the last-administrator guard; diagrams, versions, grants, links and comments with access levels; outbound host policy. See [09](09-accounts-sharing.md). |
+| `server/src/audit.js`, `presence.js`, `lineage.js`, `cli.js` | Audit log (180 days); who has a diagram open (memory only); column lineage of views read from their SQL; operator CLI (`create-admin`, `reset-password`, `list-users`). |
 | `web/src/App.jsx` | Workspace: parse DBML → nodes/edges, layout (dagre, compound for TableGroups), drawer tabs, refresh/auto-refresh, import/export. |
 | `web/src/Editor.jsx` | CodeMirror 6: DBML stream tokenizer, autocomplete, diagnostics from parser errors. |
 
@@ -31,7 +33,7 @@ One Docker image: multi-stage build — Vite builds the UI into `server/public`,
 
 - **DBML as the interchange**: import generates DBML; export/diagram consume DBML. Avoids a second schema model and gives free SQL export via `@dbml/core`.
 - **Introspection via catalogs** (`pg_catalog`, `ALL_*`) not `information_schema`, for exact types (`format_type`), expressions and ordering.
-- **Neutral model** between drivers and DBML so adding an engine = one driver (`schemas`, `import`, `privileges`).
+- **Neutral model** between drivers and DBML so adding an engine = one driver (`schemas`, `tables`, `import`, `privileges`).
 - **Oracle thin mode**: no Instant Client in the image; TLS through the TCPS descriptor only (no wallets; a private CA is trusted by the server process with `NODE_EXTRA_CA_CERTS`).
 - **Client-side refresh timer**: runs in the owner's open browser. Diagrams are now stored server-side, so a server-side scheduler is possible (roadmap).
 - **SQLite via `node:sqlite`** (built in, no native dependency, Node 24): one file in the data volume keeps the single-container deployment. Move to PostgreSQL if write concurrency or multiple app instances are needed.

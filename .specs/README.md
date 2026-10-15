@@ -3,7 +3,7 @@
 Living specifications for OpenDiagram. Rules:
 
 - One topic per file, numbered by reading order. Each spec has **Status** and **Acceptance criteria** that are testable.
-- Change behaviour → update the spec in the same commit. Planned work lives in [`06-roadmap.md`](06-roadmap.md) until it gets its own spec.
+- Change behaviour → update the spec, the documentation page and the README in the same commit. Planned work lives in [`06-roadmap.md`](06-roadmap.md) until it gets its own spec.
 - Mark criteria as `[x]` only when verified (say how in [`07-testing.md`](07-testing.md)); otherwise leave `[ ]`.
 
 | # | Spec | Status |
@@ -21,4 +21,4 @@ Living specifications for OpenDiagram. Rules:
 | 10 | [Documentation site](10-documentation-site.md) — the public `/docs` pages | implemented |
 | 11 | [UI/UX review checklist](11-ui-review.md) — rules, per-screen audit, what is not covered | implemented |
 
-Origin: behaviour of comparable tools was studied from their public web UI with [REA](https://github.com/morluto/rea) (static bundle analysis + screenshots) to pick features; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.
+Origin: features were chosen by studying the public behaviour of comparable tools; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.

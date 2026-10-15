@@ -27,7 +27,7 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 
 ## What is imported
 
-Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and `BIN$`), table + column comments, columns (type via `format_type` / Oracle type formatting, nullability, default expression), PK (single → `[pk]`, composite → `indexes { (a,b) [pk] }`), FK (single/composite, `ON DELETE`/`ON UPDATE`), non-PK indexes (unique flag, method, expression columns). FKs to tables outside the selection are dropped. Optional `tables` filter (case-insensitive; plain `name` or `schema.name` — the UI picker stores `schema.name`).
+Tables (`pg_class` kinds `r`,`p` / `ALL_TABLES` excluding nested, secondary and `BIN$`), table + column comments, columns (type via `format_type` / Oracle type formatting, nullability, default expression), PK (single → `[pk]`, composite → `indexes { (a,b) [pk] }`), FK (single/composite, `ON DELETE`/`ON UPDATE` (Oracle: `ON DELETE` only)), non-PK indexes (unique flag, method, expression columns). FKs to tables outside the selection are dropped. Optional `tables` filter (case-insensitive; plain `name` or `schema.name` — the UI picker stores `schema.name`).
 Also (A1), with the DBML representation in [04](04-formats.md#objects-without-a-dbml-type):
 - **Views** (Postgres `v`, `m`; Oracle `ALL_VIEWS` + `ALL_MVIEWS`) with columns, comment and SQL definition (`pg_get_viewdef`, `TEXT_VC` / `ALL_MVIEWS.QUERY`). In Oracle a materialized view also exists in `ALL_TABLES` as a container table of the same name: it is listed once, as a materialized view (`MLOG$_`/`RUPD$_` helper tables and the internal `I_SNAP$_` index are skipped).
 - **Enums** (Postgres `pg_enum`; Oracle has none), **sequences** (`pg_sequence` / `ALL_SEQUENCES`; sequences owned by a column — serial/identity, `ISEQ$$_` — are skipped), **triggers** (`pg_trigger` non-internal + `pg_get_triggerdef`; Oracle `ALL_TRIGGERS` timing/event/status, no body). Functions/procedures and comments on them are not imported.
@@ -58,7 +58,7 @@ All JSON. Errors: `{error}` with HTTP status.
 | `DELETE /api/connections/:id` | → `{ok:true}` |
 | Diagrams, share links, comments | see [09](09-accounts-sharing.md) |
 | `POST /api/schemas` | `{id}` or draft fields (draft overrides saved) → `{schemas, warnings, readOnly:true}` |
-| `POST /api/tables` | `{id\|draft, schemas[]}` → `{tables:[{schema,name}]}` (catalog query, read-only session; feeds the table picker); `400` no schema |
+| `POST /api/tables` | `{id\|draft, schemas[]}` → `{tables:[{schema,name,view}]}` (catalog query, read-only session; feeds the table picker); `400` no schema |
 | `POST /api/import` | `{id\|draft, schemas[], tables?[]}` → `{dbml, tables, refs, warnings, at}`; `400` no schema; `403` strict block |
 
 ## Acceptance criteria
