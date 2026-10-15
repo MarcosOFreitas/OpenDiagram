@@ -478,3 +478,10 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
   .mini, .menu .caret { display: none; }
   .admin { padding: 8px; }
 }
+
+/* canvas nodes: SVG key/link/note icons, readable secondary text, a larger collapse toggle; picker swatches 24px */
+.ic svg { display: block; margin: auto; }
+.ic.pk { color: #a87600; } .ic.fk { color: #4a6cb3; } .ic.note { color: #707a8a; }
+.ty { color: #647084; } .nn { color: #6b7686; } .tbl-i { color: #6b7686; }
+.tbl-t { display: inline-grid; place-items: center; min-width: 22px; height: 24px; padding: 0; margin: 0 2px 0 -6px; }
+.tp-sw button { width: 24px; height: 24px; }

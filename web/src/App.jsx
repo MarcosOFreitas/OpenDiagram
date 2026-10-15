@@ -87,8 +87,8 @@ function TableNode({ data: t, selected }) {
         <div key={f.name} className="tbl-c" title={`${f.name}: ${f.type}${f.note ? ` — ${f.note}` : ''}`}>
           <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
           <span className="nm">
-            {f.pk ? <i className="ic pk" title="primary key">🔑</i> : fk.has(f.name) ? <i className="ic fk" title="foreign key">⛓</i> : <i className="ic" />}
-            <span className="nmt">{f.name}</span>{f.note && <i className="ic note" title={f.note}>✎</i>}
+            {f.pk ? <i className="ic pk" title="primary key"><Ic n="key" s={11} /></i> : fk.has(f.name) ? <i className="ic fk" title="foreign key"><Ic n="link" s={11} /></i> : <i className="ic" />}
+            <span className="nmt">{f.name}</span>{f.note && <i className="ic note" title={f.note}><Ic n="edit" s={10} /></i>}
           </span>
           <span className="ty"><span className="tyt">{!t.hideTypes && f.type}</span>{(f.notNull || f.pk) && <b className="nn">NN</b>}</span>
           <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
@@ -341,7 +341,7 @@ function layout(tables, refs, old, groups = [], algo = 'auto', lineage = []) {
   else if (groups.length) pos = groupedPositions(tables, refs, groups, algo); // one block per group
   else if (algo === 'auto' && tables.length < 25) pos = dagrePositions(tables, refs);
   else pos = shelfPack(blocksOf(tables, refs, algo)).pos;
-  return tables.map((t) => ({ id: t.id, type: 'table', position: old?.get(t.id) || pos.get(t.id), data: t }));
+  return tables.map((t) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position: old?.get(t.id) || pos.get(t.id), data: t }));
 }
 
 const ALGOS = [
@@ -1008,14 +1008,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </div>
       )}
       <div className="body">
-        <section className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? edW : 0 }}>
+        <section aria-label="DBML editor" className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? edW : 0 }}>
           <Editor value={dbml} onChange={setDbml} diags={editorDiags} info={editorInfo} readOnly={readOnly} wrap={view.wrap} />
           <div className={`status ${error ? 'bad' : ''}`}>{error || stat}</div>
         </section>
         {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: edW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
-        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
+        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} aria-expanded={editorOpen} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
-        <main className="canvas" data-mode={mode}>
+        <main className="canvas" data-mode={mode} aria-label="Diagram">
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); setActiveGroup(n.type === 'grp' ? n.data.name : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveGroup(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); setActiveGroup(null); }} nodesConnectable={false} nodesDraggable={canEdit}
@@ -1043,7 +1043,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>
           {mode === 'diagram' && (<>
-            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} title={`Tables panel (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables panel">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
+            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} aria-expanded={panelOpen} title={`Tables panel (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables panel">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
             {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} lineage={parsed.lineage || []} onLineage={focusLineage} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
@@ -1074,7 +1074,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </div>
         </main>
 
-        <aside className={`drawer ${drawer ? 'open' : ''}`}>
+        <aside className={`drawer ${drawer ? 'open' : ''}`} aria-label="Side panel" inert={drawer ? undefined : ''}>
           <div className="dtabs">
             <b className="dtitle">{TITLES[drawer] ?? ''}</b>
             <button className="x" onClick={() => setDrawer(null)} title="Close (Esc)">✕</button>
@@ -1238,7 +1238,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       )}
       {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} onClose={() => setPicker(false)} onApply={({ tables, groups }) => { setTableSel(tables); setTableGroups(groups); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
-      {toast && <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>{toast.text}</div>}
+      {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>
   );
 }

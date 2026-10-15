@@ -9,7 +9,33 @@ const nameOf = (e) => {
   if (head) return who ? `${head} — ${who}` : head;
   return e.tagName === 'SELECT' ? (e.options[0]?.textContent.trim() || 'Choose') : 'Field';
 };
-const fix = () => document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]),select,textarea').forEach((e) => { if (!e.closest('.cm-editor') && bare(e)) e.setAttribute('aria-label', nameOf(e)); });
+const fix = () => { dialogs(); fields(); };
+const fields = () => document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]),select,textarea').forEach((e) => { if (!e.closest('.cm-editor') && bare(e)) e.setAttribute('aria-label', nameOf(e)); });
+// Overlays (.admin: administration, table picker, conflict/password dialogs) behave as modal dialogs: role + name, focus moves in,
+// Tab stays inside, and focus goes back to the control that opened them. Escape is handled by the dialogs themselves.
+const FOCUSABLE = 'button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
+const openDialogs = [];
+const dialogs = () => {
+  document.querySelectorAll('.admin:not([data-a11y])').forEach((o) => {
+    o.dataset.a11y = '1';
+    const card = o.querySelector('.admin-card') || o;
+    const head = card.querySelector('h2,h3,h4');
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    if (head) { head.id ||= `dlg-${openDialogs.length}-${Date.now() % 1e5}`; card.setAttribute('aria-labelledby', head.id); } else card.setAttribute('aria-label', 'Dialog');
+    openDialogs.push({ o, card, prev: document.activeElement });
+    card.tabIndex = -1;
+    (card.querySelector('input:not([type=hidden]),textarea,select') || card.querySelector('.admin-body button, .tp-foot button, button:not(.x)') || card).focus({ preventScroll: true });
+  });
+  for (let i = openDialogs.length - 1; i >= 0; i--) if (!openDialogs[i].o.isConnected) { const [{ prev }] = openDialogs.splice(i, 1); if (prev?.isConnected && !openDialogs.length) prev.focus({ preventScroll: true }); }
+};
+document.addEventListener('keydown', (e) => {
+  const d = openDialogs[openDialogs.length - 1];
+  if (e.key !== 'Tab' || !d?.card.isConnected) return;
+  const f = [...d.card.querySelectorAll(FOCUSABLE)].filter((x) => x.offsetParent !== null);
+  if (!f.length) return;
+  const at = f.indexOf(document.activeElement);
+  if (e.shiftKey && at <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && (at === -1 || at === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+});
 export function nameFields() {
   let queued = false;
   new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; fix(); }, 60); }).observe(document.body, { childList: true, subtree: true });
