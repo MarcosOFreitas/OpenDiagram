@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
-import dagre from '@dagrejs/dagre';
 import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
@@ -18,24 +17,14 @@ import History from './History.jsx';
 import { closure } from './lineage.js';
 import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
+import { useConnect } from './useConnect.js';
+import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
 import { Ic, Logo } from './Icons.jsx';
 
 import { BLANK, TEMPLATES } from './templates.js';
 
 const VIEW0 = { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
-const PAD = 22, HEAD = 18; // a TableGroup box: padding around its tables + the title strip above them (layout and drawn box must agree)
 
-const ROW = 22;
-// default width from the content: the longest column name always fits, the type gets what is left (min 220, max 480)
-const tableWidth = (t) => {
-  const head = t.name.length * 7.5 + (t.schema !== 'public' ? t.schema.length * 5.5 + 12 : 0) + 44;
-  const rows = t.fields.map((f) => f.name.length * 7 + Math.min(String(f.type || '').length, 24) * 6 + 74);
-  return t.w || Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
-};
-// detail level: full (all) | names (no types/indexes) | keys (only primary/foreign key columns) | tables (header only)
-const shownFields = (t) => (t.detail === 'keys' ? t.fields.filter((f) => f.pk || (t.keyCols || []).includes(f.name)) : t.fields);
-const lessDetail = (t) => !!t.detail && t.detail !== 'full';
-const tableHeight = (t) => (t.collapsed || t.detail === 'tables' ? 30 : t.h || 30 + shownFields(t).length * ROW + (t.hideIndexes || lessDetail(t) ? 0 : t.indexes.length * 20));
 
 function TableNode({ data: t, selected }) {
   const fk = new Set(t.fkCols);
@@ -139,189 +128,6 @@ const noteBlock = (name, text) => `Note ${qid(name)} {\n  '''\n${String(text).re
 const isSticky = (n) => !/^SEQUENCE /.test(n.text); // the importer records database sequences as Notes: those are documentation, not stickies
 const edgeTypes = { ref: RefEdge };
 
-// dagre on a set of tables -> Map id -> top-left position
-function dagrePositions(tables, refs, groups = [], rankdir = 'LR') {
-  const g = new dagre.graphlib.Graph({ compound: true }).setGraph({ rankdir, nodesep: 36, ranksep: 90 }).setDefaultEdgeLabel(() => ({}));
-  tables.forEach((t) => g.setNode(t.id, { width: tableWidth(t), height: tableHeight(t) }));
-  const grouped = new Set();
-  groups.forEach((gr) => {
-    g.setNode(`g:${gr.name}`, {});
-    gr.tables.forEach((id) => { if (g.hasNode(id) && !grouped.has(id)) { g.setParent(id, `g:${gr.name}`); grouped.add(id); } });
-  });
-  refs.forEach((r) => {
-    const a = cid(r), b = pid(r);
-    if (g.hasNode(a) && g.hasNode(b)) g.setEdge(a, b);
-  });
-  dagre.layout(g);
-  return new Map(tables.map((t) => { const p = g.node(t.id); return [t.id, { x: p.x - tableWidth(t) / 2, y: p.y - tableHeight(t) / 2 }]; }));
-}
-
-// Many tables: dagre alone puts every table without relationships in one huge column. Lay out each connected
-// component on its own (dagre), tables without relationships in a grid, then pack the blocks in rows (~wide screen).
-// Snowflake: the most connected table in the center, its neighbours in rings (breadth-first levels) around it
-function snowflakeBlock(ts, cr) {
-  const byId = new Map(ts.map((t) => [t.id, t])), adj = new Map(ts.map((t) => [t.id, new Set()]));
-  cr.forEach((r) => { const a = cid(r), b = pid(r); if (a !== b && adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } });
-  const center = [...ts].sort((a, b) => adj.get(b.id).size - adj.get(a.id).size || a.id.localeCompare(b.id))[0];
-  const level = new Map([[center.id, 0]]), parentOf = new Map(), rings = [[center]];
-  let frontier = [center.id];
-  while (frontier.length) {
-    const next = [];
-    for (const id of frontier) for (const n of [...adj.get(id)].sort()) if (!level.has(n)) { level.set(n, level.get(id) + 1); parentOf.set(n, id); next.push(n); }
-    if (next.length) rings.push(next.map((i) => byId.get(i)));
-    frontier = next;
-  }
-  const rad = (t) => Math.hypot(tableWidth(t), tableHeight(t)) / 2; // circle around a table
-  const centers = new Map([[center.id, { x: 0, y: 0, a: 0 }]]);
-  let prevR = 0, prevHalf = rad(center);
-  for (let k = 1; k < rings.length; k++) {
-    const ring = [...rings[k]].sort((a, b) => (centers.get(parentOf.get(a.id))?.a ?? 0) - (centers.get(parentOf.get(b.id))?.a ?? 0) || a.id.localeCompare(b.id)); // children next to their parent
-    const half = Math.max(...ring.map(rad));
-    const R = Math.max(ring.reduce((sum, t) => sum + 2 * rad(t) + 50, 0) / (2 * Math.PI), prevR + prevHalf + half + 70);
-    ring.forEach((t, i) => { const a = (i / ring.length) * 2 * Math.PI - Math.PI / 2; centers.set(t.id, { x: R * Math.cos(a), y: R * Math.sin(a), a }); });
-    prevR = R; prevHalf = half;
-  }
-  const raw = ts.map((t) => { const c = centers.get(t.id); return [t.id, { x: c.x - tableWidth(t) / 2, y: c.y - tableHeight(t) / 2 }, t]; });
-  const minX = Math.min(...raw.map(([, p]) => p.x)), minY = Math.min(...raw.map(([, p]) => p.y));
-  const pos = new Map(raw.map(([id, p]) => [id, { x: p.x - minX, y: p.y - minY }]));
-  return { pos, w: Math.max(...raw.map(([, p, t]) => p.x - minX + tableWidth(t))), h: Math.max(...raw.map(([, p, t]) => p.y - minY + tableHeight(t))) };
-}
-
-// Pipeline: stages left to right by dependency (referenced tables first). With TableGroups every group is a stage (its box included);
-// without groups the stages are the dependency ranks. Tables are stacked vertically, wrapping into sub-columns when a stage gets too tall.
-function pipelinePositions(tables, refs, groups) {
-  const MAXH = 2600;
-  const byId = new Map(tables.map((t) => [t.id, t]));
-  const edges = refs.map((r) => [cid(r), pid(r)]).filter(([a, b]) => a !== b && byId.has(a) && byId.has(b));
-  const rankOf = (ids, deps) => { // longest dependency chain; cycles are cut where they are first met
-    const memo = new Map(), seen = new Set();
-    const rank = (id) => {
-      if (memo.has(id)) return memo.get(id);
-      if (seen.has(id)) return 0;
-      seen.add(id);
-      let r = 0;
-      for (const d of deps.get(id) || []) r = Math.max(r, rank(d) + 1);
-      seen.delete(id); memo.set(id, r);
-      return r;
-    };
-    ids.forEach(rank);
-    return memo;
-  };
-  const used = new Set(), units = [];
-  if (groups.length) {
-    for (const gr of groups) { const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); }); if (ts.length) units.push({ ts, box: true }); }
-    const rest = tables.filter((t) => !used.has(t.id));
-    if (rest.length) units.push({ ts: rest, box: false });
-  } else {
-    const deps = new Map(); edges.forEach(([a, b]) => { if (!deps.has(a)) deps.set(a, new Set()); deps.get(a).add(b); });
-    const rk = rankOf(tables.map((t) => t.id), deps), cols = new Map();
-    tables.forEach((t) => { const r = rk.get(t.id) || 0; if (!cols.has(r)) cols.set(r, []); cols.get(r).push(t); });
-    [...cols.keys()].sort((a, b) => a - b).forEach((r) => units.push({ ts: cols.get(r), box: false }));
-  }
-  if (groups.length) { // order the stages by the dependencies between units
-    const of = new Map(); units.forEach((u, i) => u.ts.forEach((t) => of.set(t.id, i)));
-    const deps = new Map(); edges.forEach(([a, b]) => { const x = of.get(a), y = of.get(b); if (x !== y) { if (!deps.has(x)) deps.set(x, new Set()); deps.get(x).add(y); } });
-    const rk = rankOf(units.map((_, i) => i), deps);
-    units.forEach((u, i) => { u.rank = rk.get(i) || 0; u.i = i; });
-    units.sort((a, b) => a.rank - b.rank || (a.box === b.box ? a.i - b.i : a.box ? -1 : 1));
-  }
-  const out = new Map(); let x = 0;
-  for (const u of units) {
-    const sorted = [...u.ts].sort((a, b) => a.id.localeCompare(b.id)), pad = u.box ? PAD : 0, top = u.box ? PAD + HEAD : 0;
-    const colW = Math.max(...sorted.map(tableWidth)), subs = [[]], hs = [0];
-    sorted.forEach((t) => { const h = tableHeight(t) + 36; if (hs[hs.length - 1] + h > MAXH && subs[subs.length - 1].length) { subs.push([]); hs.push(0); } subs[subs.length - 1].push([t, hs[hs.length - 1]]); hs[hs.length - 1] += h; });
-    subs.forEach((col, ci) => col.forEach(([t, y]) => out.set(t.id, { x: x + pad + ci * (colW + 36), y: top + y })));
-    x += subs.length * (colW + 36) - 36 + pad * 2 + 110;
-  }
-  return out;
-}
-
-// blocks of a set of tables: one per connected component (own dagre run) plus one grid for the tables without relationships
-function blocksOf(tables, refs, mode = 'auto') { // mode: auto (dagre per component) | snowflake | compact (everything in the balanced columns)
-  const parent = new Map(tables.map((t) => [t.id, t.id]));
-  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
-  const ends = refs.map((r) => [cid(r), pid(r)]).filter(([a, b]) => parent.has(a) && parent.has(b));
-  ends.forEach(([a, b]) => parent.set(find(a), find(b)));
-  const comps = new Map();
-  tables.forEach((t) => { const r = find(t.id); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); });
-  const blocks = [], loose = [];
-  for (const ts of comps.values()) {
-    if (mode === 'compact' || ts.length === 1) { loose.push(...ts); continue; }
-    const ids = new Set(ts.map((t) => t.id));
-    const cr = refs.filter((r) => ids.has(cid(r)) && ids.has(pid(r)));
-    if (mode === 'snowflake' && ts.length > 2) { blocks.push(snowflakeBlock(ts, cr)); continue; }
-    const size = (pos) => ({ pos, w: Math.max(...ts.map((t) => pos.get(t.id).x + tableWidth(t))), h: Math.max(...ts.map((t) => pos.get(t.id).y + tableHeight(t))) });
-    let best = size(dagrePositions(ts, cr));
-    if (ts.length > 12) { // big component: left-to-right or top-to-bottom, whichever is closer to a wide screen
-      const alt = size(dagrePositions(ts, cr, [], 'TB')), off = (b) => Math.abs(Math.log(b.w / b.h / 1.6));
-      if (off(alt) < off(best)) best = alt;
-    }
-    blocks.push(best);
-  }
-  if (loose.length) { // balanced columns, in name order: each table goes to the shortest column, tall tables do not stretch a whole row
-    const colW = Math.max(...loose.map(tableWidth)) + 36;
-    const avgH = loose.reduce((s, t) => s + tableHeight(t), 0) / loose.length;
-    const cols = Math.max(1, Math.min(loose.length, Math.ceil(Math.sqrt(loose.length * 1.6 * avgH / colW))));
-    const pos = new Map(), colH = Array(cols).fill(0);
-    loose.sort((a, b) => a.id.localeCompare(b.id)).forEach((t) => {
-      const c = colH.indexOf(Math.min(...colH));
-      pos.set(t.id, { x: c * colW, y: colH[c] }); colH[c] += tableHeight(t) + 36;
-    });
-    blocks.push({ w: cols * colW - 36, h: Math.max(...colH) - 36, pos });
-  }
-  return blocks;
-}
-
-// pack blocks in rows (~wide screen): -> { pos: Map id -> {x, y}, w, h }
-function shelfPack(blocks, gap = 60, aspect = 1.8) {
-  const area = blocks.reduce((s, b) => s + (b.w + gap) * (b.h + gap), 0);
-  const maxW = Math.max(Math.sqrt(area) * aspect, ...blocks.map((b) => b.w));
-  const pos = new Map(); let x = 0, y = 0, rowH = 0, w = 0;
-  [...blocks].sort((a, b) => b.h - a.h).forEach((b) => {
-    if (x && x + b.w > maxW) { y += rowH + gap; x = 0; rowH = 0; }
-    b.pos.forEach((p, id) => pos.set(id, { x: x + p.x, y: y + p.y }));
-    x += b.w + gap; rowH = Math.max(rowH, b.h); w = Math.max(w, x - gap);
-  });
-  return { pos, w, h: y + rowH };
-}
-
-// Groups: every TableGroup is laid out on its own and becomes one block with room for its box (22px padding + 18px title),
-// so boxes never overlap; ungrouped tables are blocks as usual; then all blocks are packed together.
-function groupedPositions(tables, refs, groups, mode = 'auto') {
-  const byId = new Map(tables.map((t) => [t.id, t])), used = new Set(), blocks = [];
-  for (const gr of groups) {
-    const ts = gr.tables.filter((id) => byId.has(id) && !used.has(id)).map((id) => { used.add(id); return byId.get(id); });
-    if (!ts.length) continue;
-    const inner = shelfPack(blocksOf(ts, refs, mode), 36, 1.4);
-    const pos = new Map([...inner.pos].map(([id, p]) => [id, { x: p.x + PAD, y: p.y + PAD + HEAD }]));
-    blocks.push({ pos, w: inner.w + PAD * 2, h: inner.h + PAD * 2 + HEAD });
-  }
-  blocks.push(...blocksOf(tables.filter((t) => !used.has(t.id)), refs, mode));
-  return shelfPack(blocks, 70).pos;
-}
-
-// data lineage as extra edges for the layout, in the shape of refs: the flow runs source -> derived table, so a derived table sits to the right of what it is built from
-// (dagre puts `child` before `parent`; the pipeline ranks a table after what it depends on, so there the derived table is the child)
-function lineageRefs(tables, lineage, algo) {
-  const byId = new Map(tables.map((t) => [t.id, t]));
-  return lineage.filter((l) => byId.has(l.source) && byId.has(l.target)).map((l) => {
-    const s = byId.get(l.source), t = byId.get(l.target), [c, p] = algo === 'pipeline' ? [t, s] : [s, t];
-    return { child: { schemaName: c.schema, tableName: c.name, fieldNames: [] }, parent: { schemaName: p.schema, tableName: p.name, fieldNames: [] } };
-  });
-}
-
-// algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact. lineage: edges of the data lineage that take part in the layout (empty when it is switched off)
-function layout(tables, refs, old, groups = [], algo = 'auto', lineage = []) {
-  if (lineage.length) refs = [...refs, ...lineageRefs(tables, lineage, algo)];
-  let pos;
-  if (algo === 'lr') pos = dagrePositions(tables, refs, groups);
-  else if (algo === 'pipeline') pos = pipelinePositions(tables, refs, groups);
-  else if (groups.length) pos = groupedPositions(tables, refs, groups, algo); // one block per group
-  else if (algo === 'auto' && tables.length < 25) pos = dagrePositions(tables, refs);
-  else pos = shelfPack(blocksOf(tables, refs, algo)).pos;
-  return tables.map((t) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position: old?.get(t.id) || pos.get(t.id), data: t }));
-}
-
 const ALGOS = [
   { k: 'auto', name: 'Auto', desc: 'Packs each group and each cluster connected by relationships or data lineage on its own. Best default, especially with many tables.' },
   { k: 'lr', name: 'Left to right', desc: 'Layered layout following the relationships and data lineage. Best for long chains.' },
@@ -329,7 +135,6 @@ const ALGOS = [
   { k: 'snowflake', name: 'Snowflake', desc: 'The most connected table in the center, related tables in rings around it.' },
   { k: 'compact', name: 'Compact', desc: 'Tables in a compact rectangle, ignoring relationships and data lineage.' },
 ];
-const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
 const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
 
 const EXPORTS = [ // key, label, extension, group of the Export menu
@@ -440,21 +245,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [title, setTitle] = useState('');
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [conns, setConns] = useState([]);
-  const [form, setForm] = useState(EMPTY);
-  const [schemas, setSchemas] = useState([]);
-  const [picked, setPicked] = useState([]);
-  const [tableSel, setTableSel] = useState([]); // 'schema.table' entries; empty = all tables
-  const [tableList, setTableList] = useState(null); // null = not loaded
-  const [picker, setPicker] = useState(false); // table picker dialog
-  const [tableGroups, setTableGroups] = useState(null); // TableGroups defined in the picker; null = keep the diagram's current ones
-  useEffect(() => { setTableGroups(null); }, [doc?.id]); // groups belong to the diagram they were edited for
   const [busy, setBusy] = useState('');
   const [toast, setToast] = useState(null);
-  const [warnings, setWarnings] = useState([]);
   const [source, setSource] = useState(null);
-  const [fullDdl, setFullDdl] = useState(false); // import views with their full CREATE statement, not only their structure
-  useEffect(() => { setFullDdl(!!source?.ddl); }, [source?.connId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [, setTick] = useState(0);
   const lastGen = useRef('');
   const refreshing = useRef(false);
@@ -501,9 +294,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), type === 'err' ? 7000 : 3000);
   }, []);
-  const loadConns = useCallback(() => (shared ? Promise.resolve() : api('connections').then(setConns).catch((e) => notify('err', e.message))), [notify, shared]);
   const connectOpen = drawer === 'connect';
-  useEffect(() => { loadConns(); }, [loadConns, connectOpen, showAdmin]); // also when the Database drawer opens and when Administration closes: a connection registered or shared there appears without a reload
 
   // what the current role may do
   const access = doc?.access; // owner | edit | comment | view
@@ -792,36 +583,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     };
     pass(false); setTimeout(() => pass(true), 350); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 700);
   };
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
-  const run = (label, fn) => async () => { setBusy(label); try { await fn(); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); } };
-
-  // form -> API body: secrets left empty keep the stored value, clearCa removes the saved CA
-  const body = (extra = {}) => ({ ...form, name: form.name || `${form.type}@${form.host}`, caPem: form.clearCa ? null : form.caPem, ...extra });
-  const test = run('test', async () => {
-    const r = await api('schemas', body());
-    setSchemas(r.schemas); setPicked(r.schemas.length === 1 ? r.schemas : []); setWarnings(r.warnings || []);
-    notify(r.warnings?.length ? 'err' : 'ok', `Connected (read-only session) — ${r.schemas.length} schema(s)${r.warnings?.length ? ' · credential has extra privileges!' : ''}`);
-  });
-  const loadTables = run('tables', async () => {
-    const r = await api('tables', { ...body(), schemas: picked });
-    setTableList(r.tables.map((t) => ({ name: `${t.schema}.${t.name}`, view: t.view }))); setPicker(true);
-  });
-  const persist = async (extra = {}) => {
-    const { id } = await api('connections', body(extra));
-    setForm((f) => ({ ...f, id, password: '', hasCa: f.clearCa ? false : !!f.caPem || !!f.hasCa, caPem: '', clearCa: false }));
-    await loadConns();
-    return id;
-  };
-  const save = run('save', async () => { await persist(); notify('ok', 'Connection saved'); });
-  const importNow = run('import', async () => {
-    const tables = tableSel;
-    const id = form.shared ? form.id : await persist({ schemas: picked, tables }); // a shared connection is used as registered: it is never saved (or changed) from here
-    const r = await api('import', { id, schemas: picked, tables, ddl: fullDdl });
+  const onImported = (r, src, groups) => { // what a finished import changes in the diagram
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
-    setDbml(withGroups(r.dbml, tableGroups ?? parsed.groups)); setWarnings(r.warnings || []); // groups are re-applied: a new import must not lose them
-    setSource({ connId: id, schemas: picked, tables, ddl: fullDdl, at: r.at });
+    setDbml(withGroups(r.dbml, groups ?? parsed.groups)); // groups are re-applied: a new import must not lose them
+    setSource(src);
     notify('ok', `Imported ${r.tables} tables, ${r.refs} relationships — linked for refresh`);
-  });
+  };
+  const { conns, form, setForm, schemas, picked, setPicked, tableSel, setTableSel, tableList, picker, setPicker, tableGroups, setTableGroups, warnings, setWarnings, fullDdl, setFullDdl, set, test, loadTables, save, importNow, pick, del, loadPem, reset } =
+    useConnect({ shared, notify, docId: doc?.id, source, setSource, setBusy, onImported, reloadOn: [connectOpen, showAdmin] });
   const refresh = useCallback(async (silent = false) => {
     if (!source || refreshing.current) return;
     refreshing.current = true; setBusy('refresh');
@@ -843,13 +612,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  const listSchemas = async (id) => { // a saved connection that was never imported has no schemas to offer yet: list them, as the Test connection button would
-    setBusy('test');
-    try { const r = await api('schemas', { id }); setSchemas(r.schemas); setPicked(r.schemas.length === 1 ? r.schemas : []); setWarnings(r.warnings || []); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); }
-  };
-  const pick = (c) => { if (!c.schemas?.length) listSchemas(c.id); setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
-  const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
-  const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
 
   const importText = (text, fmt = sqlFmt) => {
     if (readOnly) return notify('err', 'This diagram is read-only for you');
@@ -1060,7 +822,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   <span><a onClick={() => refresh(false)}>Refresh now</a> · <a onClick={() => setSource(null)}>Unlink</a></span>
                 </div>
               )}
-              <h4>Saved connections <a onClick={() => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableSel([]); setTableList(null); setTableGroups(null); setWarnings([]); }}>+ new</a></h4>
+              <h4>Saved connections <a onClick={reset}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
               {conns.map((c) => (
                 <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
