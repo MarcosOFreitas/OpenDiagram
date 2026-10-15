@@ -89,17 +89,7 @@ cd web && npm install && npm run dev           # http://localhost:5173
 cd web && npm run build
 ```
 
-Verification is end-to-end (no unit-test framework, no linter): the scripts are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test; create a throw-away one with the CLI. `BASE=http://host:port` points them elsewhere.
-
-```bash
-docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'
-export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-password'
-node server/test-auth.mjs              # accounts, roles, groups, sharing, link permissions, shared connections, audit log, SSRF policy
-node server/test-guardrails.mjs        # read-only / privilege guardrails + PostgreSQL TLS modes
-node server/test-oracle-tls.mjs        # Oracle TLS modes (needs --profile oracle)
-cd web && npm install && node roundtrip.mjs   # DB import -> export -> re-import per format (needs the oracle profile)
-node web/uiaudit.mjs                   # UI audit of every screen (needs a throw-away instance and Chrome)
-```
+Verification is end-to-end (no unit-test framework, no linter): the scripts and what each needs are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test: create a throw-away one with `docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`; `BASE=http://host:port` points them at another address (default `http://localhost:3000`).
 
 Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI and the documentation site) · `demo/` (sample databases) · `.specs/` (product, architecture and security specs) · [`AGENTS.md`](AGENTS.md) (guide for AI coding agents). See [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute.
 
@@ -107,9 +97,7 @@ Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite 
 
 Fine for your machine or a trusted network as is. **Before hosting it for other people**: set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, remove the demo services, and read the checklist in [`.specs/05-security.md`](.specs/05-security.md). To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
-- Accounts use e-mail + password (scrypt), HttpOnly SameSite cookies, login throttling and a cross-origin write guard. Administrators create accounts and reset passwords (there is no e-mail verification or self-service "forgot password" yet); if every administrator is locked out use `docker compose exec app node src/cli.js create-admin <email> <password>`.
-- Personal database connections are private to their account (not even administrators can use them); secrets are encrypted at rest. A *shared* connection is registered by an administrator, used exactly as registered, and every use is logged. Share links never expose connections or credentials.
-- Every database session is read-only (metadata only); credentials with excess privileges are detected and can be refused; TLS with certificate verification is supported.
+In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connections private to their owner, shared connections audited, and every database session read-only (metadata only). Details and the threat model: [`.specs/05-security.md`](.specs/05-security.md).
 
 ## Known limitations
 

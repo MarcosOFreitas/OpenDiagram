@@ -31,11 +31,4 @@ Status of what exists and what is planned. Move an item to its own numbered spec
 
 ## Done
 
-- **Diagrams and editor**: DBML editor (highlighting, autocomplete, diagnostics, color swatches, find/replace), diagram with five Arrange algorithms (group-aware), TableGroups and colors, Tables panel with hide and saved views, detail levels, draggable relationship labels and group boxes, resizable and collapsible tables, sticky notes, light/dark theme, English sample model.
-- **Live import** from PostgreSQL and Oracle: tables, columns, PK/FK, indexes, comments, views and materialized views, enums, sequences, triggers; table picker; read-only sessions and privilege guardrails; TLS (PostgreSQL verified; Oracle `verify`, `serverDn`, `noverify` tested against a TLS proxy and `verify` against an OCI Autonomous DB, no wallets); manual and in-browser automatic refresh.
-- **Data lineage**: `// lineage:` comments, import from `pg_depend` / `ALL_DEPENDENCIES`, column-level lineage of views read from their SQL, dashed arrows, focus and filters; it also feeds Arrange and the Docs view.
-- **Formats**: multi-format SQL/DBML import, DBML/SQL/JSON/PNG/SVG export.
-- **Generated documentation**: Docs view with comments and a changelog, standalone HTML/Markdown export, shareable through links; public documentation site at `/docs`.
-- **Accounts and collaboration**: e-mail + password accounts with roles, administration (users, flat groups, settings), operator CLI, private diagrams with autosave, sharing with people/groups/links (optional link password), multi-author comments, versions with conflict detection and history (names, compare, restore), presence, administrators manage every diagram, SSRF host policy.
-- **Shared database connections**: registered by an administrator, granted to people and groups, used without exposing the credential, with an audit log (180 days).
-- **UI quality**: shared control look, motion, dark theme and phone layout, accessibility, audited screen by screen with `web/uiaudit.mjs` ([11](11-ui-review.md)).
+See *Features* in the [README](../README.md) and the [release notes](../web/src/docsite/pages/release-notes.md). Not repeated here so that it cannot drift.

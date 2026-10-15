@@ -12,7 +12,7 @@ Free, self-hostable database diagramming where the diagram can be **generated fr
 
 ## In scope (today)
 
-DBML editor, diagram canvas, live metadata import (PG/Oracle, read-only, with a table picker), refresh, SQL/DBML import, multi-format export, TLS, light/dark theme, data lineage, generated documentation, versions and history, accounts, groups and sharing (people, groups, links), shared database connections with an audit log, administration, presence.
+Everything under *Done* in [06-roadmap](06-roadmap.md) and *Features* in the README: the DBML editor and diagram, read-only live import from PostgreSQL and Oracle, generated documentation, versions, accounts, groups, sharing, shared connections with an audit log, and administration.
 
 ## In scope (next)
 
