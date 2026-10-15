@@ -58,5 +58,16 @@ out.shared = await ev(`(async () => { const r = {}; document.querySelector('.dra
   const card = [...document.querySelectorAll('.drawer .card')].find((c) => /Shared demo/.test(c.textContent)); r.listed = !!card; card?.click(); await H.w(2500);
   r.schemasListedOnSelect = document.querySelectorAll('.drawer .schemas input[type=checkbox]').length; const c = [...document.querySelectorAll('.drawer .schemas input[type=checkbox]')].find((x) => /shop/.test(x.closest('label,div').textContent)); c && c.click(); await H.w(300);
   r.importEnabled = !H.btn('Import', document.querySelector('.drawer'))?.disabled; await H.click('Import', document.querySelector('.drawer')); await H.w(3500); r.imported = (document.querySelector('.cm-content')?.innerText || '').includes('shop.customers'); return r; })()`);
+// 9. table picker on the shared connection: tables put in a group count as selected, and the Full DDL option reaches the diagram
+const savedText = async () => { await sleep(3500); return ev(`(async () => { const id = localStorage.getItem('lastDiagram'); return (await fetch('/api/diagrams/' + id).then((r) => r.json())).dbml; })()`); };
+out.groupsCount = await ev(`(async () => { const r = {}; await H.click('All tables', document.querySelector('.drawer')); await H.w(1500); const dlg = document.querySelector('.admin-card.tp'); await H.click('Groups', dlg.querySelector('.dtabs')); await H.w(500);
+  H.set(dlg.querySelector('.tp-new input[placeholder="Group name"]'), 'Core'); await H.w(200);
+  for (const n of ['customers', 'orders', 'v_customer_orders']) { [...dlg.querySelectorAll('.tp-new .tp-card')].find((c) => c.querySelector('b')?.textContent === n).querySelector('input').click(); await H.w(150); }
+  await H.click('Create group', dlg); await H.w(500); await H.click('Tables', dlg.querySelector('.dtabs')); await H.w(500);
+  r.ticked = dlg.querySelectorAll('.tp-card.on').length; r.footer = dlg.querySelector('.tp-foot .hint')?.textContent; r.fullDdlBox = !!dlg.querySelector('.tp-foot input[type=checkbox]'); dlg.querySelector('.tp-foot input[type=checkbox]').click(); await H.click('Use', dlg); await H.w(500); return r; })()`);
+await ev(`H.click('Import', document.querySelector('.drawer'))`);
+const dd = await savedText();
+out.groupsCount.importedTables = [...dd.matchAll(/^Table\s+(\S+)/gm)].map((m) => m[1]).sort().join(',');
+out.fullDdl = { createView: /CREATE VIEW shop\.v_customer_orders AS/.test(dd) };
 console.log(JSON.stringify(out, null, 1));
 await B.close(); process.exit(0);

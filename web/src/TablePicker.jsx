@@ -88,8 +88,8 @@ export default function TablePicker({ items, selected, groups, ddl, onApply, onC
   const dropShown = () => toggle(shown.map((i) => i.name), false);
 
   // groups: a table belongs to one group (adding it to a group removes it from the previous one)
-  // a table put in a group is imported too: tick it in the Tables tab right away (when nothing is ticked, "all" already includes it)
-  const autoSel = (names) => setSel((x) => (x.size ? new Set([...x, ...names]) : x));
+  // a table put in a group is imported too: it is ticked in the Tables tab right away (so grouping tables without ticking anything imports just those, not "all")
+  const autoSel = (names) => toggle(names, true);
   const dup = gName.trim() && gs.some((g) => g.name === gName.trim());
   const create = () => {
     const name = gName.trim();
