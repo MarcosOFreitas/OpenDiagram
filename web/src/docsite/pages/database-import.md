@@ -20,6 +20,7 @@ Tick the **schemas** to read. Below them, the **All tables — choose specific o
 
 - **Search** by text, with wildcards (`VW_*`, `LOG_??`) or as a regular expression (`/^vision_/`).
 - Filter by **schema** and by **tables / views**, or show **selected only**.
+- **Full DDL of views** (bottom of the dialog, only when the list has views): off by default, so a view comes in as its structure only; on, its `CREATE` statement is added to the note.
 - **Select shown** and **Clear shown** act on the filtered list, so `VW_*` plus *Select shown* picks every view of a family.
 - Nothing selected means **all tables** of the chosen schemas.
 
@@ -32,7 +33,7 @@ Press **Import N schema(s) → diagram**. The DBML appears in the editor and the
 ## What is imported
 
 - **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE`; `ON UPDATE` for PostgreSQL) and indexes.
-- **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark; the SQL definition is kept in the table note. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
+- **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark, with their resulting structure (columns, types, indexes). By default the SQL is **not** kept; tick **Full DDL of views** in the table picker to add the `CREATE VIEW` / `CREATE MATERIALIZED VIEW … AS …` statement to the table note. The choice is remembered for the refresh. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
 - **Data lineage** of views and materialized views (which tables they are built from, and which source column each output column comes from) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.
 - **Sequences** (those that are not owned by a column) as standalone `Note` blocks.

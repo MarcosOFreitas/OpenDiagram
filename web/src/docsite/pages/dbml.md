@@ -84,4 +84,4 @@ Note reminder {
 
 ## Views from a database
 
-Views are drawn as normal tables, marked **· View** (or **· Mat. view**) next to the name. Their SQL definition is kept in the table note. See [Import from a database](database-import#what-is-imported).
+Views are drawn as normal tables, marked **· View** (or **· Mat. view**) next to the name. Their `CREATE VIEW … AS …` statement is added to the table note only when **Full DDL of views** was ticked at import. See [Import from a database](database-import#what-is-imported).

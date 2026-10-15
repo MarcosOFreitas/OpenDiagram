@@ -8,15 +8,16 @@ const col = (c) => (/^[A-Za-z_]\w*$/.test(c) || /^"[^"]+"$/.test(c) ? c : expr(c
 const tn = (t) => `${id(t.schema)}.${id(t.name)}`;
 export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set null', d: 'set default' };
 
-// DBML has no view/trigger/sequence: a view is a Table whose note holds `VIEW` + the SQL definition (the UI marks it "· View"), triggers go in their table's note, a sequence is a standalone Note
+// DBML has no view/trigger/sequence: a view is a Table whose note holds `VIEW` / `MATERIALIZED VIEW` (the UI marks it "· View") and, with `ddl`, the full
+// CREATE statement that builds it; without `ddl` only the structure (columns, types, indexes) is written. Triggers go in their table's note, a sequence is a standalone Note
 
-export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] }) {
+export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] }, { ddl = false } = {}) {
   const out = [];
   const enumTypes = new Set(enums.flatMap((e) => [`${e.schema}.${e.name}`, e.name]));
   for (const e of enums) out.push(`Enum ${tn(e)} {`, ...e.values.map((v) => `  ${id(v)}`), '}', '');
   for (const t of tables) {
     const single = t.pk.length === 1 ? t.pk[0] : null;
-    const parts = [t.comment, t.view != null && `${t.viewKind || 'VIEW'}\n${t.view.trim()}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
+    const parts = [t.comment, t.view != null && `${t.viewKind || 'VIEW'}${ddl ? `\nCREATE ${t.viewKind || 'VIEW'} ${tn(t)} AS\n${t.view.trim().replace(/;?$/, ';')}` : ''}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
     const note = parts.length ? (parts.length === 1 && t.view == null && !t.triggers?.length ? str(t.comment) : mstr(parts.join('\n\n'))) : '';
     const attrs = [note && `note: ${note}`].filter(Boolean);
     out.push(`Table ${tn(t)}${attrs.length ? ` [${attrs.join(', ')}]` : ''} {`);

@@ -55,7 +55,7 @@ function TableChooser({ items, value, onToggle, onMany, groupOf }) {
 
 // Centered dialog to choose which tables/views to import and to define TableGroups for them.
 // items: [{ name: 'schema.table', view }]; selected: names (empty = all); groups: [{ name, color, tables: ['schema.table'] }]
-export default function TablePicker({ items, selected, groups, onApply, onClose }) {
+export default function TablePicker({ items, selected, groups, ddl, onApply, onClose }) {
   const [tab, setTab] = useState('tables');
   const [sel, setSel] = useState(() => new Set(selected));
   const [gs, setGs] = useState(() => (groups || []).map((g) => ({ ...g, tables: [...g.tables] })));
@@ -66,6 +66,7 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
   const [gName, setGName] = useState('');
   const [gColor, setGColor] = useState(PALETTE[0][0]);
   const [gSel, setGSel] = useState(() => new Set()); // tables for the NEW group (not the import selection)
+  const [full, setFull] = useState(!!ddl); // views and materialized views with their full CREATE statement
   const [editing, setEditing] = useState(null); // index of the group whose tables are being edited
   const schemas = useMemo(() => [...new Set(items.map((i) => split(i.name)[0]))], [items]);
   const shown = useMemo(() => {
@@ -114,7 +115,7 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
       return { ...g, name };
     });
     const tables = sel.size ? [...new Set([...sel, ...out.flatMap((g) => g.tables).filter((t) => have.has(t))])] : []; // grouped tables must be imported too
-    onApply({ tables, groups: out });
+    onApply({ tables, groups: out, ddl: full });
   };
 
   const nGroups = gs.filter((g) => g.tables.length).length;
@@ -185,6 +186,7 @@ export default function TablePicker({ items, selected, groups, onApply, onClose 
         <div className="tp-foot">
           <span className="hint">{sel.size ? `${sel.size} selected of ${items.length}` : `Nothing selected = import all ${items.length}`}{nGroups ? ` · ${nGroups} group(s)` : ''}</span>
           <span style={{ flex: 1 }} />
+          {items.some((i) => i.view) && <label className="chk" title="Off: views are imported as their structure only (columns, types, indexes). On: their CREATE VIEW / CREATE MATERIALIZED VIEW statement is added to the note."><input type="checkbox" checked={full} onChange={(e) => setFull(e.target.checked)} /> Full DDL of views</label>}
           <button onClick={onClose}>Cancel</button>
           <button className="primary" onClick={apply}>Use {sel.size ? `${sel.size} table(s)` : 'all tables'}</button>
         </div>

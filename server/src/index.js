@@ -158,14 +158,14 @@ app.post('/api/tables', async (req) => {
   return audited(req, c, 'tables', (r) => `${schemas.join(', ')}: ${r.tables.length} tables listed`, async () => ({ tables: await listTables(c, schemas) }));
 });
 app.post('/api/import', async (req) => {
-  const { schemas, tables } = req.body ?? {};
+  const { schemas, tables, ddl } = req.body ?? {};
   if (!schemas?.length) throw bad('select at least one schema');
   const c = await resolve(req.body, req.user);
   return audited(req, c, req.body?.purpose === 'refresh' ? 'refresh' : 'import', (r) => `${schemas.join(', ')}: ${r.tables} tables, ${r.refs} refs`, async () => {
     const warnings = await checkPrivileges(c, schemas);
     if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
     const model = await importModel(c, schemas, tables);
-    return { dbml: toDbml(model), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
+    return { dbml: toDbml(model, { ddl: ddl === true }), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
   });
 });
 

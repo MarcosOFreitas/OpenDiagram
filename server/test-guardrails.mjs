@@ -41,8 +41,14 @@ const r2 = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] }
 // 2c. A1 objects: enum, view (grey Table + definition), materialized view, sequence, trigger
 r = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('A1 enum', r.dbml.includes('Enum shop.order_state {'));
-check('A1 view as a Table with comment + definition', r.dbml.includes(`Table shop.v_customer_orders [note: '''\nOrders with customer name\n\nVIEW\nSELECT`));
-check('A1 materialized view', r.dbml.includes("Table shop.mv_orders_by_status [note: '''\nMATERIALIZED VIEW\n"));
+check('A1 view as a Table with its comment and the VIEW marker, structure only by default', r.dbml.includes(`Table shop.v_customer_orders [note: '''\nOrders with customer name\n\nVIEW\n'''`) && !/CREATE (MATERIALIZED )?VIEW/.test(r.dbml));
+check('A1 materialized view marker, structure only by default', r.dbml.includes("Table shop.mv_orders_by_status [note: '''\nMATERIALIZED VIEW\n'''"));
+const full = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'], ddl: true });
+check('ddl option: a view gets its full CREATE VIEW ... AS statement', full.dbml.includes(`Table shop.v_customer_orders [note: '''\nOrders with customer name\n\nVIEW\nCREATE VIEW shop.v_customer_orders AS\n`) && /CREATE VIEW shop\.v_customer_orders AS\n[\s\S]*?;\n'''/.test(full.dbml));
+check('ddl option: ...and a materialized view its CREATE MATERIALIZED VIEW ... AS statement', full.dbml.includes("MATERIALIZED VIEW\nCREATE MATERIALIZED VIEW shop.mv_orders_by_status AS\n"));
+check('ddl option: columns, relationships and lineage are the same with and without it', (full.dbml.match(/\/\/ lineage.*/g) || []).join('|') === (r.dbml.match(/\/\/ lineage.*/g) || []).join('|') && full.tables === r.tables && full.refs === r.refs);
+const notTrue = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'], ddl: 'true' });
+check('ddl option: only the boolean true turns it on', !/CREATE (MATERIALIZED )?VIEW/.test(notTrue.dbml));
 check('lineage: a view lists its source tables and the columns it uses', /\/\/ lineage\(auto\): shop\.v_customer_orders <- shop\.customers\([^)]*name[^)]*\), shop\.orders\(/.test(r.dbml), (r.dbml.match(/\/\/ lineage.*/g) || []).join(' | '));
 check('lineage: each output column of a view is mapped to its source column', ['customer_id <- shop.customers.id', 'name <- shop.customers.name', 'order_id <- shop.orders.id', 'status <- shop.orders.status'].every((m) => r.dbml.includes(`// lineage(auto): shop.v_customer_orders.${m}`)), (r.dbml.match(/\/\/ lineage\(auto\): shop\.v_customer_orders\.\w+ <-.*/g) || []).join(' | '));
 check('lineage: an aggregate output (count(*)) gets no column mapping', !/shop\.mv_orders_by_status\.total/.test(r.dbml));

@@ -29,8 +29,8 @@ const PAD = 22, HEAD = 18; // a TableGroup box: padding around its tables + the 
 const cid = (r) => tid(r.child.schemaName, r.child.tableName), pid = (r) => tid(r.parent.schemaName, r.parent.tableName); // a ref's two table ids
 
 // DBML text -> {tables, refs, groups} for the diagram
-// the import writes `VIEW` / `MATERIALIZED VIEW` + the SQL into the table note
-const viewKindOf = (note) => { const n = typeof note === 'string' ? note : note?.value || ''; const m = /(^|\n)(MATERIALIZED VIEW|VIEW)\n/.exec(n); return m ? (m[2] === 'VIEW' ? 'View' : 'Mat. view') : ''; };
+// the import writes `VIEW` / `MATERIALIZED VIEW` (+ the CREATE statement when the full DDL was asked for) into the table note
+const viewKindOf = (note) => { const n = typeof note === 'string' ? note : note?.value || ''; const m = /(^|\n)(MATERIALIZED VIEW|VIEW)(\n|$)/.exec(n); return m ? (m[2] === 'VIEW' ? 'View' : 'Mat. view') : ''; };
 function parse(text) {
   try {
     const db = new Parser().parse(text, 'dbmlv2');
@@ -512,6 +512,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [toast, setToast] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [source, setSource] = useState(null);
+  const [fullDdl, setFullDdl] = useState(false); // import views with their full CREATE statement, not only their structure
+  useEffect(() => { setFullDdl(!!source?.ddl); }, [source?.connId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [, setTick] = useState(0);
   const lastGen = useRef('');
   const refreshing = useRef(false);
@@ -872,17 +874,17 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const importNow = run('import', async () => {
     const tables = tableSel;
     const id = await persist({ schemas: picked, tables });
-    const r = await api('import', { id, schemas: picked, tables });
+    const r = await api('import', { id, schemas: picked, tables, ddl: fullDdl });
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
     setDbml(withGroups(r.dbml, tableGroups ?? parsed.groups)); setWarnings(r.warnings || []); // groups are re-applied: a new import must not lose them
-    setSource({ connId: id, schemas: picked, tables, at: r.at });
+    setSource({ connId: id, schemas: picked, tables, ddl: fullDdl, at: r.at });
     notify('ok', `Imported ${r.tables} tables, ${r.refs} relationships — linked for refresh`);
   });
   const refresh = useCallback(async (silent = false) => {
     if (!source || refreshing.current) return;
     refreshing.current = true; setBusy('refresh');
     try {
-      const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables, purpose: 'refresh', diagramId: doc.id });
+      const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables, ddl: !!source.ddl, purpose: 'refresh', diagramId: doc.id });
       setSource((x) => ({ ...x, at: r.at })); setWarnings(r.warnings || []);
       if (r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
       const cur = dbmlRef.current, merged = keepGroups(cur, r.dbml);
@@ -899,7 +901,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const t = setInterval(() => refresh(true), every * 60000);
     return () => clearInterval(t);
   }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setTableList(null); setTableGroups(null); setWarnings([]); };
+  const pick = (c) => { setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
   const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
   const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
 
@@ -1169,6 +1171,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                 </div>
                 <h4>Tables {tableSel.length > 0 && <a onClick={() => setTableSel([])}>clear</a>}</h4>
                 <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected${tableGroups?.length ? ` · ${tableGroups.length} group(s)` : ''} — change…` : 'All tables — choose specific ones…'}</button>
+                {fullDdl && <small className="hint">Views and materialized views are imported with their full CREATE statement.</small>}
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>
               </>)}
             </div>
@@ -1243,7 +1246,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </div>
         </div>
       )}
-      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} onClose={() => setPicker(false)} onApply={({ tables, groups }) => { setTableSel(tables); setTableGroups(groups); setPicker(false); }} />}
+      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} onClose={() => setPicker(false)} onApply={({ tables, groups, ddl }) => { setTableSel(tables); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>

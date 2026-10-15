@@ -2,9 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
-## Audit log filters
+## Audit log filters and view DDL
 
 - The **Audit log** can be filtered by who did it, by target (a shared database, a diagram, users, groups, settings) and by type of operation (added, changed, deleted, tested, listed tables, imported, refreshed); the CSV follows the filters.
+- **Full DDL of views** in the table picker: off by default (views come in as their structure only), on adds the `CREATE VIEW` / `CREATE MATERIALIZED VIEW` statement to the note; refresh remembers it.
 
 ## Docs, Oracle and cleanup
 
