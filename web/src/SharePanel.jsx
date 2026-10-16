@@ -6,6 +6,7 @@ const LEVELS = [
   ['comment', 'Can comment', 'Like view, and can add comments.'],
   ['edit', 'Can edit', 'Like comment, and can change the DBML and the layout. Never your connections or credentials.'],
 ];
+const EXPIRY = [['', 'Link never expires'], ['1', 'Expires in 1 day'], ['7', 'Expires in 7 days'], ['30', 'Expires in 30 days'], ['90', 'Expires in 90 days']];
 const hintOf = (a) => LEVELS.find((l) => l[0] === a)?.[2];
 const Levels = ({ value, onChange }) => <select value={value} onChange={(e) => onChange(e.target.value)}>{LEVELS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>;
 
@@ -20,6 +21,7 @@ export default function SharePanel({ diagramId, notify }) {
   const [level, setLevel] = useState('view');
   const [linkLevel, setLinkLevel] = useState('view');
   const [linkPw, setLinkPw] = useState('');
+  const [linkDays, setLinkDays] = useState('');
   const timer = useRef(null);
 
   const load = useCallback(() => Promise.all([api(`diagrams/${diagramId}/access`), api(`diagrams/${diagramId}/shares`), api('directory/groups')])
@@ -79,12 +81,15 @@ export default function SharePanel({ diagramId, notify }) {
       <small className="hint">Anyone with a link can open the diagram; comment/edit links ask people to sign in first. Revoke a link at any time.</small>
       <div className="row">
         <Levels value={linkLevel} onChange={setLinkLevel} />
-        <button className="primary" onClick={act(async () => { await api(`diagrams/${diagramId}/shares`, { access: linkLevel, ...(linkPw ? { password: linkPw } : {}) }); setLinkPw(''); }, 'Link created')}>Create link</button>
+        <button className="primary" onClick={act(async () => { await api(`diagrams/${diagramId}/shares`, { access: linkLevel, ...(linkPw ? { password: linkPw } : {}), ...(linkDays ? { expiresInDays: +linkDays } : {}) }); setLinkPw(''); }, 'Link created')}>Create link</button>
       </div>
       <input type="password" autoComplete="new-password" placeholder="Password for the new link (optional, 6+ characters)" value={linkPw} onChange={(e) => setLinkPw(e.target.value)} />
+      <select value={linkDays} onChange={(e) => setLinkDays(e.target.value)} aria-label="New link expires">{EXPIRY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
       {links.map((s) => (
         <div key={s.id} className="share">
           <div className="row"><input readOnly value={url(s.token)} onFocus={(e) => e.target.select()} /><button onClick={() => copy(s.token)}>Copy</button></div>
+          <div className="row"><small className="hint grow">{s.expired ? 'Expired: nobody can open it' : s.expiresAt ? `Expires ${new Date(s.expiresAt * 1000).toLocaleDateString()}` : 'Never expires'}</small>
+            <select value="" onChange={(e) => e.target.value !== '' && act(() => api(`shares/${s.id}`, { expiresInDays: e.target.value === 'never' ? null : +e.target.value }, 'PATCH'), 'Expiry updated')()} aria-label="Change expiry of this link"><option value="">Change expiry…</option>{EXPIRY.map(([v, l]) => <option key={v || 'never'} value={v || 'never'}>{l}</option>)}</select></div>
           <div className="row">
             <Levels value={s.access} onChange={(v) => act(() => api(`shares/${s.id}`, { access: v }, 'PATCH'), 'Permission updated')()} />
             <button onClick={() => { const p = window.prompt(s.hasPassword ? 'New password for this link (6+ characters). Leave empty to remove the password.' : 'Password for this link (6+ characters):', ''); if (p === null) return; act(() => api(`shares/${s.id}`, { password: p }, 'PATCH'), p ? 'Password set' : 'Password removed')(); }}>{s.hasPassword ? '🔒 Change password' : 'Add password'}</button>

@@ -2,6 +2,14 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Sessions, sign-in log and closing an account
+
+- **Account → Sessions**: see where you are signed in and end any session. Administrators can sign a person out everywhere, and set the session length and an inactivity limit.
+- The **Audit log** is now two tabs: *Audit log* (administrator changes) and **Sign-ins & connections** (sign-ins, failed sign-ins, password changes, ended sessions, closed accounts and shared-connection use).
+- **Delete my account**: the diagrams wait 7 days for an administrator, who can hand them to a person and a group, or delete them.
+- **Share links can expire**.
+- The limit on failed sign-in attempts now survives a restart.
+
 ## Scheduled refresh on the server
 
 - The automatic refresh no longer needs an open page: the server re-reads linked diagrams (every 5 minutes at the least), skips one that someone is editing, and saves each change as a **Refresh from database** entry by *Scheduled refresh*. Five failures in a row pause it and the Database drawer shows the error.

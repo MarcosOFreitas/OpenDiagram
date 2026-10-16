@@ -163,15 +163,18 @@ export const remove = (actor, id) => db.prepare('delete from diagrams where id =
 // ---- share links: the owner decides what each link allows (view < comment < edit)
 export function listShares(actor, diagramId) {
   getOwned(actor, diagramId);
-  return db.prepare('select id, token, access, created_at, password_hash from shares where diagram_id = ? order by created_at').all(diagramId)
-    .map((s) => ({ id: s.id, token: s.token, access: s.access, createdAt: s.created_at, hasPassword: !!s.password_hash }));
+  return db.prepare('select id, token, access, created_at, password_hash, expires_at from shares where diagram_id = ? order by created_at').all(diagramId)
+    .map((s) => ({ id: s.id, token: s.token, access: s.access, createdAt: s.created_at, hasPassword: !!s.password_hash, expiresAt: s.expires_at ?? null, expired: !!s.expires_at && s.expires_at <= now() }));
 }
-export function createShare(actor, diagramId, access, passwordHash = null) {
+// a link lasts `days` days (1 to 365) or forever (null/undefined); an expired one answers as if it did not exist
+const expiry = (days) => { if (days == null || days === '') return null; const n = Number(days); if (!Number.isInteger(n) || n < 1 || n > 365) throw bad('a link lasts 1 to 365 days'); return now() + n * 86400; };
+export function createShare(actor, diagramId, access, passwordHash = null, expiresInDays = null) {
   getOwned(actor, diagramId);
   if (!(access in RANK)) throw bad('access must be view, comment or edit');
   const id = randomUUID(), token = randomBytes(18).toString('base64url');
-  db.prepare('insert into shares (id, diagram_id, token, access, created_at, password_hash) values (?, ?, ?, ?, ?, ?)').run(id, diagramId, token, access, now(), passwordHash);
-  return { id, token, access, hasPassword: !!passwordHash };
+  const expiresAt = expiry(expiresInDays);
+  db.prepare('insert into shares (id, diagram_id, token, access, created_at, password_hash, expires_at) values (?, ?, ?, ?, ?, ?, ?)').run(id, diagramId, token, access, now(), passwordHash, expiresAt);
+  return { id, token, access, hasPassword: !!passwordHash, expiresAt };
 }
 function ownedShare(actor, shareId) {
   const s = db.prepare('select s.*, d.owner_id from shares s join diagrams d on d.id = s.diagram_id where s.id = ?').get(shareId);
@@ -183,11 +186,12 @@ export function setShareAccess(actor, shareId, access) {
   if (!(access in RANK)) throw bad('access must be view, comment or edit');
   db.prepare('update shares set access = ? where id = ?').run(access, shareId);
 }
+export function setShareExpiry(actor, shareId, days) { ownedShare(actor, shareId); db.prepare('update shares set expires_at = ? where id = ?').run(expiry(days), shareId); }
 export function setSharePassword(actor, shareId, passwordHash) { ownedShare(actor, shareId); db.prepare('update shares set password_hash = ? where id = ?').run(passwordHash, shareId); }
 export function deleteShare(actor, shareId) { ownedShare(actor, shareId); db.prepare('delete from shares where id = ?').run(shareId); }
 
 export function shareByToken(token) {
-  const s = db.prepare('select s.*, d.title, d.dbml, d.layout, d.version, d.owner_id, u.name owner_name from shares s join diagrams d on d.id = s.diagram_id join users u on u.id = d.owner_id where s.token = ?').get(String(token));
+  const s = db.prepare('select s.*, d.title, d.dbml, d.layout, d.version, d.owner_id, u.name owner_name from shares s join diagrams d on d.id = s.diagram_id join users u on u.id = d.owner_id where s.token = ? and (s.expires_at is null or s.expires_at > ?)').get(String(token), now());
   return s ? { id: s.id, diagramId: s.diagram_id, access: s.access, title: s.title, dbml: s.dbml, layout: json(s.layout, {}), version: s.version, ownerId: s.owner_id, ownerName: s.owner_name, passwordHash: s.password_hash } : null;
 }
 

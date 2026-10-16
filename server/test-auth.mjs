@@ -535,6 +535,67 @@ r = await ADMIN('DELETE', `/api/diagrams/${dId}`);
 check('an administrator can delete any diagram', r.status === 200);
 r = await ADMIN('GET', `/api/diagrams/${dId}`);
 check('...and it no longer exists', r.status === 404);
+// ---------------- sessions, sign-in log, link expiry, closing an account
+{
+  const S2 = client(), S3 = client();
+  const kd = (await ADMIN('POST', '/api/diagrams', { title: `Links ${run}`, dbml: 'Table t { id int }' })).json.id;
+  await S2('POST', '/api/auth/login', { email: alice.email, password: alicePw });
+  await S3('POST', '/api/auth/login', { email: alice.email, password: alicePw });
+  r = await S2('GET', '/api/auth/sessions');
+  check('sessions: the person lists their devices, one is marked current', r.status === 200 && r.json.length >= 2 && r.json.filter((s) => s.current).length === 1 && r.json.every((s) => s.id && !('token_hash' in s)), JSON.stringify(r.json[0]));
+  const other = r.json.find((s) => !s.current);
+  r = await S2('DELETE', `/api/auth/sessions/${r.json.find((s) => s.current).id}`);
+  check('sessions: the one in use cannot be "revoked" (that is sign out)', r.status === 404);
+  r = await S2('DELETE', `/api/auth/sessions/${other.id}`);
+  check('sessions: ending another one works', r.status === 200 && r.json.ended === 1);
+  r = await S2('DELETE', '/api/auth/sessions');
+  check('sessions: end all the others', r.status === 200);
+  r = await S3('GET', '/api/auth/me');
+  check('sessions: a session that was ended no longer works', r.json.user === null || r.status === 401, JSON.stringify(r.json).slice(0, 80));
+  r = await client()('GET', '/api/auth/sessions');
+  check('sessions: need a sign-in', r.status === 401);
+
+  r = await ADMIN('GET', '/api/admin/audit?action=auth&limit=200');
+  const acts = new Set(r.json.map((e) => e.action));
+  check('audit: sign-ins, failed sign-ins and ended sessions are recorded', ['auth.login', 'auth.login_failed', 'auth.session_revoked', 'auth.password_changed'].every((a) => acts.has(a)), [...acts].join(','));
+  check('audit: a failed sign-in keeps the e-mail tried and the address, never the password', r.json.some((e) => e.action === 'auth.login_failed' && e.target === alice.email && /· .*\d/.test(e.detail)) && !JSON.stringify(r.json).includes('wrong password!!'));
+
+  r = await ADMIN('POST', `/api/diagrams/${kd}/shares`, { access: 'view', expiresInDays: 7 });
+  const lk = r.json;
+  check('links: created with an expiry', r.status === 200 && lk.expiresAt > Date.now() / 1000);
+  r = await anon('GET', `/api/shared/${lk.token}`);
+  check('links: open before it expires', r.status === 200);
+  r = await ADMIN('POST', `/api/diagrams/${kd}/shares`, { access: 'view', expiresInDays: 400 });
+  check('links: an expiry over 365 days is refused', r.status === 400);
+  r = await ADMIN('GET', `/api/diagrams/${kd}/shares`);
+  check('links: the owner sees when it expires', r.json.find((s) => s.id === lk.id)?.expired === false);
+  await ADMIN('DELETE', `/api/diagrams/${kd}`);
+
+  const D2 = client();
+  r = await ADMIN('POST', '/api/admin/users', { email: `leaver-${run}@example.com`, name: 'Leaver', password: pw });
+  const leaver = r.json.user;
+  await D2('POST', '/api/auth/login', { email: leaver.email, password: pw });
+  await D2('POST', '/api/auth/password', { current: pw, next: 'leaver new long password' });
+  const ld = (await D2('POST', '/api/diagrams', { title: `Leaver diagram ${run}`, dbml: 'Table t { id int }' })).json.id;
+  r = await D2('DELETE', '/api/auth/account', { password: 'not my password' });
+  check('closing an account needs the right password', r.status === 403);
+  r = await D2('DELETE', '/api/auth/account', { password: 'leaver new long password' });
+  check('closing an account works and signs the person out', r.status === 200 && (await D2('GET', '/api/auth/me')).json.user === null);
+  r = await anon('POST', '/api/auth/login', { email: leaver.email, password: 'leaver new long password' });
+  check('...the old e-mail and password no longer sign in', r.status === 401);
+  r = await ADMIN('GET', '/api/admin/closed-diagrams');
+  const wait = r.json.find((d) => d.id === ld);
+  check('...the diagram waits for an administrator for 7 days', !!wait && wait.deletesAt - wait.closedAt === 7 * 86400 && wait.formerOwner === 'Leaver');
+  r = await ADMIN('GET', '/api/admin/users');
+  check('...and the closed account is not in the user list', !r.json.some((u) => u.email === leaver.email || u.id === leaver.id));
+  r = await ADMIN('POST', `/api/admin/closed-diagrams/${ld}/adopt`, { userId: alice.id });
+  check('an administrator hands it to a person', r.status === 200 && (await ADMIN('GET', `/api/diagrams/${ld}`)).json.ownerName === 'Alice');
+  await ADMIN('DELETE', `/api/diagrams/${ld}`);
+  r = await ADMIN('POST', `/api/admin/closed-diagrams/${ld}/adopt`, { userId: alice.id });
+  check('only a waiting diagram can be handed over', r.status === 404);
+  r = await ADMIN('PUT', '/api/admin/settings', { sessionDays: 0 });
+  check('session length outside 1-90 days is refused', r.status === 400);
+}
 // cleanup of what this run created
 for (const u of [alice, bob]) await ADMIN('DELETE', `/api/admin/users/${u.id}`);
 await ADMIN('DELETE', `/api/admin/groups/${g2}`);

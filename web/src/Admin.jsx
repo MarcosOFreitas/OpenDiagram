@@ -9,11 +9,12 @@ export default function Admin({ me, onClose, notify, onSettings }) {
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [closed, setClosed] = useState([]); // diagrams of closed accounts, waiting for an administrator
   const [secret, setSecret] = useState(null); // { who, password } shown once after create / reset
   const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
-    try { const [u, g, s] = await Promise.all([api('admin/users'), api('admin/groups'), api('admin/settings')]); setUsers(u); setGroups(g); setSettings(s); }
+    try { const [u, g, s, c] = await Promise.all([api('admin/users'), api('admin/groups'), api('admin/settings'), api('admin/closed-diagrams')]); setUsers(u); setGroups(g); setSettings(s); setClosed(c); }
     catch (e) { setErr(errMsg(e)); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -63,7 +64,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
         <div className="admin-head">
           <h2>Administration</h2>
           <div className="dtabs">
-            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['audit', 'Audit log'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['audit', 'Audit log'], ['access', 'Sign-ins & connections'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
           </div>
           <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
         </div>
@@ -105,6 +106,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                       <td className="actions">
                         <button disabled={self} onClick={act(() => api(`admin/users/${u.id}`, { disabled: !u.disabled }, 'PATCH'), u.disabled ? 'User enabled' : 'User disabled')}>{u.disabled ? 'Enable' : 'Disable'}</button>
                         <button onClick={() => resetPassword(u)}>Reset password</button>
+                        <button onClick={act(async () => { const r = await api(`admin/users/${u.id}/sessions`, undefined, 'DELETE'); notify('ok', `${r.ended} session(s) ended`); })} aria-label={`Sign ${u.email} out everywhere`}>Sign out</button>
                         <button disabled={self} onClick={() => removeUser(u)}>Delete</button>
                       </td>
                     </tr>
@@ -112,6 +114,12 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                 })}
               </tbody>
             </table>
+          </>)}
+
+          {tab === 'users' && closed.length > 0 && (<>
+            <h4>Diagrams of closed accounts</h4>
+            <small className="hint">The person closed their account. Their diagrams have no links or shared access; hand each one to a person (and optionally give a group edit access) before the date shown, or it is deleted.</small>
+            {closed.map((d) => <ClosedRow key={d.id} d={d} me={me} users={users} groups={groups} act={act} />)}
           </>)}
 
           {tab === 'groups' && (<>
@@ -141,7 +149,8 @@ export default function Admin({ me, onClose, notify, onSettings }) {
           </>)}
 
           {tab === 'connections' && <AdminConnections users={users} groups={groups} act={act} setErr={setErr} />}
-          {tab === 'audit' && <AdminAudit setErr={setErr} />}
+          {tab === 'audit' && <AdminAudit kind="changes" setErr={setErr} />}
+          {tab === 'access' && <AdminAudit kind="access" setErr={setErr} />}
 
           {tab === 'settings' && settings && (
             <div className="admin-settings">
@@ -152,10 +161,29 @@ export default function Admin({ me, onClose, notify, onSettings }) {
               </label>
               {settings.signupForcedBy !== null && <small className="hint">Forced by the server environment (<code>ALLOW_SIGNUP={settings.signupForcedBy}</code>).</small>}
               <small className="hint">Keep this off to make the instance invitation-only: administrators create every account.</small>
-              <button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button>
+              <label>Session length (days)<input type="number" min="1" max="90" value={settings.sessionDays} onChange={(e) => setSettings({ ...settings, sessionDays: e.target.value })} /></label>
+              <label>Sign out after days without use (0 = never)<input type="number" min="0" max="90" value={settings.sessionIdleDays} onChange={(e) => setSettings({ ...settings, sessionIdleDays: e.target.value })} /></label>
+              <small className="hint">The session length applies to new sign-ins; the inactivity limit applies to every session at once.</small>
+              <button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button>
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ClosedRow({ d, me, users, groups, act }) {
+  const [to, setTo] = useState(me.id), [group, setGroup] = useState('');
+  const days = Math.max(0, Math.ceil((d.deletesAt * 1000 - Date.now()) / 86400000));
+  return (
+    <div className="group-card">
+      <div className="group-head"><b>{d.title}</b><small className="hint">from {d.formerOwner} · deleted in {days} day{days === 1 ? '' : 's'}</small></div>
+      <div className="group-members">
+        <select value={to} onChange={(e) => setTo(+e.target.value)} aria-label={`Give ${d.title} to`}>{users.filter((u) => !u.disabled).map((u) => <option key={u.id} value={u.id}>{u.id === me.id ? 'Me' : `${u.name} — ${u.email}`}</option>)}</select>
+        <select value={group} onChange={(e) => setGroup(e.target.value)} aria-label={`Group that can edit ${d.title}`}><option value="">No group</option>{groups.map((g) => <option key={g.id} value={g.id}>Group: {g.name} can edit</option>)}</select>
+        <button className="primary" onClick={act(() => api(`admin/closed-diagrams/${d.id}/adopt`, { userId: to, ...(group ? { groupId: +group } : {}) }), 'Diagram handed over')}>Hand over</button>
+        <button onClick={() => { if (window.confirm(`Delete "${d.title}" now? This cannot be undone.`)) act(() => api(`admin/closed-diagrams/${d.id}`, undefined, 'DELETE'), 'Diagram deleted')(); }}>Delete now</button>
       </div>
     </div>
   );

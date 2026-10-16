@@ -19,14 +19,24 @@ Flat groups (no hierarchy). Create a group, add or remove members. A person can 
 
 ## Audit log
 
-**Audit log** lists, newest first, what happened and who did it:
+There are two logs, in two tabs, newest first. Both are kept for **180 days**.
 
-- the **use of shared connections**: test, list tables, import and refresh, with the diagram, whether it worked and a short detail (schemas, number of tables, or the error);
-- every **change made in the Administration panel**: users, passwords reset, groups, members, settings and shared connections (the route and the ids only; never passwords or other contents).
+**Audit log** is every **change made in the Administration panel**: users, passwords reset, groups, members, settings and shared connections (the route and the ids only; never passwords or other contents).
 
-![Administration → Audit log, filtered to the use of shared connections.](admin-audit.jpg)
+**Sign-ins & connections** is what people did to get in and what they used:
 
-Filter by **Done by** (a person), **Target** (a shared database, a diagram, or Users / Groups / Settings) and **Type of operation** (administrator actions: added, changed, deleted; shared-connection use: tested, listed tables, imported, refreshed), combine them with a search text, **Clear filters**, load more, or **Download CSV** (it follows the filters) (formula-safe for spreadsheets; up to the newest 5000 matching entries). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
+- **sign-ins** and **failed sign-ins** (the e-mail that was tried, the device and the address, never the password), sign-outs, password changes, ended sessions, new accounts and **closed accounts**. Only the last 50,000 failed sign-ins are kept, so a flood of attempts cannot push the rest out;
+- the **use of shared connections**: test, list tables, import and refresh (also the scheduled ones), with the diagram, whether it worked and a short detail (schemas, number of tables, or the error).
+
+![Administration → Sign-ins & connections, filtered to the use of shared connections.](admin-audit.jpg)
+
+Filter by **Done by** (a person), **Target** (a shared database, a diagram, or Users / Groups / Settings) and **Type of operation** (administrator actions: added, changed, deleted; sign-in and accounts; shared-connection use: tested, listed tables, imported, refreshed), combine them with a search text, **Clear filters**, load more, or **Download CSV** (it follows the filters) (formula-safe for spreadsheets; up to the newest 5000 matching entries). Entries are kept for **180 days**. Personal connections are private: their use is not recorded and administrators cannot see it.
+
+## Sessions and closed accounts
+
+- **Sign out** next to a user ends all their sessions (use it when a laptop is lost). **Disable** and **Reset password** also end them.
+- In **Settings** you choose the **session length** (1 to 90 days, for new sign-ins; default 30) and, optionally, to sign people out after some **days without use** (0 = never).
+- When a person **deletes their own account** (Account → Delete my account), they are signed out for good and their database connections are deleted at once. Their diagrams are kept for **7 days**, with no links and no shared access, in **Users → Diagrams of closed accounts**. For each one you choose a person (yourself included) and, if you want, a **group** that can edit it, then **Hand over**; or **Delete now**. What nobody takes in 7 days is deleted for good. Deleting a user yourself (**Delete**) is immediate.
 
 ## Settings
 

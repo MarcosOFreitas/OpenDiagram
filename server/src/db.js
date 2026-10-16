@@ -18,13 +18,17 @@ create table if not exists users (
   created_at integer not null,
   role text not null default 'member',
   disabled integer not null default 0,
-  must_change_password integer not null default 0
+  must_change_password integer not null default 0,
+  deleted_at integer -- the person closed the account: signed out for good, their diagrams wait here for an administrator (7 days) and are then deleted
 );
 create table if not exists sessions (
   token_hash text primary key,
   user_id integer not null references users(id) on delete cascade,
-  expires_at integer not null
+  expires_at integer not null,
+  created_at integer, last_seen integer, ip text, agent text -- shown in Account -> Sessions
 );
+-- failed-attempt limiter (sign-in, sign-up, link passwords): survives a restart; the key is a hash, never an e-mail or an address
+create table if not exists throttle (k text primary key, n integer not null, until integer not null);
 create table if not exists connections (
   id text primary key,
   owner_id integer not null references users(id) on delete cascade,
@@ -69,7 +73,8 @@ create table if not exists shares (
   token text unique not null,
   access text not null check (access in ('view','comment','edit')),
   created_at integer not null,
-  password_hash text -- optional link password (scrypt)
+  password_hash text, -- optional link password (scrypt)
+  expires_at integer -- null = never; an expired link answers as if it did not exist
 );
 create table if not exists diagram_versions (
   id integer primary key autoincrement,
@@ -119,3 +124,9 @@ create index if not exists idx_comments_diagram on comments(diagram_id);
 create index if not exists idx_diagrams_owner on diagrams(owner_id);
 create index if not exists idx_connections_owner on connections(owner_id);
 `);
+
+// columns added after the first release: an existing database gets them here (create table above only runs on a new one)
+const addColumn = (table, col, ddl) => { if (!db.prepare(`pragma table_info(${table})`).all().some((c) => c.name === col)) db.exec(`alter table ${table} add column ${col} ${ddl}`); };
+for (const c of ['created_at integer', 'last_seen integer', 'ip text', 'agent text']) addColumn('sessions', c.split(' ')[0], c.split(' ')[1]);
+addColumn('shares', 'expires_at', 'integer');
+addColumn('users', 'deleted_at', 'integer');

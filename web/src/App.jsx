@@ -8,6 +8,7 @@ import { buildModel, toMarkdown } from './docsModel.js';
 
 import { api, store, errMsg, ago, sharePassword, copyText } from './api.js';
 import AuthScreen, { PasswordForm } from './Auth.jsx';
+import { Sessions, DeleteAccount } from './AccountSecurity.jsx';
 import Admin from './Admin.jsx';
 import Menu, { useDismiss } from './Menu.jsx';
 import Library from './Library.jsx';
@@ -802,7 +803,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {groups?.length > 0 && <><h4>My groups</h4><div>{groups.map((g) => <span key={g.id} className="chip">{g.name}</span>)}</div></>}
               <h4>Change password</h4>
               <PasswordForm onDone={onUser} />
+              <Sessions notify={notify} />
               <button onClick={onLogout}>Sign out</button>
+              <DeleteAccount onDone={onLogout} />
             </div>
           )}
           {drawer === 'diagrams' && <Library diagrams={diagrams} currentId={doc?.id} isAdmin={user?.role === 'admin'} onOpen={(id) => { openDiagram(id).then(() => setDrawer(null)).catch((e) => notify('err', errMsg(e))); }} templates={TEMPLATES} onCreate={newDiagram} onDelete={deleteDiagram} />}

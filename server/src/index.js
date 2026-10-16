@@ -61,27 +61,61 @@ const checkPrivileges = (c, schemas) => privilegeWarnings(c, schemas).catch((e) 
 app.get('/api/health', () => ({ ok: true }));
 
 // ---------- accounts
-const startSession = (reply, req, user) => reply.header('set-cookie', auth.sessionCookie(auth.createSession(user.id), req));
+const where = (req) => `${auth.agentOf(req.headers['user-agent'])} · ${req.ip}`; // what the audit log and the session list say about the device
+const startSession = (reply, req, user) => reply.header('set-cookie', auth.sessionCookie(auth.createSession(user.id, { ip: req.ip, agent: auth.agentOf(req.headers['user-agent']) }), req));
 app.get('/api/auth/me', (req) => ({ user: req.user, signup: auth.signupAllowed(), firstRun: auth.userCount() === 0, org: auth.orgName(), groups: req.user ? auth.groupsOf(req.user.id) : [] }));
 app.post('/api/auth/register', async (req, reply) => {
   const user = await auth.register(req.body ?? {}, req.ip);
   startSession(reply, req, user);
+  audit.log(user, 'auth.register', { detail: where(req) });
   return { user };
 });
 app.post('/api/auth/login', async (req, reply) => {
-  const user = await auth.login(req.body ?? {}, req.ip);
+  let user;
+  try { user = await auth.login(req.body ?? {}, req.ip); } catch (e) { // the attempt is logged with the address, never with the password
+    audit.log(null, 'auth.login_failed', { target: String(req.body?.email ?? '').trim().toLowerCase().slice(0, 120), ok: false, detail: `${e.message} · ${where(req)}` });
+    throw e;
+  }
   startSession(reply, req, user);
+  audit.log(user, 'auth.login', { detail: where(req) });
   return { user };
 });
 app.post('/api/auth/logout', (req, reply) => {
+  if (req.user) audit.log(req.user, 'auth.logout', { detail: where(req) });
   auth.destroySession(auth.tokenFromRequest(req));
   reply.header('set-cookie', auth.sessionCookie(null, req));
   return { ok: true };
 });
 app.post('/api/auth/password', async (req) => {
   if (!req.user) throw bad('login required', 401);
-  await auth.changePassword(req.user.id, req.body ?? {}, auth.tokenFromRequest(req));
+  try { await auth.changePassword(req.user.id, req.body ?? {}, auth.tokenFromRequest(req)); } catch (e) { audit.log(req.user, 'auth.password_changed', { ok: false, detail: `${e.message} · ${where(req)}` }); throw e; }
+  audit.log(req.user, 'auth.password_changed', { detail: `other sessions ended · ${where(req)}` });
   return { user: auth.userById(req.user.id) };
+});
+// the person's own sessions (devices): list, end one, end all the others
+app.get('/api/auth/sessions', (req) => { if (!req.user) throw bad('login required', 401); return auth.listSessions(req.user.id, auth.tokenFromRequest(req)); });
+app.delete('/api/auth/sessions', (req) => { // all the others
+  if (!req.user) throw bad('login required', 401);
+  const n = auth.revokeSessions(req.user.id, { exceptToken: auth.tokenFromRequest(req) });
+  audit.log(req.user, 'auth.session_revoked', { detail: `all other sessions (${n}) · ${where(req)}` });
+  return { ended: n };
+});
+app.delete('/api/auth/sessions/:id', (req) => {
+  if (!req.user) throw bad('login required', 401);
+  const n = auth.revokeSessions(req.user.id, { id: req.params.id, exceptToken: auth.tokenFromRequest(req) }); // never the one in use: that is "sign out"
+  if (!n) throw bad('session not found', 404);
+  audit.log(req.user, 'auth.session_revoked', { detail: `one session · ${where(req)}` });
+  return { ended: n };
+});
+// delete the own account (needs the password); the last administrator cannot
+app.delete('/api/auth/account', async (req, reply) => {
+  if (!req.user) throw bad('login required', 401);
+  if (auth.isLimited(`d|${req.user.id}`, 5)) throw bad('too many attempts, try again in a few minutes', 429);
+  if (!(await auth.checkPassword(req.user.id, req.body?.password))) { auth.recordFail(`d|${req.user.id}`); throw bad('password is wrong', 403); }
+  admin.closeAccount(req.user.id);
+  audit.log(req.user, 'auth.account_closed', { target: req.user.email, detail: `diagrams kept ${admin.GRACE_DAYS} days for an administrator · ${where(req)}` });
+  reply.header('set-cookie', auth.sessionCookie(null, req));
+  return { ok: true };
 });
 
 // ---------- administration (administrators only)
@@ -92,6 +126,11 @@ app.post('/api/admin/users', async (req) => { adminOnly(req); return admin.creat
 app.patch('/api/admin/users/:id', (req) => { adminOnly(req); return { user: admin.updateUser(uid(req), req.body ?? {}) }; });
 app.post('/api/admin/users/:id/reset-password', async (req) => { adminOnly(req); return { tempPassword: await auth.adminSetPassword(uid(req), req.body?.password) }; });
 app.delete('/api/admin/users/:id', (req) => { adminOnly(req); admin.deleteUser(uid(req), req.user.id); return { ok: true }; });
+app.delete('/api/admin/users/:id/sessions', (req) => { adminOnly(req); return { ended: auth.revokeSessions(uid(req)) }; }); // sign this person out everywhere
+// diagrams of closed accounts: kept for 7 days, an administrator hands them over or deletes them
+app.get('/api/admin/closed-diagrams', (req) => { adminOnly(req); return admin.listClosed(); });
+app.post('/api/admin/closed-diagrams/:id/adopt', (req) => { adminOnly(req); admin.adoptClosed(req.params.id, req.body?.userId, req.body?.groupId, dg); return { ok: true }; });
+app.delete('/api/admin/closed-diagrams/:id', (req) => { adminOnly(req); admin.deleteClosed(req.params.id); return { ok: true }; });
 app.get('/api/admin/groups', (req) => { adminOnly(req); return admin.listGroups(); });
 app.post('/api/admin/groups', (req) => { adminOnly(req); return { id: admin.createGroup(req.body?.name) }; });
 app.patch('/api/admin/groups/:id', (req) => { adminOnly(req); admin.renameGroup(uid(req), req.body?.name); return { ok: true }; });
@@ -223,10 +262,11 @@ app.post('/api/diagrams/:id/presence', (req) => {
 app.get('/api/diagrams/:id/shares', (req) => dg.listShares(req.user, req.params.id));
 // a link may carry a password (scrypt hash; never returned): visitors send it in the x-share-password header
 const linkPassword = (p) => { if (typeof p !== 'string' || p.length < 6 || p.length > 200) throw bad('link password must have 6 to 200 characters'); return p; };
-app.post('/api/diagrams/:id/shares', async (req) => dg.createShare(req.user, req.params.id, req.body?.access, req.body?.password ? await auth.hashSecret(linkPassword(req.body.password)) : null));
+app.post('/api/diagrams/:id/shares', async (req) => dg.createShare(req.user, req.params.id, req.body?.access, req.body?.password ? await auth.hashSecret(linkPassword(req.body.password)) : null, req.body?.expiresInDays));
 app.patch('/api/shares/:id', async (req) => {
   const b = req.body ?? {};
   if (b.access !== undefined) dg.setShareAccess(req.user, req.params.id, b.access);
+  if ('expiresInDays' in b) dg.setShareExpiry(req.user, req.params.id, b.expiresInDays); // null = never
   if ('password' in b) dg.setSharePassword(req.user, req.params.id, b.password ? await auth.hashSecret(linkPassword(b.password)) : null); // empty/null removes it
   return { ok: true };
 });
@@ -289,6 +329,7 @@ app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
-audit.purge(); setInterval(audit.purge, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days
+const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
+housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
 refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
 await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });

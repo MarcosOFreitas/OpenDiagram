@@ -103,7 +103,7 @@ try {
     await ev(`(async () => { document.querySelector('.menu .tbtn.user, header.top .menu:last-child .tbtn').click(); await H.w(300); await H.click('Administration', document.querySelector('.menu-pop')); await H.w(500); })()`);
     if (want('admin-connections')) { await ev(`H.click('Connections', document.querySelector('.admin-head .dtabs'))`); await sleep(900); await shot('admin-connections'); }
     if (want('admin-audit')) {
-      await ev(`(async () => { await H.click('Audit', document.querySelector('.admin-head .dtabs')); await H.w(700); const s = document.querySelector('.audit-bar select[aria-label="Type of operation"]'); H.set(s, 'connection'); await H.w(900); })()`);
+      await ev(`(async () => { await H.click('Sign-ins', document.querySelector('.admin-head .dtabs')); await H.w(700); const s = document.querySelector('.audit-bar select[aria-label="Type of operation"]'); H.set(s, 'connection'); await H.w(900); })()`);
       await shot('admin-audit');
     }
   }

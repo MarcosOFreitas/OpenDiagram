@@ -28,7 +28,7 @@ export const clear = (diagramId) => db.prepare('update refresh_state set failure
 
 // diagrams linked to a connection with an interval, not paused, whose next run has come
 export function due(now = Math.floor(Date.now() / 1000)) {
-  return db.prepare(`select d.*, c.refresh_minutes mins, s.last_run from diagrams d join connections c on c.id = json_extract(d.source, '$.connId')
+  return db.prepare(`select d.*, c.refresh_minutes mins, s.last_run from diagrams d join connections c on c.id = json_extract(d.source, '$.connId') join users o on o.id = d.owner_id and o.disabled = 0
     left join refresh_state s on s.diagram_id = d.id where d.source is not null and c.refresh_minutes > 0 and coalesce(s.paused, 0) = 0`).all()
     .filter((d) => now >= Math.max(d.last_run || 0, Math.floor((json(d.source)?.at || 0) / 1000)) + Math.max(MIN, d.mins) * 60 + jitter(d.id));
 }

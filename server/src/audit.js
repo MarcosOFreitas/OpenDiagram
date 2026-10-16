@@ -47,4 +47,9 @@ export function csv(rows) {
   return [head.join(','), ...rows.map((r) => [new Date(r.at * 1000).toISOString(), r.actor, r.action, r.target, r.diagramId, r.ok ? 'yes' : 'no', r.detail].map(cell).join(','))].join('\n') + '\n';
 }
 
-export const purge = () => db.prepare('delete from audit_log where at < ?').run(now() - RETENTION).changes;
+const MAX_ROWS = 200_000, MAX_FAILED_LOGINS = 50_000; // beyond these the oldest go first (failed sign-ins have their own cap so a flood cannot push out the rest)
+export function purge() {
+  const a = db.prepare('delete from audit_log where at < ? or id <= (select coalesce(max(id), 0) - ? from audit_log)').run(now() - RETENTION, MAX_ROWS).changes;
+  const b = db.prepare("delete from audit_log where action = 'auth.login_failed' and id not in (select id from audit_log where action = 'auth.login_failed' order by id desc limit ?)").run(MAX_FAILED_LOGINS).changes;
+  return a + b;
+}
