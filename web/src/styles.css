@@ -183,8 +183,13 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .group-members select { width: auto; padding: 3px 6px; font-size: 12px; }
 .chip.member a { margin-left: 6px; cursor: pointer; opacity: .6; } .chip.member a:hover { opacity: 1; }
 /* the panels of Administration fill the card: cards sit in a grid that adds columns as the width allows, running text keeps a readable measure */
-.admin-grid, .admin-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; align-items: start; }
-.admin-settings > button { grid-column: 1 / -1; justify-self: start; min-width: 160px; }
+/* at most three cards per row (each at least a third of the width, minus the gaps), fewer when the panel is narrow */
+.admin-grid, .admin-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(min(100%, 280px), calc((100% - 24px) / 3)), 1fr)); gap: 12px; align-items: start; }
+.admin-settings-grid { align-items: stretch; } /* the three Settings cards have the same height */
+.admin-settings { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.admin-settings-grid { flex: 1; align-content: start; }
+.admin-settings-foot { display: flex; justify-content: center; padding-top: 12px; border-top: 1px solid var(--line); }
+.admin-settings-foot button { min-width: 200px; }
 .admin-body > .hint, .admin-body .hint { max-width: 80ch; }
 .admin-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; } .admin-top > .hint { flex: 1 1 360px; }
 .admin-body > .admin-top > button, .admin-top > button { align-self: flex-start; flex: none; }
@@ -209,7 +214,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .menu-pop hr { border: 0; border-top: 1px solid #e5e7eb; margin: 4px 2px; }
 .menu-head { padding: 6px 10px 4px; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; }
 
-.admin-form.group-form { grid-template-columns: 1fr auto; max-width: 520px; }
+.admin-form.group-form { grid-template-columns: 1fr auto; } /* the name takes the whole row, the button sits at its end */
 
 .editor-pane.resizing { transition: none; }
 .resizer { position: absolute; top: 0; bottom: 0; width: 9px; margin-left: -4px; cursor: col-resize; z-index: 7; }

@@ -161,6 +161,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
 
           {ready && tab === 'settings' && settings && (
             <div className="admin-settings">
+              <div className="admin-settings-grid">
               <div className="group-card">
                 <h4>Organisation</h4>
                 <label>Organisation name<input value={settings.orgName} onChange={(e) => setSettings({ ...settings, orgName: e.target.value })} placeholder="Shown on the sign-in screen and the top bar" /></label>
@@ -180,7 +181,8 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                 <label>Sign out after days without use (0 = never)<input type="number" min="0" max="90" value={settings.sessionIdleDays} onChange={(e) => setSettings({ ...settings, sessionIdleDays: e.target.value })} /></label>
                 <small className="hint">The session length applies to new sign-ins; the inactivity limit applies to every session at once.</small>
               </div>
-              <button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button>
+              </div>
+              <div className="admin-settings-foot"><button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button></div>
             </div>
           )}
         </div>
