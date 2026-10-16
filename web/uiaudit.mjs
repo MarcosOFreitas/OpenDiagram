@@ -4,9 +4,11 @@
 // desktop / tablet / phone. Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
 //   docker run -d --name audit-app --network rea_dbdiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) rea_dbdiagram-app
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
+//   (AUDIT_CONTAINER=<name> if the container is not called audit-app: the audit writes one row of scheduler state into its database)
 //   BASE=http://localhost:3100 AUDIT_EMAIL=audit@example.com AUDIT_PASSWORD=audit-password-123 node web/uiaudit.mjs [screen-name ...]
 // The first-run screen needs an EMPTY instance on :3101: run it on its own, BASE_EMPTY=http://localhost:3101 node web/uiaudit.mjs first-run
 import { readdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -30,6 +32,11 @@ const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, 
 const open = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
 const locked = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view', password: 'link-secret-1' });
 await maya.call('POST', `/api/diagrams/${shop}/comments`, { body: 'A comment from Maya', target: 'table:customers' }).catch(() => {});
+// a diagram linked to a connection whose scheduled refresh failed 5 times (there is no API for that state: it is written into the instance's database)
+const conn = await admin.call('POST', '/api/connections', { name: 'audit-db', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off', refreshMinutes: 5 });
+const failing = (await admin.call('POST', '/api/diagrams', { title: 'Refresh error' })).id;
+await admin.call('PUT', `/api/diagrams/${failing}`, { dbml: SAMPLE, source: { connId: conn.id, schemas: ['shop'], tables: null, at: Date.now(), gen: 'x' } });
+execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, { input: `const { DatabaseSync } = require('node:sqlite'); new DatabaseSync('/data/app.db').prepare("insert into refresh_state (diagram_id, last_run, last_error, failures, paused) values (?, ?, ?, 5, 1)").run('${failing}', Math.floor(Date.now() / 1000), 'connect ECONNREFUSED demo-pg:5432');` });
 console.log('fixtures ready');
 
 // ---------- Chrome
@@ -163,6 +170,7 @@ await run('drawer-database-tls-verify', () => go('/', { local: D }).then(() => f
 await run('drawer-database-oracle', () => go('/', { local: D }).then(() => fillConn(`await H.click('Oracle', H.q('.drawer .seg')); await H.w(400);`)), { vps: ['desktop'] });
 await run('drawer-database-write-warning', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('Database'); const f = (p) => H.q('.drawer [placeholder^="' + p + '"]'); H.set(f('Host'), 'demo-pg'); H.set(f('Port'), '5432'); H.set(f('Database'), 'demo'); H.set(f('User'), 'writer'); H.set(f('Password'), 'writer'); await H.w(200); await H.click('Test connection', H.q('.drawer')); await H.w(2500); })()`); }, { vps: ['desktop'] });
 await run('drawer-database-refresh-timer', () => go('/', { local: D }).then(() => fillConn(`const s = [...document.querySelectorAll('.drawer select')].find((x) => /manual/.test(x.textContent)); if (s) { H.set(s, s.options[2].value); await H.w(300); }`)), { vps: ['desktop'] });
+await run('drawer-database-refresh-error', async () => { await go('/', { local: { ...D, lastDiagram: failing } }); await ev(`H.more('Database')`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('toast-error', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('Database'); const f = (p) => H.q('.drawer [placeholder^="' + p + '"]'); H.set(f('Host'), 'does-not-exist.invalid'); H.set(f('Port'), '5432'); H.set(f('Database'), 'x'); H.set(f('User'), 'x'); H.set(f('Password'), 'x'); await H.click('Test connection', H.q('.drawer')); await H.w(1500); })()`); }, { vps: ['desktop', 'phone'], after: async () => { const t = await ev(`H.q('.toast')?.getAttribute('role')`); if (!t) note('toast-error', 'desktop', { toast: 'no toast shown or no role' }); } });
 await run('table-picker', () => go('/', { local: D }).then(() => fillConn(`await H.click('Test connection', H.q('.drawer')); await H.w(2500); const c = [...document.querySelectorAll('.drawer .schemas input[type=checkbox]')].find((x) => /shop/.test(x.closest('label,div').textContent)); c && c.click(); await H.w(300); await H.click('All tables', H.q('.drawer')); await H.w(1500);`)), { vps: ['desktop', 'phone'], dialog: '.admin-card.tp' });
 await run('table-picker-full-ddl', () => go('/', { local: D }).then(() => fillConn(`await H.click('Test connection', H.q('.drawer')); await H.w(2500); const c = [...document.querySelectorAll('.drawer .schemas input[type=checkbox]')].find((x) => /shop/.test(x.closest('label,div').textContent)); c && c.click(); await H.w(300); await H.click('All tables', H.q('.drawer')); await H.w(1500); H.q('.admin-card.tp .tp-foot input[type=checkbox]').click(); await H.click('Use all tables', H.q('.admin-card.tp')); await H.w(500);`)), { vps: ['desktop', 'phone'] });

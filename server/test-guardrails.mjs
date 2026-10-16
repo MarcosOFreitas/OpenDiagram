@@ -91,5 +91,17 @@ check('oracle rejects descriptor injection', r.status === 400, r.error);
 r = await post('schemas', { type: 'oracle', host: 'demo-oracle', port: 1521, database: 'FREEPDB1', user: 'shop', password: 'shop', tls: 'verify' });
 check('oracle tcps against plain listener fails (no hang)', r.status !== 200, r.error?.slice(0, 90));
 
+// 6. scheduled refresh on the server: a linked diagram whose last import is "old" is re-read by the next one-minute round with no page open (takes up to ~2 minutes)
+const call = async (method, path, body) => { const x = await fetch(`${BASE}/api/${path}`, { method, headers: { 'content-type': 'application/json', cookie }, body: body ? JSON.stringify(body) : undefined }); return { status: x.status, ...(await x.json()) }; };
+const sc = await post('connections', { name: 'sched-e2e', ...pg('reader', 'reader'), tls: 'off', blockWritable: true, refreshMinutes: 5 });
+const sd = await post('diagrams', { title: 'sched e2e' });
+await call('PUT', `diagrams/${sd.id}`, { dbml: 'Table shop.stale { id int }\n', source: { connId: sc.id, schemas: ['shop'], tables: null, at: 1000, gen: 'old' } });
+let got;
+for (let i = 0; i < 30 && !got?.refresh; i++) { await new Promise((ok) => setTimeout(ok, 5000)); got = await call('GET', `diagrams/${sd.id}`); }
+const hist = await call('GET', `diagrams/${sd.id}/versions`);
+check('scheduled refresh ran with no page open', !!got?.refresh && got.refresh.lastError === null && /shop\.customers/.test(got.dbml), JSON.stringify(got?.refresh));
+check('  saved as "Refresh from database" by "Scheduled refresh"', hist[0]?.author === 'Scheduled refresh' && /^Refresh from database/.test(hist[0]?.summary), `${hist[0]?.author}: ${hist[0]?.summary}`);
+await call('DELETE', `diagrams/${sd.id}`); await call('DELETE', `connections/${sc.id}`);
+
 console.log(fail ? `\n${fail} FAILED` : '\nall passed');
 process.exit(fail ? 1 : 0);

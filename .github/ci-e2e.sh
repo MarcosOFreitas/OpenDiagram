@@ -38,7 +38,7 @@ until curl -fs http://localhost:3100/api/health >/dev/null; do sleep 2; done
 docker exec $UI node src/cli.js create-admin ui@example.com 'ui-test-password-1' >/dev/null || exit 1
 export BASE=http://localhost:3100
 
-step "web/uiaudit.mjs (zero findings)" env AUDIT_EMAIL=ui@example.com AUDIT_PASSWORD='ui-test-password-1' node web/uiaudit.mjs
+step "web/uiaudit.mjs (zero findings)" env AUDIT_CONTAINER=$UI AUDIT_EMAIL=ui@example.com AUDIT_PASSWORD='ui-test-password-1' node web/uiaudit.mjs
 step "web/behaviorcheck.mjs (matches web/behavior.golden.json)" bash -c '
   SNAP_EMAIL=ui@example.com SNAP_PASSWORD="ui-test-password-1" node web/behaviorcheck.mjs > /tmp/behavior.json && diff -u web/behavior.golden.json /tmp/behavior.json'
 
