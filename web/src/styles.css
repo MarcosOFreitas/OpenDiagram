@@ -183,8 +183,8 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .group-members select { width: auto; padding: 3px 6px; font-size: 12px; }
 .chip.member a { margin-left: 6px; cursor: pointer; opacity: .6; } .chip.member a:hover { opacity: 1; }
 /* the panels of Administration fill the card: cards sit in a grid that adds columns as the width allows, running text keeps a readable measure */
-/* at most three cards per row (each at least a third of the width, minus the gaps), fewer when the panel is narrow */
-.admin-grid, .admin-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(min(100%, 280px), calc((100% - 24px) / 3)), 1fr)); gap: 12px; align-items: start; }
+/* one card takes the row, two take half each, three a third each; never more than three per row (each is at least a third of the width, minus the gaps), fewer when the panel is narrow */
+.admin-grid, .admin-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(min(100%, 280px), calc((100% - 24px) / 3)), 1fr)); gap: 12px; align-items: start; }
 .admin-settings-grid { align-items: stretch; } /* the three Settings cards have the same height */
 .admin-settings { flex: 1; display: flex; flex-direction: column; gap: 12px; }
 .admin-settings-grid { flex: 1; align-content: start; }
