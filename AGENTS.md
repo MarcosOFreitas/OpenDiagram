@@ -96,6 +96,21 @@ Every UI change follows [`.specs/11-ui-review.md`](.specs/11-ui-review.md). The 
 - On Windows with Git Bash, prefix absolute container paths in `docker compose exec` arguments (and `openssl -subj`) with `MSYS_NO_PATHCONV=1`; PowerShell blocks `npx.ps1` (use `npx.cmd`); heredocs with quotes or backslashes are error-prone, prefer a script file.
 - When editing CodeMirror state from a test, use `document.execCommand('insertText')` on `.cm-content`.
 
+## Agent skills (the harness)
+
+Skills live in `.claude/skills/<name>/SKILL.md`; any agent can read one as a plain guide. Each ends with a section "In this repo" that ties it to this project. Use them in this order of a change:
+
+| When | Skill |
+|------|-------|
+| Before a large feature, or a change to table selection, sharing, connections or security | `grill-me`: interview the plan, one question at a time, with a recommended answer |
+| Implementing a feature or fixing a bug | `test-driven-development`: failing test first (and the regression-test rule above) |
+| Something is slow, or before adding a cache, memo or index | `performance-optimization`: measure, fix the one bottleneck, measure again, guard |
+| Before saying "done", "fixed" or "passes", before a commit or PR | `verification-before-completion`: run the command, read the output, then claim |
+| After a feature or before merging | `requesting-code-review`: a reviewer subagent with the spec and the security invariants |
+| Changing or reviewing UI | `ui-ux-pro-max` with the UI standard above |
+
+`grill-me`, `test-driven-development`, `verification-before-completion`, `requesting-code-review` and `performance-optimization` are adapted from MIT-licensed skills; sources, commits and what was left out on purpose are in `.claude/skills/THIRD_PARTY.md`. Add a skill only after reading all of it (scripts, hooks and network calls included) and record it there.
+
 ## Working agreements
 
 - **Every bug fix ships a regression test that fails on the old code** (break the fix on purpose, watch it fail, restore it); every feature ships unit tests for its logic. Keep logic out of components when a plain module can hold it (`web/src/diagramModel.js` is the example). Details and rules: `.specs/07-testing.md`.
