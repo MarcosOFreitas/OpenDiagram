@@ -22,6 +22,8 @@ Sign in · first run (create the first account) · forced password change · mai
 
 ## Rules learnt from the audit
 
+- A panel that waits for the server shows `Loading.jsx` (two tables joined by a line, a dot running between them; opacity/transform only, still under `prefers-reduced-motion`), at the size the content will have. The Administration card has one fixed size (`.admin-card.adm`) on every tab, so nothing jumps when a tab loads. The Administration tabs and the Account drawer use the same sections: `.group-card` with an `h4` title.
+
 - The dark theme sets `--muted`/`--line` for the canvas and drawers, but the Administration card, menus and pickers stay white: tokens are reset on `.admin` / `.menu-pop` (a new white surface must do the same).
 - React Flow sets `outline: none` on nodes and edges with a higher specificity: the focus ring has its own rule.
 - Header colours come from the DBML: the text colour is picked by contrast (`readable()` in `App.jsx`), never fixed white.

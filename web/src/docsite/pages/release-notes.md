@@ -7,7 +7,10 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 - **Account → Sessions**: see where you are signed in and end any session. Administrators can sign a person out everywhere, and set the session length and an inactivity limit.
 - The **Audit log** is now two tabs: *Audit log* (administrator changes) and **Sign-ins & connections** (sign-ins, failed sign-ins, password changes, ended sessions, closed accounts and shared-connection use).
 - **Delete my account**: the diagrams wait 7 days for an administrator, who can hand them to a person and a group, or delete them.
+- **Recovery key** (Account → Recovery key): a key you keep that lets you choose a new password from the sign-in screen when you forget it, without an administrator and without e-mail.
 - **Share links can expire**.
+- Administration keeps the same size on every tab and shows a loading mark (two tables joined by a line) while a tab loads; its Settings and the Account panel use the same card layout.
+- Sessions made before devices were recorded show their browser and address after their next use.
 - The limit on failed sign-in attempts now survives a restart.
 
 ## Scheduled refresh on the server

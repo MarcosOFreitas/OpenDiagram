@@ -65,7 +65,7 @@ header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex
 .dtabs .x { margin-left: auto; }
 .dbody { padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow: auto; }
 .dbody > * { flex-shrink: 0; } /* children with overflow (e.g. .schemas) must not collapse when the content is taller than the drawer */
-.dbody h4 { margin: 8px 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.dbody h4, .admin-body h4 { margin: 8px 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .dbody h4 a { color: var(--accent); cursor: pointer; text-transform: none; letter-spacing: 0; }
 .row { display: flex; gap: 8px; } .row > * { flex: 1; min-width: 0; } .row .port { flex: 0 0 76px; }
 .seg { display: flex; border: 1px solid #d5dbe5; border-radius: 7px; overflow: hidden; }
@@ -162,6 +162,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .shell[data-theme="dark"] .chip { background: #1a2438; color: #aab4c8; }
 
 .admin { position: fixed; inset: 0; z-index: 60; background: rgba(5, 10, 20, .62); display: grid; place-items: center; padding: 24px; }
+.admin-card.adm { height: min(720px, 100%); } /* Administration keeps one size on every tab (no jump while a tab loads) */
 .admin-card { width: 100%; max-width: 1040px; max-height: 100%; display: flex; flex-direction: column; background: #fff; color: #1f2937; border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); overflow: hidden; }
 .admin-head { display: flex; align-items: center; gap: 18px; padding: 4px 16px 0; border-bottom: 1px solid var(--line); }
 .admin-head h2 { margin: 0; font-size: 16px; padding: 14px 0; }
@@ -181,7 +182,11 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .group-members { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .group-members select { width: auto; padding: 3px 6px; font-size: 12px; }
 .chip.member a { margin-left: 6px; cursor: pointer; opacity: .6; } .chip.member a:hover { opacity: 1; }
-.admin-settings { display: flex; flex-direction: column; gap: 10px; max-width: 460px; }
+/* the panels of Administration fill the card: cards sit in a grid that adds columns as the width allows, running text keeps a readable measure */
+.admin-grid, .admin-settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; align-items: start; }
+.admin-settings > button { grid-column: 1 / -1; justify-self: start; min-width: 160px; }
+.admin-body > .hint, .admin-body .hint { max-width: 80ch; }
+.admin-body > form.conn-form { max-width: 720px; }
 .admin-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
 .admin-settings label.chk { flex-direction: row; color: inherit; font-size: 13px; }
 .admin .warn { position: relative; padding-right: 30px; } .admin .warn .ghost { position: absolute; top: 4px; right: 4px; }
@@ -503,3 +508,13 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .card b, .card small, .group-head b, .group-head small { min-width: 0; overflow-wrap: anywhere; }
 .card .badge, .card .chip, .card .ghost { flex: none; }
 .group-head { flex-wrap: wrap; }
+
+/* loading mark (Loading.jsx): fills the space of the panel it stands for, so the box does not jump when the content arrives */
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; padding: 24px 0 8px; color: var(--muted); font-size: 13px; }
+.admin .loading { color: #6b7280; }
+.loading .ld-box { fill: none; stroke: var(--accent); stroke-width: 2.5; animation: od-ld-box 1.4s ease-in-out infinite; }
+.loading .ld-b { animation-delay: .7s; }
+.loading .ld-line { stroke: var(--accent); stroke-width: 2; opacity: .45; stroke-linecap: round; }
+.loading .ld-dot { fill: var(--accent); animation: od-ld-dot 1.4s ease-in-out infinite; }
+@keyframes od-ld-box { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes od-ld-dot { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(28px); } }

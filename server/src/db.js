@@ -19,6 +19,7 @@ create table if not exists users (
   role text not null default 'member',
   disabled integer not null default 0,
   must_change_password integer not null default 0,
+  recovery_hash text, recovery_at integer, -- sha-256 of the recovery key the person keeps (shown once); a use consumes it
   deleted_at integer -- the person closed the account: signed out for good, their diagrams wait here for an administrator (7 days) and are then deleted
 );
 create table if not exists sessions (
@@ -130,3 +131,5 @@ const addColumn = (table, col, ddl) => { if (!db.prepare(`pragma table_info(${ta
 for (const c of ['created_at integer', 'last_seen integer', 'ip text', 'agent text']) addColumn('sessions', c.split(' ')[0], c.split(' ')[1]);
 addColumn('shares', 'expires_at', 'integer');
 addColumn('users', 'deleted_at', 'integer');
+addColumn('users', 'recovery_hash', 'text');
+addColumn('users', 'recovery_at', 'integer');

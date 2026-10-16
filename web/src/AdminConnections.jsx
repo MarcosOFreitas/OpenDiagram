@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from './api.js';
+import Loading from './Loading.jsx';
 
 const BLANK = { id: '', type: 'postgres', name: '', host: '', port: 5432, database: '', user: '', password: '', tls: 'verify', serverDn: '', caPem: '', blockWritable: true };
 
@@ -45,7 +46,9 @@ export default function AdminConnections({ users, groups, act, setErr }) {
           <div className="row"><button type="submit" className="primary">{form.id ? 'Save changes' : 'Register'}</button><button type="button" onClick={() => { setForm(BLANK); setOpen(false); }}>Cancel</button></div>
         </form>
       )}
+      {!list && <Loading label="Loading connections" />}
       {list && list.length === 0 && !open && <small className="hint">No shared connections yet.</small>}
+      <div className="admin-grid">
       {list?.map((c) => {
         const addable = [...groups.filter((g) => !c.access.some((a) => a.type === 'group' && a.id === g.id)).map((g) => ({ type: 'group', id: g.id, name: `Group: ${g.name}` })),
           ...users.filter((u) => !u.disabled && !c.access.some((a) => a.type === 'user' && a.id === u.id)).map((u) => ({ type: 'user', id: u.id, name: `${u.name} — ${u.email}` }))];
@@ -70,6 +73,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
           </div>
         );
       })}
+      </div>
     </>
   );
 }

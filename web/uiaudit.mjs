@@ -160,6 +160,7 @@ const fillConn = (extra = '') => ev(`(async () => { await H.more('Database'); co
 
 // 1. signed out / first run / forced password change
 await run('login', () => go('/', { as: null }), { vps: ['desktop', 'phone'], kb: true });
+await run('login-recover', async () => { await go('/', { as: null }); await ev(`H.click('Forgot your password?')`); }, { vps: ['desktop', 'phone'], kb: true });
 if (EMPTY && ONLY.includes('first-run')) await run('first-run', () => go('/', { as: null, base: EMPTY }), { vps: ['desktop', 'phone'], kb: true });
 await run('forced-password-change', () => go('/', { as: 'temp' }), { vps: ['desktop', 'phone'], kb: true });
 // 2. main screen, menus
@@ -167,6 +168,7 @@ await run('main', () => go('/', { local: D }), { vps: ['desktop', 'phone'], kb: 
 await run('menu-export', async () => { await go('/', { local: D }); await ev(`H.click('Export', H.q('header.top'))`); }, { vps: ['desktop', 'phone'] });
 await run('menu-more', async () => { await go('/', { local: D }); await ev(`H.click('More', H.q('header.top'))`); }, { vps: ['desktop', 'phone'] });
 await run('menu-account', async () => { await go('/', { local: D }); await ev(`(async () => { [...document.querySelectorAll('header.top .menu > .tbtn')].pop().click(); await H.w(300); })()`); }, { vps: ['desktop', 'phone'] });
+await run('account-recovery-key', async () => { await go('/', { local: D }); await ev(`(async () => { await H.account('Account'); await H.click('Generate', H.q('.drawer')); H.set(H.q('.drawer input[aria-label="Your password, to make the key"]'), '${PASS}'); await H.w(200); await H.click('Generate', H.q('.drawer')); await H.w(700); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('account-delete-form', async () => { await go('/', { local: D }); await ev(`(async () => { await H.account('Account'); await H.click('Delete my account', H.q('.drawer')); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('account-password-form', async () => { await go('/', { local: D }); await ev(`H.account('Account')`); }, { vps: ['desktop', 'phone'], kb: true });
 // 3. drawers

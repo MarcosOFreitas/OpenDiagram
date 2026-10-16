@@ -6,7 +6,8 @@ const Brand = ({ org }) => <div className="brand"><Logo /> {org || 'OpenDiagram'
 
 // e-mail + password sign in / sign up. `signup`: public sign-up is open. `firstRun`: no account exists yet (this one becomes the administrator).
 export default function AuthScreen({ onDone, onCancel, signup = false, firstRun = false, org, hint }) {
-  const [mode, setMode] = useState(firstRun ? 'register' : 'login');
+  const [mode, setMode] = useState(firstRun ? 'register' : 'login'); // login | register | recover
+  const [rk, setRk] = useState({ key: '', next: '', again: '' });
   const [f, setF] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -14,8 +15,9 @@ export default function AuthScreen({ onDone, onCancel, signup = false, firstRun 
 
   const submit = async (e) => {
     e.preventDefault();
+    if (mode === 'recover' && rk.next !== rk.again) return setErr('the two new passwords do not match');
     setBusy(true); setErr('');
-    try { onDone((await api(`auth/${mode === 'login' ? 'login' : 'register'}`, f)).user); }
+    try { onDone((await (mode === 'recover' ? api('auth/recover', { email: f.email, key: rk.key, next: rk.next }) : api(`auth/${mode === 'login' ? 'login' : 'register'}`, f))).user); }
     catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
 
@@ -23,14 +25,21 @@ export default function AuthScreen({ onDone, onCancel, signup = false, firstRun 
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
         <Brand org={org} />
-        <h2>{mode === 'login' ? 'Sign in' : firstRun ? 'Welcome — create the administrator account' : 'Create your account'}</h2>
+        <h2>{mode === 'recover' ? 'Forgot your password?' : mode === 'login' ? 'Sign in' : firstRun ? 'Welcome — create the administrator account' : 'Create your account'}</h2>
         {firstRun && mode === 'register' && <p className="hint">This is a new installation: the first account becomes the administrator and can then create everyone else's account and groups.</p>}
         {hint && <p className="hint">{hint}</p>}
+        {mode === 'recover' && <p className="hint">Enter your e-mail, the <b>recovery key</b> you saved (Account → Recovery key) and a new password. The key works once. No key? Ask an administrator to reset your password.</p>}
         {mode === 'register' && <input placeholder="Name" value={f.name} onChange={set('name')} autoComplete="name" />}
         <input type="email" placeholder="E-mail" value={f.email} onChange={set('email')} autoComplete="email" required autoFocus />
-        <input type="password" placeholder={mode === 'register' ? 'Password (10+ characters)' : 'Password'} value={f.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />
+        {mode === 'recover' ? (<>
+          <input placeholder="Recovery key (rk-…)" aria-label="Recovery key" value={rk.key} onChange={(e) => setRk({ ...rk, key: e.target.value })} autoComplete="off" spellCheck={false} required />
+          <input type="password" placeholder="New password (10+ characters)" value={rk.next} onChange={(e) => setRk({ ...rk, next: e.target.value })} autoComplete="new-password" required />
+          <input type="password" placeholder="Repeat new password" value={rk.again} onChange={(e) => setRk({ ...rk, again: e.target.value })} autoComplete="new-password" required />
+        </>) : <input type="password" placeholder={mode === 'register' ? 'Password (10+ characters)' : 'Password'} value={f.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />}
         {err && <div className="auth-err">{err}</div>}
-        <button className="primary" disabled={busy}>{busy ? '…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
+        <button className="primary" disabled={busy}>{busy ? '…' : mode === 'recover' ? 'Choose the new password' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
+        {mode === 'login' && !firstRun && <small className="hint"><a onClick={() => { setMode('recover'); setErr(''); }}>Forgot your password?</a></small>}
+        {mode === 'recover' && <small className="hint"><a onClick={() => { setMode('login'); setErr(''); }}>Back to sign in</a></small>}
         {signup && !firstRun && (
           <small className="hint">
             {mode === 'login' ? <>No account? <a onClick={() => { setMode('register'); setErr(''); }}>Create one</a></> : <>Already registered? <a onClick={() => { setMode('login'); setErr(''); }}>Sign in</a></>}

@@ -4,6 +4,8 @@ import AdminConnections from './AdminConnections.jsx';
 import AdminAudit from './AdminAudit.jsx';
 
 // Administration overlay: users, groups (flat; one user can be in several) and instance settings
+import Loading from './Loading.jsx';
+
 export default function Admin({ me, onClose, notify, onSettings }) {
   const [tab, setTab] = useState('users');
   const [users, setUsers] = useState([]);
@@ -12,10 +14,11 @@ export default function Admin({ me, onClose, notify, onSettings }) {
   const [closed, setClosed] = useState([]); // diagrams of closed accounts, waiting for an administrator
   const [secret, setSecret] = useState(null); // { who, password } shown once after create / reset
   const [err, setErr] = useState('');
+  const [ready, setReady] = useState(false); // the first load has finished (until then the panel shows the loading mark, at its final size)
 
   const load = useCallback(async () => {
     try { const [u, g, s, c] = await Promise.all([api('admin/users'), api('admin/groups'), api('admin/settings'), api('admin/closed-diagrams')]); setUsers(u); setGroups(g); setSettings(s); setClosed(c); }
-    catch (e) { setErr(errMsg(e)); }
+    catch (e) { setErr(errMsg(e)); } finally { setReady(true); }
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
 
   return (
     <div className="admin" role="dialog" aria-label="Administration">
-      <div className="admin-card">
+      <div className="admin-card adm">
         <div className="admin-head">
           <h2>Administration</h2>
           <div className="dtabs">
@@ -80,7 +83,8 @@ export default function Admin({ me, onClose, notify, onSettings }) {
             </div>
           )}
 
-          {tab === 'users' && (<>
+          {!ready && <Loading label="Loading administration" />}
+          {ready && tab === 'users' && (<>
             <form className="admin-form" onSubmit={submitUser} autoComplete="off">
               <input name="email" type="text" inputMode="email" placeholder="E-mail" autoComplete="off" />
               <input name="name" placeholder="Name" autoComplete="off" />
@@ -116,19 +120,20 @@ export default function Admin({ me, onClose, notify, onSettings }) {
             </table>
           </>)}
 
-          {tab === 'users' && closed.length > 0 && (<>
+          {ready && tab === 'users' && closed.length > 0 && (<>
             <h4>Diagrams of closed accounts</h4>
             <small className="hint">The person closed their account. Their diagrams have no links or shared access; hand each one to a person (and optionally give a group edit access) before the date shown, or it is deleted.</small>
-            {closed.map((d) => <ClosedRow key={d.id} d={d} me={me} users={users} groups={groups} act={act} />)}
+            <div className="admin-grid">{closed.map((d) => <ClosedRow key={d.id} d={d} me={me} users={users} groups={groups} act={act} />)}</div>
           </>)}
 
-          {tab === 'groups' && (<>
+          {ready && tab === 'groups' && (<>
             <form className="admin-form group-form" onSubmit={submitGroup} autoComplete="off">
               <input name="group" placeholder="New group name" autoComplete="off" />
               <button type="submit" className="primary">Create group</button>
             </form>
             <small className="hint">Groups are flat and a person can be in several. Share a diagram with a group from the diagram's Share tab.</small>
             {groups.length === 0 && <small className="hint">No groups yet.</small>}
+            <div className="admin-grid">
             {groups.map((g) => (
               <div key={g.id} className="group-card">
                 <div className="group-head">
@@ -146,24 +151,34 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                 </div>
               </div>
             ))}
+            </div>
           </>)}
 
-          {tab === 'connections' && <AdminConnections users={users} groups={groups} act={act} setErr={setErr} />}
-          {tab === 'audit' && <AdminAudit kind="changes" setErr={setErr} />}
-          {tab === 'access' && <AdminAudit kind="access" setErr={setErr} />}
+          {ready && tab === 'connections' && <AdminConnections users={users} groups={groups} act={act} setErr={setErr} />}
+          {ready && tab === 'audit' && <AdminAudit kind="changes" setErr={setErr} />}
+          {ready && tab === 'access' && <AdminAudit kind="access" setErr={setErr} />}
 
-          {tab === 'settings' && settings && (
+          {ready && tab === 'settings' && settings && (
             <div className="admin-settings">
-              <label>Organisation name<input value={settings.orgName} onChange={(e) => setSettings({ ...settings, orgName: e.target.value })} placeholder="Shown on the sign-in screen and the top bar" /></label>
-              <label className="chk">
-                <input type="checkbox" checked={settings.allowSignup} disabled={settings.signupForcedBy !== null} onChange={(e) => setSettings({ ...settings, allowSignup: e.target.checked })} />
-                Let people create their own account (as members)
-              </label>
-              {settings.signupForcedBy !== null && <small className="hint">Forced by the server environment (<code>ALLOW_SIGNUP={settings.signupForcedBy}</code>).</small>}
-              <small className="hint">Keep this off to make the instance invitation-only: administrators create every account.</small>
-              <label>Session length (days)<input type="number" min="1" max="90" value={settings.sessionDays} onChange={(e) => setSettings({ ...settings, sessionDays: e.target.value })} /></label>
-              <label>Sign out after days without use (0 = never)<input type="number" min="0" max="90" value={settings.sessionIdleDays} onChange={(e) => setSettings({ ...settings, sessionIdleDays: e.target.value })} /></label>
-              <small className="hint">The session length applies to new sign-ins; the inactivity limit applies to every session at once.</small>
+              <div className="group-card">
+                <h4>Organisation</h4>
+                <label>Organisation name<input value={settings.orgName} onChange={(e) => setSettings({ ...settings, orgName: e.target.value })} placeholder="Shown on the sign-in screen and the top bar" /></label>
+              </div>
+              <div className="group-card">
+                <h4>Sign-up</h4>
+                <label className="chk">
+                  <input type="checkbox" checked={settings.allowSignup} disabled={settings.signupForcedBy !== null} onChange={(e) => setSettings({ ...settings, allowSignup: e.target.checked })} />
+                  Let people create their own account (as members)
+                </label>
+                {settings.signupForcedBy !== null && <small className="hint">Forced by the server environment (<code>ALLOW_SIGNUP={settings.signupForcedBy}</code>).</small>}
+                <small className="hint">Keep this off to make the instance invitation-only: administrators create every account.</small>
+              </div>
+              <div className="group-card">
+                <h4>Sessions</h4>
+                <label>Session length (days)<input type="number" min="1" max="90" value={settings.sessionDays} onChange={(e) => setSettings({ ...settings, sessionDays: e.target.value })} /></label>
+                <label>Sign out after days without use (0 = never)<input type="number" min="0" max="90" value={settings.sessionIdleDays} onChange={(e) => setSettings({ ...settings, sessionIdleDays: e.target.value })} /></label>
+                <small className="hint">The session length applies to new sign-ins; the inactivity limit applies to every session at once.</small>
+              </div>
               <button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button>
             </div>
           )}

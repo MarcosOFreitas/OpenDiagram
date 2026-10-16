@@ -99,9 +99,37 @@ export async function changePassword(userId, { current, next }, keepToken) {
 export async function adminSetPassword(userId, password) {
   const pw = password || tempPassword();
   validPassword(pw);
-  db.prepare('update users set password_hash = ?, must_change_password = 1 where id = ?').run(await hash(pw), userId);
+  db.prepare('update users set password_hash = ?, must_change_password = 1, recovery_hash = null, recovery_at = null where id = ?').run(await hash(pw), userId); // a reset by an administrator also voids the recovery key
   db.prepare('delete from sessions where user_id = ?').run(userId);
   return pw;
+}
+
+// ---------- recovery key: the person keeps it (shown once) and uses it to choose a new password when they forget theirs. Only its hash is stored;
+// it is 160 random bits, so a fast hash is enough. One use consumes it (a new one is generated after signing in); it never signs in by itself.
+const normKey = (k) => String(k ?? '').toLowerCase().replace(/[^0-9a-f]/g, '');
+const showKey = (hex) => `rk-${hex.match(/.{5}/g).join('-')}`; // rk-xxxxx-xxxxx-... (8 groups of 5)
+export const recoveryStatus = (userId) => { const u = db.prepare('select recovery_hash, recovery_at from users where id = ?').get(userId); return { has: !!u?.recovery_hash, createdAt: u?.recovery_at ?? null }; };
+export async function createRecoveryKey(userId, password) {
+  if (limited(`d|${userId}`, 5)) throw bad('too many attempts, try again in a few minutes', 429);
+  if (!(await checkPassword(userId, password))) { fail(`d|${userId}`); throw bad('password is wrong', 403); }
+  const hex = randomBytes(20).toString('hex');
+  db.prepare('update users set recovery_hash = ?, recovery_at = ? where id = ?').run(sha(hex), now(), userId); // replaces any earlier key
+  return showKey(hex);
+}
+export const removeRecoveryKey = (userId) => db.prepare('update users set recovery_hash = null, recovery_at = null where id = ?').run(userId);
+// e-mail + key -> a new password; the same answer for an unknown e-mail, a wrong key and an account without one (no way to find out which accounts exist)
+export async function recoverPassword({ email, key, next }, ip) {
+  email = String(email ?? '').trim().toLowerCase();
+  const ks = [`v|${ip}|${email}`, `v|${email}`]; // per address+e-mail and per e-mail, so spreading the guesses over many addresses does not help
+  if (ks.some((k) => limited(k))) throw bad('too many failed attempts, try again in a few minutes', 429);
+  const u = db.prepare('select * from users where email = ? and disabled = 0 and deleted_at is null').get(email);
+  const given = Buffer.from(sha(normKey(key)), 'hex'), want = Buffer.from(u?.recovery_hash ?? '0'.repeat(64), 'hex');
+  if (!u?.recovery_hash || !timingSafeEqual(given, want)) { ks.forEach(fail); throw bad('invalid e-mail or recovery key', 401); }
+  validPassword(next);
+  db.prepare('update users set password_hash = ?, must_change_password = 0, recovery_hash = null, recovery_at = null where id = ?').run(await hash(next), u.id);
+  db.prepare('delete from sessions where user_id = ?').run(u.id);
+  ks.forEach(forgive);
+  return pub(u);
 }
 
 // ---------- sessions
@@ -146,7 +174,7 @@ export function userFromRequest(req) {
   const n = now(), idle = idleDays();
   const u = db.prepare(`select u.*, s.last_seen from sessions s join users u on u.id = s.user_id where s.token_hash = ? and s.expires_at > ? and u.disabled = 0
     ${idle ? 'and coalesce(s.last_seen, s.created_at, ?) > ?' : ''}`).get(sha(t), n, ...(idle ? [n, n - idle * DAY] : []));
-  if (u && !(u.last_seen > n - 60)) db.prepare('update sessions set last_seen = ? where token_hash = ?').run(n, sha(t)); // "last used", at most once a minute
+  if (u && !(u.last_seen > n - 60)) db.prepare('update sessions set last_seen = ?, ip = coalesce(ip, ?), agent = coalesce(agent, ?) where token_hash = ?').run(n, req.ip ? String(req.ip).slice(0, 64) : null, req.headers?.['user-agent'] ? agentOf(req.headers['user-agent']) : null, sha(t)); // "last used", at most once a minute; a session made before the device was recorded learns it now
   return u ? pub(u) : null;
 }
 

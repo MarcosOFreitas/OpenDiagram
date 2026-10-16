@@ -8,7 +8,8 @@ One installation is one organization. People sign in with **e-mail and password*
 - After that, sign-up is **closed**: the administrator creates the other accounts (see [Administration](administration)). A new user gets a temporary password and chooses their own at the first sign-in.
 - **Account → Sessions** lists where you are signed in (device, address, last use). End any other one, or **Sign out all other sessions**. Changing your password does the same.
 - **Account → Delete my account** asks for your password and closes the account. Your database connections go at once; your diagrams wait 7 days for an administrator to hand them over, then are deleted.
-- If you forget your password, ask an administrator to **Reset password** (there is no e-mail in OpenDiagram).
+- **Account → Recovery key**: there is no e-mail in OpenDiagram, so make a **recovery key** while you can sign in (it asks for your password). It looks like `rk-1a2b3-…`, is shown **once**, and only a hash of it is kept: save it in a password manager. If you forget your password, press **Forgot your password?** on the sign-in screen and enter your e-mail, the key and a new password. The key works **once** (make a new one afterwards), signs you out of every other session and does not sign in by itself. Making a new key replaces the old one; **Remove** deletes it. Anyone who has the key and knows your e-mail can take the account over, so treat it like a password. Too many wrong keys lock the attempts for a few minutes.
+- Without a key, ask an administrator to **Reset password**; that also cancels any recovery key.
 - Roles: **administrator** and **member**. Members can belong to any number of **groups** (flat, no hierarchy).
 
 ## Private by default

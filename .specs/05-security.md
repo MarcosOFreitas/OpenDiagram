@@ -25,7 +25,8 @@
 - [ ] Decide whether the hosted service stores database credentials at all (alternative: credentials used once, never persisted).
 - [x] Audit log for the use of shared connections and administrator actions ([09](09-accounts-sharing.md)); [ ] size/time limits on imports; [x] sign-in events in the log.
 - [x] Sessions list and revocation, session length and inactivity limit, link expiry, account self-closing (7-day grace), persistent failed-attempt limiter, sign-in events in the audit log.
-- [ ] MFA/SSO. Not planned: e-mail verification and e-mail password reset (no SMTP; an administrator resets passwords).
+- [x] Self-service password recovery without e-mail: a recovery key the person keeps (hash only, single use, rate-limited, audited).
+- [ ] MFA/SSO. Not planned: e-mail verification and e-mail password reset (no SMTP).
 - [ ] Dependency scan in CI; container runs as non-root; read-only filesystem except `/data`.
 - [ ] Privacy notice: only schema metadata is read; no table data leaves the database.
 

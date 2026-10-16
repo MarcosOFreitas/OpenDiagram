@@ -571,6 +571,33 @@ check('...and it no longer exists', r.status === 404);
   check('links: the owner sees when it expires', r.json.find((s) => s.id === lk.id)?.expired === false);
   await ADMIN('DELETE', `/api/diagrams/${kd}`);
 
+  // recovery key: made while signed in, used signed out to choose a new password, once
+  const RK = client();
+  await RK('POST', '/api/auth/login', { email: alice.email, password: alicePw });
+  r = await RK('GET', '/api/auth/recovery');
+  check('recovery: none yet', r.status === 200 && r.json.has === false);
+  r = await RK('POST', '/api/auth/recovery', { password: 'not my password' });
+  check('recovery: making a key needs the password', r.status === 403);
+  r = await RK('POST', '/api/auth/recovery', { password: alicePw });
+  const rkey = r.json.key;
+  check('recovery: the key is returned once, in groups', r.status === 200 && /^rk-([0-9a-f]{5}-){7}[0-9a-f]{5}$/.test(rkey));
+  check('recovery: it is not returned again', JSON.stringify((await RK('GET', '/api/auth/recovery')).json).includes(rkey) === false);
+  r = await client()('POST', '/api/auth/recover', { email: alice.email, key: 'rk-00000-00000-00000-00000-00000-00000-00000-00000', next: 'some other long password' });
+  const wrong = r;
+  r = await client()('POST', '/api/auth/recover', { email: `nobody-${run}@example.com`, key: rkey, next: 'some other long password' });
+  check('recovery: a wrong key and an unknown e-mail get the same answer', wrong.status === 401 && r.status === 401 && wrong.json.error === r.json.error, wrong.json.error);
+  const back = client();
+  r = await back('POST', '/api/auth/recover', { email: alice.email.toUpperCase(), key: rkey.toUpperCase(), next: 'recovered long password' });
+  check('recovery: the key chooses a new password and signs in', r.status === 200 && (await back('GET', '/api/auth/me')).json.user?.email === alice.email);
+  r = await RK('GET', '/api/auth/me');
+  check('recovery: every older session ended', r.json.user === null);
+  r = await client()('POST', '/api/auth/recover', { email: alice.email, key: rkey, next: 'yet another long password' });
+  check('recovery: the key works once', r.status === 401);
+  r = await ADMIN('GET', '/api/admin/audit?action=auth&limit=300');
+  const acts2 = new Set(r.json.map((e) => e.action));
+  check('audit: key made, password recovered and a failed recovery are recorded', ['auth.recovery_key_created', 'auth.password_recovered', 'auth.recovery_failed'].every((a) => acts2.has(a)) && !JSON.stringify(r.json).includes(rkey), [...acts2].join(','));
+  await ADMIN('POST', `/api/admin/users/${alice.id}/reset-password`, { password: pw }); // leave alice in a known state for the cleanup
+
   const D2 = client();
   r = await ADMIN('POST', '/api/admin/users', { email: `leaver-${run}@example.com`, name: 'Leaver', password: pw });
   const leaver = r.json.user;

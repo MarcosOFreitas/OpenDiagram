@@ -92,6 +92,30 @@ app.post('/api/auth/password', async (req) => {
   audit.log(req.user, 'auth.password_changed', { detail: `other sessions ended · ${where(req)}` });
   return { user: auth.userById(req.user.id) };
 });
+// recovery key: made while signed in, used (signed out) to choose a new password
+app.get('/api/auth/recovery', (req) => { if (!req.user) throw bad('login required', 401); return auth.recoveryStatus(req.user.id); });
+app.post('/api/auth/recovery', async (req) => {
+  if (!req.user) throw bad('login required', 401);
+  const key = await auth.createRecoveryKey(req.user.id, req.body?.password);
+  audit.log(req.user, 'auth.recovery_key_created', { detail: where(req) });
+  return { key };
+});
+app.delete('/api/auth/recovery', (req) => {
+  if (!req.user) throw bad('login required', 401);
+  auth.removeRecoveryKey(req.user.id);
+  audit.log(req.user, 'auth.recovery_key_removed', { detail: where(req) });
+  return { ok: true };
+});
+app.post('/api/auth/recover', async (req, reply) => {
+  let user;
+  try { user = await auth.recoverPassword(req.body ?? {}, req.ip); } catch (e) {
+    audit.log(null, 'auth.recovery_failed', { target: String(req.body?.email ?? '').trim().toLowerCase().slice(0, 120), ok: false, detail: `${e.message} · ${where(req)}` });
+    throw e;
+  }
+  startSession(reply, req, user);
+  audit.log(user, 'auth.password_recovered', { detail: `all other sessions ended, the key is used up · ${where(req)}` });
+  return { user };
+});
 // the person's own sessions (devices): list, end one, end all the others
 app.get('/api/auth/sessions', (req) => { if (!req.user) throw bad('login required', 401); return auth.listSessions(req.user.id, auth.tokenFromRequest(req)); });
 app.delete('/api/auth/sessions', (req) => { // all the others

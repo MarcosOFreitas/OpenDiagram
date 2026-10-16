@@ -105,3 +105,14 @@ test('share links can expire: 1 to 365 days, an expired link is as good as gone,
   dg.setShareExpiry(o, s.id, null);
   assert.equal(dg.listShares(o, id).find((x) => x.id === s.id).expiresAt, null);
 });
+
+test('a session made before devices were recorded learns its address and browser the next time it is used', async () => {
+  const u = await mk('old@example.com');
+  const t = auth.createSession(u.id);
+  db.prepare('update sessions set ip = null, agent = null, last_seen = null where user_id = ?').run(u.id);
+  auth.userFromRequest({ ip: '8.8.4.4', headers: { cookie: `sid=${t}`, 'user-agent': 'Mozilla/5.0 (Windows NT 10.0) Chrome/126.0 Safari/537.36' } });
+  const s = auth.listSessions(u.id, t)[0];
+  assert.deepEqual([s.ip, s.agent], ['8.8.4.4', 'Chrome on Windows']);
+  auth.userFromRequest({ ip: '1.1.1.1', headers: { cookie: `sid=${t}`, 'user-agent': 'curl/8' } }); // it does not change afterwards
+  assert.equal(auth.listSessions(u.id, t)[0].ip, '8.8.4.4');
+});

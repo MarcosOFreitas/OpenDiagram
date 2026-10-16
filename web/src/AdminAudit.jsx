@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errMsg } from './api.js';
+import Loading from './Loading.jsx';
 
 // Two logs in two tabs. `changes`: what the administrators changed. `access`: who signed in (and failed to), what happened to accounts, and who used a shared database.
 // Type filter: value = the comma-separated action prefixes the server matches; the label is also what the table shows for that action. Without a type the tab's own prefixes apply.
@@ -12,14 +13,14 @@ const KINDS = {
   access: {
     base: 'auth,connection', scopes: false, facets: ['connections', 'diagrams'],
     types: [
-      ['auth', 'Sign-in and accounts', [['auth.login', 'Signed in'], ['auth.login_failed', 'Failed sign-in'], ['auth.logout', 'Signed out'], ['auth.password_changed', 'Password changed'], ['auth.session_revoked', 'Session ended'], ['auth.register', 'Registered'], ['auth.account_closed', 'Account closed'], ['auth.account_purged', 'Account deleted']]],
+      ['auth', 'Sign-in and accounts', [['auth.login', 'Signed in'], ['auth.login_failed', 'Failed sign-in'], ['auth.logout', 'Signed out'], ['auth.password_changed', 'Password changed'], ['auth.session_revoked', 'Session ended'], ['auth.register', 'Registered'], ['auth.account_closed', 'Account closed'], ['auth.account_purged', 'Account deleted'], ['auth.recovery_key_created', 'Recovery key made'], ['auth.recovery_key_removed', 'Recovery key removed'], ['auth.password_recovered', 'Password recovered'], ['auth.recovery_failed', 'Failed recovery']]],
       ['connection', 'Shared-connection use', [['connection.import', 'Imported'], ['connection.refresh', 'Refreshed'], ['connection.test', 'Tested'], ['connection.tables', 'Listed tables']]],
     ],
     hint: <>Kept for 180 days (failed sign-ins: the last 50,000). Sign-ins with the address and device, failed attempts (never the password), password changes, ended sessions, closed accounts, and the use of <b>shared</b> connections (test, list tables, import, refresh). Personal connections are private and are not recorded.</>,
   },
 };
 const LABEL = { 'admin.post': 'Added', 'admin.put': 'Changed', 'admin.patch': 'Changed', 'admin.delete': 'Deleted', 'connection.import': 'Imported', 'connection.refresh': 'Refreshed', 'connection.test': 'Tested', 'connection.tables': 'Listed tables',
-  'auth.login': 'Signed in', 'auth.login_failed': 'Failed sign-in', 'auth.logout': 'Signed out', 'auth.password_changed': 'Password changed', 'auth.session_revoked': 'Session ended', 'auth.register': 'Registered', 'auth.account_closed': 'Account closed', 'auth.account_purged': 'Account deleted' };
+  'auth.login': 'Signed in', 'auth.login_failed': 'Failed sign-in', 'auth.logout': 'Signed out', 'auth.password_changed': 'Password changed', 'auth.session_revoked': 'Session ended', 'auth.register': 'Registered', 'auth.account_closed': 'Account closed', 'auth.account_purged': 'Account deleted', 'auth.recovery_key_created': 'Recovery key made', 'auth.recovery_key_removed': 'Recovery key removed', 'auth.password_recovered': 'Password recovered', 'auth.recovery_failed': 'Failed recovery' };
 const SCOPES = [['users', 'Users'], ['groups', 'Groups'], ['settings', 'Settings']];
 const when = (t) => new Date(t * 1000).toLocaleString();
 
@@ -62,6 +63,7 @@ export default function AdminAudit({ kind = 'changes', setErr }) {
         <a className="btn" href={`/api/admin/audit.csv?${new URLSearchParams(filt())}`} download>Download CSV</a>
       </div>
       <small className="hint">{K.hint}</small>
+      {!rows && <Loading label="Loading the log" />}
       {rows && rows.length === 0 && <small className="hint">Nothing recorded for this filter.</small>}
       {rows && rows.length > 0 && (
         <table className="admin-table audit">

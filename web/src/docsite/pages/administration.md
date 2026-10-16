@@ -6,7 +6,7 @@ Administrators open the panel from the **avatar menu → Administration**.
 
 - **Add user** with an e-mail, a name and a role (member or administrator). You can type an initial password or let the app **generate a temporary one**, which is shown **once**.
 - A new or reset user is forced to **choose a new password** at the next sign-in; until then they can only sign in, change the password and open share links.
-- **Reset password** gives a new temporary password. **Disable** blocks an account without deleting it and signs the person out at once. You cannot disable, delete or change the role of your own account here. **Delete** removes it and its data.
+- **Reset password** gives a new temporary password (it also cancels the person's recovery key). People who made a [recovery key](accounts-and-sharing) can choose a new password themselves. **Disable** blocks an account without deleting it and signs the person out at once. You cannot disable, delete or change the role of your own account here. **Delete** removes it and its data.
 - The instance must always keep **one active administrator**: the app refuses to disable, delete or demote the last one.
 
 ## Groups
