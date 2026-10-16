@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## License
+
+- OpenDiagram is now released under the **PolyForm Noncommercial License 1.0.0**: free to use for noncommercial purposes, and not to be sold, offered as a paid service or used in a commercial product or business. Earlier versions stay under the MIT License. See [License](license).
+
 ## Table selection, one rule
 
 - The table selection is handled in one place now, and the table picker follows it everywhere: a first import opens with nothing ticked (= all tables); a diagram imported with all tables opens with **every table ticked** and says that tables the database gets later are imported too; applying it untouched keeps *all*. A diagram opens with **its own** selection even when other diagrams use the same connection.

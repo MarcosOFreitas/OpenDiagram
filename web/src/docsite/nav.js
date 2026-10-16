@@ -20,6 +20,7 @@ export const NAV = [
   'self-hosting',
   'hosting-requirements',
   'shortcuts-faq',
+  'license',
   'release-notes',
 ];
 

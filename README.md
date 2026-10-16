@@ -1,6 +1,6 @@
 # OpenDiagram
 
-Open-source, self-hostable database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL / Oracle database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
+Free, source-available, self-hostable database diagramming tool in the spirit of dbdiagram.io (**free for noncommercial use**, see [License](#license)): write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL / Oracle database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
 
 **Documentation:** <http://localhost:3000/docs> once it runs (the same pages live in [`web/src/docsite/pages`](web/src/docsite/pages)). **For contributors and AI agents:** [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md), [`.specs/`](.specs/README.md). **Security:** [`SECURITY.md`](SECURITY.md).
 
@@ -118,4 +118,12 @@ OpenDiagram is an independent project, **not affiliated with or endorsed by dbdi
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial License 1.0.0](LICENSE). In plain words:
+
+- OpenDiagram was born from the need for a **free** diagramming application, and it is meant to **stay free**. Nobody may sell it, offer it as a paid service, or use it in a commercial product or business.
+- You may use, study, change and share it for **noncommercial purposes**: personal use, hobby projects, research, education, charities, and public institutions. The license text defines them precisely (*Noncommercial Purposes*, *Personal Uses*, *Noncommercial Organizations*).
+- Using it inside a company for the company's work is **commercial use**. A written license from the copyright holders is needed first.
+- Anyone who gets a copy must also get the license (or its URL) and the `Required Notice:` line of the `LICENSE` file.
+- It is **source-available**, not "open source" in the OSI sense, because it restricts commercial use.
+- Versions published before 2026-10-16 were released under the MIT License, and copies made then stay under it; the change applies to everything from that date on.
+- This is a summary, not legal advice: the `LICENSE` file is what counts. The libraries OpenDiagram uses keep their own licenses (listed above); the skills vendored under `.claude/skills` keep theirs.

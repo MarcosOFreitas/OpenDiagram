@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guide for AI coding agents (and humans who like terse rules) working on **OpenDiagram**: an open-source, self-hostable, dbdiagram.io-style tool. A DBML editor with a live diagram, generated documentation, and live **read-only** metadata import from PostgreSQL and Oracle, with accounts, sharing and an audit log. It works with any agent that reads `AGENTS.md` (Codex, Cursor, Copilot, Gemini CLI, Claude Code, Aider, ...).
+Guide for AI coding agents (and humans who like terse rules) working on **OpenDiagram**: a free, source-available (PolyForm Noncommercial: not for commercial use), self-hostable, dbdiagram.io-style tool. A DBML editor with a live diagram, generated documentation, and live **read-only** metadata import from PostgreSQL and Oracle, with accounts, sharing and an audit log. It works with any agent that reads `AGENTS.md` (Codex, Cursor, Copilot, Gemini CLI, Claude Code, Aider, ...).
 
 Read [`.specs/README.md`](.specs/README.md) for the specs and their status before any non-trivial work, and update the relevant spec in the same change.
 

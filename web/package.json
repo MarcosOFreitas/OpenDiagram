@@ -1,7 +1,7 @@
 {
   "name": "dbdiagram-open-web",
   "description": "OpenDiagram web UI and documentation site (Vite + React)",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",
   "scripts": {

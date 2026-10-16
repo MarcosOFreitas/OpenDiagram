@@ -2,7 +2,7 @@
 
 ## OpenDiagram Docs
 
-OpenDiagram is an open-source tool to draw database diagrams (ERDs) by typing code. It uses the popular **DBML** (Database Markup Language): you write text, the diagram follows. It can also **read the structure of a live PostgreSQL or Oracle database** and generate the diagram for you.
+OpenDiagram is a free tool (source-available, for noncommercial use: see [License](license)) to draw database diagrams (ERDs) by typing code. It uses the popular **DBML** (Database Markup Language): you write text, the diagram follows. It can also **read the structure of a live PostgreSQL or Oracle database** and generate the diagram for you.
 
 > **Info** OpenDiagram runs on your own machine or server (a single Docker image with SQLite storage). Your diagrams and database credentials never leave your installation.
 
