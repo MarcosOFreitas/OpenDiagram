@@ -12,7 +12,7 @@ beforeEach(() => { api.mockReset(); copyText.mockReset(); });
 describe('RecoveryKey (Account)', () => {
   test('no key yet: asks for the password, shows the new key once with Copy, then hides it', async () => {
     api.mockImplementation(async (p, b, m) => (p === 'auth/recovery' && b ? { key: 'rk-aaaaa-bbbbb' } : { has: false, createdAt: null }));
-    const user = userEvent.setup(), notify = vi.fn();
+    const user = userEvent.setup({ delay: null }), notify = vi.fn();
     render(<RecoveryKey notify={notify} />);
     await user.click(await screen.findByText('Generate a recovery key'));
     await user.type(screen.getByLabelText('Your password, to make the key'), 'my-password-1');
@@ -27,7 +27,7 @@ describe('RecoveryKey (Account)', () => {
   });
   test('a wrong password shows the error and no key', async () => {
     api.mockImplementation(async (p, b) => { if (b) throw new Error('password is wrong'); return { has: true, createdAt: 1_700_000_000 }; });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<RecoveryKey notify={vi.fn()} />);
     await user.click(await screen.findByText('Generate a new key'));
     await user.type(screen.getByLabelText('Your password, to make the key'), 'nope');
@@ -37,7 +37,7 @@ describe('RecoveryKey (Account)', () => {
   });
   test('with a key: says so, and Remove deletes it', async () => {
     api.mockImplementation(async (p, b, m) => (m === 'DELETE' ? { ok: true } : { has: true, createdAt: 1_700_000_000 }));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<RecoveryKey notify={vi.fn()} />);
     expect(await screen.findByText(/You have a recovery key/)).toBeTruthy();
     await user.click(screen.getByText('Remove'));
@@ -48,7 +48,7 @@ describe('RecoveryKey (Account)', () => {
 describe('sign-in screen: forgot password', () => {
   test('the link opens the recovery form; the two new passwords must match; it sends e-mail, key and the new password', async () => {
     api.mockResolvedValue({ user: { id: 1 } });
-    const onDone = vi.fn(), user = userEvent.setup();
+    const onDone = vi.fn(), user = userEvent.setup({ delay: null });
     render(<AuthScreen onDone={onDone} />);
     await user.click(screen.getByText('Forgot your password?'));
     expect(screen.getByRole('heading', { name: 'Forgot your password?' })).toBeTruthy();
@@ -67,7 +67,7 @@ describe('sign-in screen: forgot password', () => {
   });
   test('a server error is shown; Back to sign in returns', async () => {
     api.mockRejectedValue(new Error('invalid e-mail or recovery key'));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<AuthScreen onDone={vi.fn()} />);
     await user.click(screen.getByText('Forgot your password?'));
     await user.type(screen.getByPlaceholderText('E-mail'), 'me@example.com');

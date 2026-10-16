@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -11,12 +11,16 @@ const ROWS = [{ id: 5, at: 1_700_000_000, actor: 'Ana', action: 'connection.impo
 const lastAudit = () => { const c = api.mock.calls.map((x) => x[0]).filter((p) => p.startsWith('admin/audit?')); return new URLSearchParams(c[c.length - 1].split('?')[1]); };
 const setup = async (kind = 'access') => {
   api.mockImplementation(async (p) => (p === 'admin/audit/facets' ? FACETS : ROWS));
-  const user = userEvent.setup(), setErr = vi.fn();
+  const user = userEvent.setup({ delay: null }), setErr = vi.fn();
   render(<AdminAudit kind={kind} setErr={setErr} />);
   await screen.findByText('4 tables');
   return { user, setErr };
 };
-beforeEach(() => { api.mockReset(); }); // not returned: vitest would run a returned function as teardown
+beforeEach(() => { api.mockReset(); });
+// the component waits 250 ms after a filter change before asking the server: run that wait at once, the tests do not need it
+let spy;
+beforeAll(() => { const real = globalThis.setTimeout; spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn, ms, ...a) => real(fn, ms === 250 ? 0 : ms, ...a)); });
+afterAll(() => spy.mockRestore()); // not returned: vitest would run a returned function as teardown
 
 describe('AdminAudit', () => {
   test('loads the rows and labels the operation; a failed one is marked', async () => {
@@ -48,7 +52,7 @@ describe('AdminAudit', () => {
     expect(lastAudit().get('action')).toBe('admin');
     expect([...screen.getByLabelText('Target').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Databases', 'Administration']);
     expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Administrator actions']);
-    await userEvent.setup().selectOptions(screen.getByLabelText('Type of operation'), 'admin.put,admin.patch');
+    await userEvent.setup({ delay: null }).selectOptions(screen.getByLabelText('Type of operation'), 'admin.put,admin.patch');
     await waitFor(() => expect(lastAudit().get('action')).toBe('admin.put,admin.patch'));
   });
   test('sign-in events are labelled; a failed sign-in shows who tried', async () => {
@@ -85,7 +89,7 @@ describe('AdminAudit', () => {
   test('a full page offers Load more, which asks for the rows before the last one', async () => {
     const page = Array.from({ length: 100 }, (_, i) => ({ id: 200 - i, at: 1, actor: 'Ana', action: 'admin.post', target: '/users', ok: true }));
     api.mockImplementation(async (p) => (p === 'admin/audit/facets' ? FACETS : String(p).includes('before=') ? [] : page));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<AdminAudit setErr={vi.fn()} />);
     await user.click(await screen.findByText('Load more'));
     await waitFor(() => expect(lastAudit().get('before')).toBe('101'));

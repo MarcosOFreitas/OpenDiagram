@@ -20,6 +20,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            web/package-lock.json
       - name: Server
         working-directory: server
         run: |
@@ -35,16 +39,30 @@ jobs:
           npm test
           npx vite build
 
-  # ~25 min: runs on main and on demand (Actions -> ci -> Run workflow), not on every pull request
-  e2e:
+  # The UI audit is ~85% of the end-to-end time (22 of 25 min): 4 shards, one runner each, ~8 min in all. Runs on main and on demand
+  # (Actions -> ci -> Run workflow), not on every pull request. If branch protection ever requires "e2e", it is the job below, not the shards.
+  e2e-shard:
     needs: unit
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      UI_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - name: End-to-end (stack, e2e scripts, UI audit, behaviour fingerprint)
+      - name: End-to-end (stack, e2e scripts on shard 1, UI audit of this shard, behaviour fingerprint on shard 1)
         run: bash .github/ci-e2e.sh
+
+  e2e:
+    needs: e2e-shard
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.e2e-shard.result }}" = success

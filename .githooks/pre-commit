@@ -1,4 +1,28 @@
 #!/bin/sh
-# Unit tests before every commit (enable once: git config core.hooksPath .githooks). Skip in an emergency: git commit --no-verify
+# Unit tests before every commit, only what the staged files can affect (enable once: git config core.hooksPath .githooks).
+#   server/ changed  -> the server tests        web/ changed -> the web tests that import a changed file (all of them when package.json, the Vite or setup config changed)
+#   only docs/specs  -> nothing                 FULL=1 git commit ... -> everything      git commit --no-verify -> nothing
+# CI always runs everything.
 cd "$(git rev-parse --show-toplevel)" || exit 1
-(cd server && npm test --silent) && (cd web && npm test --silent)
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+server=$(printf '%s\n' "$files" | grep -E '^server/(src/|test/|package)')
+web=$(printf '%s\n' "$files" | grep -E '^web/(src/.*\.(js|jsx|css)$|package|vite\.config)')
+[ -n "$FULL" ] && { server=x; web=x; }
+[ -z "$server$web" ] && { echo "pre-commit: no code staged, tests skipped"; exit 0; }
+
+log=$(mktemp -d)
+status=0
+if [ -n "$server" ]; then (cd server && npm test --silent >"$log/server" 2>&1; echo $? >"$log/server.rc") & fi
+if [ -n "$web" ]; then
+  (cd web
+   if [ -n "$FULL" ] || printf '%s\n' "$web" | grep -qE '^web/(package|vite\.config|src/test-setup)'; then npx vitest run >"$log/web" 2>&1
+   else npx vitest related --run --passWithNoTests $(printf '%s\n' "$web" | sed 's#^web/##') >"$log/web" 2>&1; fi
+   echo $? >"$log/web.rc") &
+fi
+wait
+for t in server web; do
+  [ -f "$log/$t.rc" ] || continue
+  if [ "$(cat "$log/$t.rc")" != 0 ]; then echo "pre-commit: $t tests FAILED"; cat "$log/$t"; status=1; else echo "pre-commit: $t tests ok"; fi
+done
+rm -rf "$log"
+exit $status

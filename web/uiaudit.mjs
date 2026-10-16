@@ -4,6 +4,7 @@
 // desktop / tablet / phone. Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
 //   docker run -d --name audit-app --network rea_dbdiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) rea_dbdiagram-app
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
+//   AUDIT_SHARD=i/n audits only every n-th screen (CI runs 4 in parallel, each on its own instance)
 //   (AUDIT_CONTAINER=<name> if the container is not called audit-app: the audit writes one row of scheduler state into its database)
 //   BASE=http://localhost:3100 AUDIT_EMAIL=audit@example.com AUDIT_PASSWORD=audit-password-123 node web/uiaudit.mjs [screen-name ...]
 // The first-run screen needs an EMPTY instance on :3101: run it on its own, BASE_EMPTY=http://localhost:3101 node web/uiaudit.mjs first-run
@@ -18,6 +19,9 @@ import { Api, seedTeam } from './fixtures.mjs';
 const BASE = process.env.BASE || 'http://localhost:3100', EMPTY = process.env.BASE_EMPTY;
 const EMAIL = process.env.AUDIT_EMAIL, PASS = process.env.AUDIT_PASSWORD;
 const ONLY = process.argv.slice(2);
+// AUDIT_SHARD=2/4: this process audits every 4th screen, starting with the 2nd (each shard needs its own throw-away instance, and its own Chrome port: 9444 + index)
+const [SHARD_I, SHARD_N] = (process.env.AUDIT_SHARD || '1/1').split('/').map(Number);
+let screenNo = 0;
 if (!EMAIL || !PASS) { console.error('set AUDIT_EMAIL and AUDIT_PASSWORD (administrator of the throw-away instance)'); process.exit(2); }
 if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000; use a throw-away instance, see the header'); process.exit(2); }
 const { TEMPLATES } = await import('./src/templates.js');
@@ -51,7 +55,7 @@ execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, 
 console.log('fixtures ready');
 
 // ---------- Chrome
-const B = await launch({ width: 1280, height: 800 });
+const B = await launch({ width: 1280, height: 800, port: 9444 + SHARD_I });
 const { ev, cdp, key, viewport } = B;
 const AUDIT = `window.__audit = () => {
   const lum = (c) => { const f = (v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
@@ -144,6 +148,7 @@ const note = (screen, vpName, findings) => { for (const [cat, arr] of Object.ent
 const VP = { desktop: [1280, 800], phone: [375, 812] }; // tablet (768px) is deliberately not covered
 async function run(name, setup, { vps = ['desktop'], themes = ['light', 'dark'], dialog, kb = false, after } = {}) {
   if (ONLY.length && !ONLY.includes(name)) return;
+  if (screenNo++ % SHARD_N !== SHARD_I - 1) return;
   for (const t of themes) for (const v of vps) {
     theme = t; await viewport(...VP[v], v === 'phone');
     try {

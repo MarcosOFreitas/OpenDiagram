@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, test, expect } from 'vitest';
 import { layout, tableWidth, tableHeight, shownFields, lessDetail, shelfPack, lineageRefs, PAD, HEAD, ROW } from './layout.js';
 

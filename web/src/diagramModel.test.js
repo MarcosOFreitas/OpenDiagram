@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, test, expect } from 'vitest';
 import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown } from './diagramModel.js';
 

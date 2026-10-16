@@ -26,7 +26,7 @@ There is **no linter**. Verification = unit tests (fast, no Docker) + the end-to
 ```bash
 (cd server && npm test)             # unit tests: node:test, ~2 s, no Docker (server/test/*.test.js)
 (cd web && npm test)                # unit + component tests: Vitest, Testing Library, jsdom (web/src/**/*.test.{js,jsx})
-git config core.hooksPath .githooks # once per clone: runs both before every commit
+git config core.hooksPath .githooks # once per clone: runs the tests the staged files can affect before every commit (FULL=1 = all)
 bash .github/ci-e2e.sh              # what the CI `e2e` job runs: stack, test-auth, test-guardrails, uiaudit, behaviorcheck vs web/behavior.golden.json (~20 min; see its header)
 node server/test-auth.mjs            # accounts, roles, groups, sharing, link permissions, shared connections, audit, SSRF policy
 node server/test-guardrails.mjs      # read-only sessions, privilege warnings, PostgreSQL TLS modes
@@ -70,7 +70,7 @@ node web/behaviorcheck.mjs           # refactors: behaviour fingerprint of menus
 3. The Oracle connect descriptor is built from user input: keep the `SAFE` validation in `oraConnectString`.
 4. A failed privilege check is reported as a warning, never treated as "safe".
 5. Authorization lives in the server, never in the UI. Roles are `admin` / `member`; `/api/admin/*` requires admin; a diagram's effective level is owner > admin (on others' diagrams: everything except the owner's `source` and connections) > edit > comment > view (`roleFor` in `diagrams.js`); the instance keeps at least one active administrator (`guardLastAdmin`); accounts that must change their password can only call `/api/auth/*`; every `/api` route except `health`, `auth/*` and `shared/*` requires a session; resources of other accounts answer 404; share-link routes check the link's level and require login for `comment` and `edit`. Never put `source`, connections or secrets in a `/api/shared` payload.
-6. Do not add features that widen exposure (arbitrary SQL execution, file reads, new outbound fetches) without revisiting [`.specs/05-security.md`](.specs/05-security.md). Database hosts go through `assertHostAllowed`.
+6. Do not add features that widen exposure (arbitrary SQL execution, file reads, new outbound fetches) without revisiting [`.specs/05-security.md`](.specs/05-security.md). Database hosts go through `assertHostAllowed`.
 7. The MCP connector (`/mcp`) acts as an **agent** account with no access except what diagram owners shared with it. It must never return a connection, a credential, `source`, a share link or a setting: build tool output only from the diagram's title, DBML, version, access level and comments (`server/test/mcp.test.js` checks it), mark it as untrusted, and audit every call without its content. Agent tokens (`odt_...`, hash only) are valid only on `/mcp`; agents are never administrators.
 
 ## UI standard

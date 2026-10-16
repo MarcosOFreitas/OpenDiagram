@@ -8,7 +8,7 @@ const items = ['shop.customers', 'shop.orders', 'shop.items', 'shop.vw_totals', 
 const setup = (props = {}) => {
   const onApply = vi.fn(), onClose = vi.fn();
   render(<TablePicker items={items} selection={ALL} groups={[]} onApply={onApply} onClose={onClose} {...props} />);
-  return { onApply, onClose, user: userEvent.setup() };
+  return { onApply, onClose, user: userEvent.setup({ delay: null }) };
 };
 const card = (name) => screen.getByTitle(name).querySelector('input'); // Tables tab card: title = schema.table
 const footer = () => document.querySelector('.tp-foot .hint').textContent;

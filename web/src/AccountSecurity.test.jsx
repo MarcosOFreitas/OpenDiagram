@@ -13,7 +13,7 @@ beforeEach(() => { api.mockReset(); });
 describe('Sessions', () => {
   test('lists the devices; the current one has no End button; the other can be ended', async () => {
     api.mockImplementation(async (p, b, m) => (m === 'DELETE' ? { ended: 1 } : LIST));
-    const notify = vi.fn(), user = userEvent.setup();
+    const notify = vi.fn(), user = userEvent.setup({ delay: null });
     render(<Sessions notify={notify} />);
     expect(await screen.findByText('Firefox on Linux')).toBeTruthy();
     expect(screen.getByText('this device')).toBeTruthy();
@@ -25,7 +25,7 @@ describe('Sessions', () => {
   });
   test('"Sign out all other sessions" only when there is another one', async () => {
     api.mockImplementation(async (p, b, m) => (m === 'DELETE' ? { ended: 1 } : LIST));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Sessions notify={vi.fn()} />);
     await user.click(await screen.findByText('Sign out all other sessions'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('auth/sessions', undefined, 'DELETE'));
@@ -41,7 +41,7 @@ describe('Sessions', () => {
 describe('DeleteAccount', () => {
   test('asks for the password after a warning that says what happens to the diagrams; sends it; signs out', async () => {
     api.mockResolvedValue({ ok: true });
-    const onDone = vi.fn(), user = userEvent.setup();
+    const onDone = vi.fn(), user = userEvent.setup({ delay: null });
     render(<DeleteAccount onDone={onDone} />);
     expect(api).not.toHaveBeenCalled();
     await user.click(screen.getByText('Delete my account…'));
@@ -53,7 +53,7 @@ describe('DeleteAccount', () => {
   });
   test('a wrong password shows the error and keeps the session', async () => {
     api.mockRejectedValue(new Error('password is wrong'));
-    const onDone = vi.fn(), user = userEvent.setup();
+    const onDone = vi.fn(), user = userEvent.setup({ delay: null });
     render(<DeleteAccount onDone={onDone} />);
     await user.click(screen.getByText('Delete my account…'));
     await user.type(screen.getByLabelText('Your password, to confirm'), 'x');
@@ -62,7 +62,7 @@ describe('DeleteAccount', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
   test('Cancel closes the form without calling the server', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<DeleteAccount onDone={vi.fn()} />);
     await user.click(screen.getByText('Delete my account…'));
     await user.click(screen.getByText('Cancel'));

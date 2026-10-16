@@ -12,7 +12,7 @@ const setup = (settings = { allowAgents: true }, list = AGENTS) => {
   api.mockImplementation(async (p, b, m) => (p === 'admin/agents' && !b ? list : p.endsWith('/tokens') ? { id: 't9', token: 'odt_SECRET-TOKEN-VALUE' } : { ok: true }));
   const setErr = vi.fn(), notify = vi.fn();
   render(<AdminAgents settings={settings} act={act} setErr={setErr} notify={notify} />);
-  return { setErr, notify, user: userEvent.setup() };
+  return { setErr, notify, user: userEvent.setup({ delay: null }) };
 };
 beforeEach(() => { api.mockReset(); copyText.mockReset(); });
 

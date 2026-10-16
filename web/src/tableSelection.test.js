@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, test, expect } from 'vitest';
 import { ALL, fromStored, toStored, isAll, ticked, missing, fromTicks, withGrouped, summary, footer } from './tableSelection.js';
 

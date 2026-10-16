@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, test, expect } from 'vitest';
 import { Parser } from '@dbml/core';
 import { buildModel, toMarkdown, ordered, commentMap, slug, tid, display, constraints, linkCols } from './docsModel.js';

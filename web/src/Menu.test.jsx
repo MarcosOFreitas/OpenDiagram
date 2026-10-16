@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import Menu from './Menu.jsx';
 
 const setup = (items) => {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   render(<><button>outside</button><Menu trigger="Export" items={items} title="Export menu" /></>);
   return user;
 };
