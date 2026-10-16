@@ -31,6 +31,12 @@ create view v_customer_orders as select c.id customer_id, c.name, o.id order_id,
 -- a materialized view must be created by its owner
 connect shop/shop@//localhost/FREEPDB1
 create materialized view mv_orders_by_status as select status, count(*) total from orders group by status;
+-- invoice_seq is used by nothing: it stays a loose Note
 create sequence invoice_seq start with 1000 increment by 1;
+-- ticket_seq is used by a trigger: it goes into the note of the table of that trigger
+create sequence ticket_seq start with 1 increment by 1;
+create table tickets (id number(10) primary key, subject varchar2(100));
+create or replace trigger trg_tickets_bi before insert on tickets for each row begin :new.id := ticket_seq.nextval; end;
+/
 create or replace trigger trg_orders_bi before insert on orders for each row begin null; end;
 /

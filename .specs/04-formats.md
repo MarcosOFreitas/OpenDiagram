@@ -39,7 +39,7 @@ DBML has `Table`, `Enum` and `Note` only; `toDbml` stays the single generator an
 | View / materialized view | `Table` (default header colour) with `note` = comment + `VIEW` / `MATERIALIZED VIEW` + SQL definition; columns as usual, no PK/refs. Shows in the diagram and docs; the diagram header adds "· View" / "· Mat. view" after the name (detected from the note; the grey `headercolor: #94a3b8` that older imports wrote is ignored for views). |
 | Enum | native `Enum schema.name { … }`; columns typed with it link to it |
 | Trigger | text in the note of its table/view: `TRIGGERS` + `name: definition` |
-| Sequence | standalone `Note "schema.name" { ''' SEQUENCE … ''' }` (a sticky note, not a table) |
+| Sequence | a `SEQUENCES` section in the note of each table that uses it (column default, trigger); a sequence no imported table uses is a standalone `Note "schema.name" { ''' SEQUENCE … ''' }` (not drawn as a sticky) |
 
 Multi-line notes (including multi-line column/table comments from the database) use `'''…'''`; newlines inside a default expression are collapsed to a space. Consequence: SQL/JSON **export** emits views as plain tables.
 

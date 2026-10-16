@@ -76,3 +76,16 @@ test('lineage lines are comments; sequences are standalone notes', () => {
   assert.match(out, /^\/\/ lineage\(auto\): s\.v\.a <- s\.t\.a$/m);
   assert.match(out, /Note "s\.seq" \{/);
 });
+
+test('a sequence used by a table goes into the note of that table (columns named); one used by nothing, or only by tables outside the import, stays a standalone Note', () => {
+  const q = (name, usedBy) => ({ schema: 'shop', name, desc: 'bigint start 1', usedBy });
+  const out = toDbml({
+    tables: [table('tickets', [col('id', 'bigint')], { comment: 'Support tickets' }), table('plain', [col('id')]), table('also', [col('id')])],
+    refs: [], sequences: [q('ticket_seq', [{ schema: 'shop', name: 'tickets', columns: ['id'] }, { schema: 'shop', name: 'also', columns: [] }]), q('loose_seq', []), q('gone_seq', [{ schema: 'shop', name: 'not_imported', columns: ['x'] }])],
+  });
+  assert.ok(out.includes("Table shop.tickets [note: '''\nSupport tickets\n\nSEQUENCES\nshop.ticket_seq (id): bigint start 1\n'''] {"));
+  assert.ok(out.includes("Table shop.also [note: '''\nSEQUENCES\nshop.ticket_seq: bigint start 1\n'''] {")); // shared: in each table that uses it
+  assert.match(out, /Table shop\.plain \{/); // untouched
+  assert.ok(!out.includes('Note "shop.ticket_seq"'));
+  assert.ok(out.includes('Note "shop.loose_seq" {') && out.includes('Note "shop.gone_seq" {'));
+});

@@ -42,7 +42,9 @@ create type shop.order_state as enum ('new', 'paid', 'shipped');
 create view shop.v_customer_orders as select c.id customer_id, c.name, o.id order_id, o.status from shop.customers c join shop.orders o on o.customer_id = c.id;
 comment on view shop.v_customer_orders is 'Orders with customer name';
 create materialized view shop.mv_orders_by_status as select status, count(*) total from shop.orders group by status;
-create sequence shop.invoice_seq start 1000;
+create sequence shop.invoice_seq start 1000; -- used by nothing: stays a loose Note
+create sequence shop.ticket_seq start 1; -- used by a column default: goes into the note of that table
+create table shop.tickets (id bigint primary key default nextval('shop.ticket_seq'), subject text);
 create function shop.touch() returns trigger language plpgsql as $$ begin return new; end $$;
 create trigger trg_orders_touch before insert on shop.orders for each row execute function shop.touch();
 

@@ -56,6 +56,7 @@ check('lineage: a materialized view too', /\/\/ lineage\(auto\): shop\.mv_orders
 r.lineageOnly = await post('import', { ...pg('reader', 'reader'), schemas: ['shop'], tables: ['shop.v_customer_orders', 'shop.orders'] });
 check('lineage: sources outside the picked tables are dropped', /<- shop\.orders\(/.test(r.lineageOnly.dbml) && !/shop\.customers\(/.test(r.lineageOnly.dbml.match(/\/\/ lineage.*/g)?.join(' ')), r.lineageOnly.dbml.match(/\/\/ lineage.*/g)?.join(' | '));
 check('A1 sequence note (serial sequences skipped)', r.dbml.includes('Note "shop.invoice_seq" {') && !r.dbml.includes('Note "shop.customers_id_seq"'));
+check('A1 sequence used by a column default goes into the note of its table', r.dbml.includes("Table shop.tickets [note: '''\nSEQUENCES\nshop.ticket_seq (id): bigint") && !r.dbml.includes('Note "shop.ticket_seq"'));
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
 r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('list tables flags views', r.tables.filter((t) => t.view).length === 2, JSON.stringify(r.tables.filter((t) => t.view).map((t) => t.name)));

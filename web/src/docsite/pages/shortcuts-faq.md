@@ -27,7 +27,7 @@ No. The **server** opens the connection, so the machine that runs OpenDiagram mu
 
 ### Where do the sequences of the database appear?
 
-A sequence that is **not** owned by a column (a serial or identity column owns its own) is written as a **note** with its settings, outside any table, because DBML has no sequence object. Notes starting with `SEQUENCE` are documentation, not sticky notes. See [Import from a database](database-import).
+DBML has no sequence object, so a sequence is written as text. One that a table **uses** (a column default, or a trigger on the table) is in the **note of that table**, under `SEQUENCES`. One that no imported table uses is a standalone note starting with `SEQUENCE`, which is documentation, not a sticky note. Sequences owned by a serial or identity column are not listed. See [Import from a database](database-import).
 
 ### I forgot my password. What now?
 

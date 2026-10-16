@@ -36,7 +36,7 @@ Press **Import N schema(s) → diagram**. The DBML appears in the editor and the
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark, with their resulting structure (columns, types, indexes). By default the SQL is **not** kept; tick **Full DDL of views** in the table picker to add the `CREATE VIEW` / `CREATE MATERIALIZED VIEW … AS …` statement to the table note. The choice is remembered for the refresh. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
 - **Data lineage** of views and materialized views (which tables they are built from, and which source column each output column comes from) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.
-- **Sequences** (those that are not owned by a column) as standalone `Note` blocks.
+- **Sequences** (those that are not owned by a column, as a serial or identity column owns its own). A sequence that a table **uses** goes into the **note of that table**, in a `SEQUENCES` section (PostgreSQL: a column whose `DEFAULT` calls `nextval`, with the column named; Oracle: a trigger on the table, or a default, that reads `seq.NEXTVAL`). A sequence that none of the imported tables uses stays a standalone `Note`. Sequences used only inside functions or procedures cannot be linked: the catalog does not say which table they belong to.
 - **Triggers** as text in the note of their table.
 - Multi-line comments are kept (they are written as multi-line notes).
 

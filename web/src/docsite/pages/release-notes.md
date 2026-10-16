@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Sequences next to their tables
+
+- A sequence that a table uses is now written in that table's note (a `SEQUENCES` section, with the column on PostgreSQL), instead of a loose note. Sequences used by no imported table stay standalone notes. A refresh updates existing diagrams.
+- Editing the connection of a diagram imported with all tables opens the table picker with every table ticked (it used to look empty), and starts from the diagram's own selection.
+
 ## Documentation
 
 - New pages and sections: *Connect Claude (MCP)*, *Hosting requirements*, *Databases behind a VPN or a firewall* (Self-hosting), and FAQ entries on VPN, sequences, forgotten passwords and AI assistants. New pictures: Account, Groups, Agents and Settings.

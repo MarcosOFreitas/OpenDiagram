@@ -5,8 +5,9 @@ import { viewColumnLineage } from './lineage.js';
 
 const key = (s, n) => `${s}.${n}`;
 
-// views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists
-export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = []) {
+// views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists.
+// `seqUse` = [{ seq: {schema, name}, table: {schema, name}, column? }]: which table (and column) uses a sequence (a column default, or a trigger); only tables of this import count.
+export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = [], seqUse = []) {
   const tables = new Map();
   for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] });
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
@@ -33,7 +34,17 @@ export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows =
     if (!lin.has(k)) lin.set(k, { target: c.target, sources: [] });
     lin.get(k).columns = c.columns;
   }
-  return { tables: [...tables.values()], refs, enums, sequences, lineage: [...lin.values()] };
+  const used = new Map();
+  for (const u of seqUse) {
+    const tk = key(u.table.schema, u.table.name);
+    if (!tables.has(tk)) continue;
+    const sk = key(u.seq.schema, u.seq.name);
+    if (!used.has(sk)) used.set(sk, new Map());
+    const m = used.get(sk);
+    if (!m.has(tk)) m.set(tk, { schema: u.table.schema, name: u.table.name, columns: [] });
+    if (u.column && !m.get(tk).columns.includes(u.column)) m.get(tk).columns.push(u.column);
+  }
+  return { tables: [...tables.values()], refs, enums, sequences: sequences.map((q) => ({ ...q, usedBy: [...(used.get(key(q.schema, q.name))?.values() ?? [])] })), lineage: [...lin.values()] };
 }
 
 // ---------- Postgres ----------
@@ -106,7 +117,14 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
     where d.classid='pg_rewrite'::regclass and d.refclassid='pg_class'::regclass and v.relkind in ('v','m') and s.oid <> v.oid and vn.nspname = any($1)
     group by 1,2,3,4 order by 1,2,3,4`))
     .map((r) => ({ target: { schema: r.vschema, name: r.vname }, source: { schema: r.sschema, name: r.sname }, columns: r.cols }));
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage);
+  // which table (and column) uses a sequence: the default expression of a column (`default nextval('seq')`) depends on it
+  const seqUse = (await q(`select sn.nspname seq_schema, s.relname seq_name, tn.nspname tschema, t.relname "table", a.attname::text col
+    from pg_depend d join pg_class s on s.oid=d.refobjid and s.relkind='S' join pg_namespace sn on sn.oid=s.relnamespace
+    join pg_attrdef ad on ad.oid=d.objid join pg_class t on t.oid=ad.adrelid join pg_namespace tn on tn.oid=t.relnamespace
+    join pg_attribute a on a.attrelid=ad.adrelid and a.attnum=ad.adnum
+    where d.classid='pg_attrdef'::regclass and d.refclassid='pg_class'::regclass and sn.nspname = any($1) order by 1,2,3,4,5`))
+    .map((r) => ({ seq: { schema: r.seq_schema, name: r.seq_name }, table: { schema: r.tschema, name: r.table }, column: r.col }));
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage, seqUse);
 });
 
 // ---------- Oracle (thin mode, no Instant Client) ----------
@@ -209,7 +227,17 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   const lineage = (await q(`select owner, name, referenced_owner, referenced_name from all_dependencies
     where owner in (@IN) and type in ('VIEW','MATERIALIZED VIEW') and referenced_type in ('TABLE','VIEW','MATERIALIZED VIEW') and referenced_owner in (@IN) order by 1,2,3,4`))
     .map((r) => ({ target: { schema: r.OWNER, name: r.NAME }, source: { schema: r.REFERENCED_OWNER, name: r.REFERENCED_NAME } }));
-  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences, lineage);
+  // which table uses a sequence: a trigger (its table) or a table whose default reads seq.NEXTVAL depends on it (ALL_DEPENDENCIES)
+  const trigTable = new Map(trigRows.map((t) => [key(t.schema, t.name), t]));
+  const seqUse = (await q(`select referenced_owner seq_owner, referenced_name seq_name, owner, name, type from all_dependencies
+    where referenced_type = 'SEQUENCE' and referenced_owner in (@IN) and type in ('TRIGGER','TABLE') order by 1,2,3,4`))
+    .flatMap((r) => {
+      const seq = { schema: r.SEQ_OWNER, name: r.SEQ_NAME };
+      if (r.TYPE === 'TABLE') return [{ seq, table: { schema: r.OWNER, name: r.NAME } }];
+      const t = trigTable.get(key(r.OWNER, r.NAME));
+      return t ? [{ seq, table: { schema: t.schema, name: t.table } }] : [];
+    });
+  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences, lineage, seqUse);
 });
 
 // guardrail 2: detect credentials that can do more than read metadata. Returns [{level, message}]

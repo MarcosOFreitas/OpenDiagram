@@ -76,7 +76,7 @@ Note reminder {
 }
 ```
 
-> **Note** DBML does not accept settings (such as a color) on a top-level `Note`, so every sticky note has the same color. The importer also writes database sequences as `Note` blocks whose text starts with `SEQUENCE`; those stay in the text and the documentation and are not drawn as stickies.
+> **Note** DBML does not accept settings (such as a color) on a top-level `Note`, so every sticky note has the same color. The importer writes a database sequence in the note of the table that uses it (a `SEQUENCES` section); a sequence that no imported table uses becomes a `Note` block whose text starts with `SEQUENCE`. Those stay in the text and the documentation and are not drawn as stickies.
 
 ## Comments
 

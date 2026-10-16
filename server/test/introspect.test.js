@@ -40,3 +40,11 @@ test('table lineage is kept only between tables of the import, never to itself',
   assert.equal(m.lineage.length, 1);
   assert.deepEqual(m.lineage[0].sources.map((s) => s.name), ['a']);
 });
+
+test('sequences: the tables (and columns) that use one are attached; tables outside the import and repeats do not count', () => {
+  const seq = { schema: 's', name: 'q', desc: 'start 1' }, free = { schema: 's', name: 'free', desc: 'start 1' };
+  const use = (table, column) => ({ seq: { schema: 's', name: 'q' }, table: { schema: 's', name: table }, column });
+  const m = assemble([t('s', 'a'), t('s', 'b')], [], [], [], [], [], [], [seq, free], [], [use('a', 'id'), use('a', 'id'), use('a', 'alt'), use('b'), use('ghost', 'x')]);
+  assert.deepEqual(m.sequences[0].usedBy, [{ schema: 's', name: 'a', columns: ['id', 'alt'] }, { schema: 's', name: 'b', columns: [] }]);
+  assert.deepEqual(m.sequences[1].usedBy, []); // used by nothing: stays loose
+});
