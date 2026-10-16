@@ -42,13 +42,13 @@
  "copy": "Clipboard blocked",
  "brokenView": "Light|Curved|Full",
  "picker": {
-  "cards": 6,
+  "cards": 7,
   "start": 0,
-  "afterSelectShown": 6,
+  "afterSelectShown": 7,
   "afterClearShown": 0,
   "afterOneClick": 1,
   "afterClearAll": 0,
-  "groupCards": 6
+  "groupCards": 7
  },
  "shared": {
   "listed": true,
@@ -56,9 +56,14 @@
   "importEnabled": true,
   "imported": true
  },
+ "allImported": {
+  "cards": 7,
+  "ticked": 7,
+  "footer": "All 7 selected = import all, tables the database gets later too"
+ },
  "groupsCount": {
   "ticked": 3,
-  "footer": "3 selected of 6 · 1 group(s)",
+  "footer": "3 selected of 7 · 1 group(s)",
   "fullDdlBox": true,
   "importedTables": "shop.customers,shop.orders,shop.v_customer_orders"
  },

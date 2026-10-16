@@ -45,6 +45,7 @@ export async function refreshOne(d, { resolve, generate }, now = Math.floor(Date
     const r = await generate(conn, { schemas: src.schemas, tables: src.tables, ddl: !!src.ddl });
     const gen = genHash(r.dbml);
     let detail = 'already up to date';
+    const gone = r.missing?.length ? ` (not in the database any more: ${r.missing.slice(0, 3).join(', ')}${r.missing.length > 3 ? '…' : ''})` : '';
     if (!src.gen) { // linked before the server knew what the last import generated: remember it now, change nothing (manual edits made since the import stay)
       dg.update(d.id, { source: { ...src, at: r.at, gen } }, { includeSource: true, baseVersion: d.version });
       detail = 'baseline';
@@ -54,7 +55,7 @@ export async function refreshOne(d, { resolve, generate }, now = Math.floor(Date
       detail = diffSummary(d.dbml, merged);
     }
     record(d.id, true, null, now);
-    if (conn.shared) audit.log(ACTOR, 'connection.refresh', { target: conn.name, connectionId: conn.id, diagramId: d.id, detail: `scheduled: ${detail}` });
+    if (conn.shared) audit.log(ACTOR, 'connection.refresh', { target: conn.name, connectionId: conn.id, diagramId: d.id, detail: `scheduled: ${detail}${gone}` });
   } catch (e) {
     if (e.code === 'conflict') return; // someone saved in the meantime: try again next minute, not a failure
     record(d.id, false, e.message, now);

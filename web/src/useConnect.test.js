@@ -3,7 +3,8 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 
 vi.mock('./api.js', async (orig) => ({ ...(await orig()), api: vi.fn() }));
 import { api } from './api.js';
-import { useConnect, EMPTY } from './useConnect.js';
+import { useConnect, EMPTY, goneNote } from './useConnect.js';
+import { fromStored } from './tableSelection.js';
 
 const PERSONAL = { id: 'p1', name: 'mine', type: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', schemas: ['shop'], tables: ['shop.a'], refreshMinutes: 0 };
 const SHARED = { id: 's1', name: 'team db', type: 'postgres', host: 'h', port: 5432, database: 'd', user: '', shared: true, schemas: [], tables: [] };
@@ -64,7 +65,7 @@ describe('import (regression: a shared connection must be used as registered, ne
     await waitFor(() => expect(result.current.conns).toHaveLength(2));
     act(() => result.current.pick(conn));
     await act(async () => {}); // listSchemas for a connection without schemas
-    act(() => { result.current.setPicked(['shop']); result.current.setTableSel(tables); });
+    act(() => { result.current.setPicked(['shop']); result.current.setSelection(fromStored(tables)); });
   };
   test('shared: no POST connections, the import goes with the shared id, groups travel to onImported', async () => {
     const { result, props } = setup();
@@ -107,22 +108,76 @@ describe('import (regression: a shared connection must be used as registered, ne
   });
 });
 
+describe('table selection through the whole flow: personal and shared connections behave the same', () => {
+  const kinds = [['personal', PERSONAL, true], ['shared', SHARED, false]]; // [label, connection, it is saved before importing]
+  const selections = [['all (nothing listed)', [], []], ['a list of two', ['shop.a', 'shop.v'], ['shop.a', 'shop.v']]];
+  describe.each(kinds)('%s connection', (_k, conn, saved) => {
+    test.each(selections)('first import with %s: the same list goes to the server and into source', async (_l, stored, sent) => {
+      const { result, props } = setup();
+      await waitFor(() => expect(result.current.conns).toHaveLength(2));
+      act(() => result.current.pick({ ...conn, tables: [] }));
+      await act(async () => {});
+      act(() => { result.current.setPicked(['shop']); result.current.setSelection(fromStored(stored)); });
+      await act(() => result.current.importNow());
+      expect(calls().find((c) => c.p === 'import').body.tables).toEqual(sent);
+      expect(props.onImported.mock.calls[0][1].tables).toEqual(sent);
+      const savedBody = calls().find((c) => c.p === 'connections' && c.body !== undefined)?.body;
+      expect(!!savedBody).toBe(saved); // a shared connection is never saved from the drawer
+      if (saved) expect(savedBody.tables).toEqual(sent);
+    });
+    test.each([
+      ['linked to this diagram with all tables', { connId: conn.id, schemas: ['shop'], tables: [] }, { ...conn, tables: ['shop.other'] }, [], true],
+      ['linked to this diagram with a list', { connId: conn.id, schemas: ['shop'], tables: ['shop.b'] }, { ...conn, tables: ['shop.other'] }, ['shop.b'], true],
+      ['not linked (a new diagram), the connection was imported with all: starts empty', null, { ...conn, schemas: ['shop'], tables: [] }, [], false],
+      ['not linked, the connection last imported a list: it is the starting point', null, { ...conn, schemas: ['shop'], tables: ['shop.x'] }, ['shop.x'], false],
+      ['not linked and never imported', null, { ...conn, schemas: [], tables: [] }, [], false],
+    ])('opening it when %s', async (_l, source, c, stored, imported) => {
+      const { result } = setup({ source });
+      act(() => result.current.pick(c));
+      await act(async () => {});
+      expect(result.current.selection).toEqual(fromStored(stored));
+      expect(result.current.imported).toBe(imported);
+    });
+  });
+  test('a shared connection opened from the diagram that imported it keeps the schemas of that diagram when the list arrives (regression: Import 0 schema(s), the table picker disabled)', async () => {
+    const { result } = setup({ source: { connId: 's1', schemas: ['shop'], tables: ['shop.a'] } });
+    act(() => result.current.pick(SHARED)); // a shared connection stores no schemas: the server is asked, and the answer has two
+    await waitFor(() => expect(result.current.schemas).toEqual(['shop', 'audit']));
+    expect(result.current.picked).toEqual(['shop']);
+    expect(result.current.selection).toEqual({ mode: 'list', tables: ['shop.a'] });
+  });
+  test('a shared connection never imported here offers its schemas and picks none when there are several', async () => {
+    const { result } = setup({ source: null });
+    act(() => result.current.pick(SHARED));
+    await waitFor(() => expect(result.current.schemas).toEqual(['shop', 'audit']));
+    expect(result.current.picked).toEqual([]);
+  });
+  test('two diagrams on one connection each open with their own list', async () => {
+    const shared = { ...PERSONAL, tables: ['shop.b'] }; // saved by the last import, made from the other diagram
+    for (const [mine, want] of [[{ connId: 'p1', schemas: ['shop'], tables: ['shop.a'] }, ['shop.a']], [{ connId: 'p1', schemas: ['shop'], tables: [] }, []]]) {
+      const { result } = setup({ source: mine });
+      act(() => result.current.pick(shared));
+      expect(result.current.selection).toEqual(fromStored(want));
+    }
+  });
+});
+
 describe('pick (regression: editing the connection of a diagram showed the selection of ANOTHER diagram)', () => {
   test('the own import of the diagram (schemas and tables) wins over what the connection saved last', async () => {
     const mine = { connId: 'p1', schemas: ['shop'], tables: ['shop.b', 'shop.c'] };
     const { result } = setup({ source: mine });
     act(() => result.current.pick({ ...PERSONAL, tables: ['shop.other'] })); // another diagram imported shop.other through the same connection
-    expect(result.current.tableSel).toEqual(['shop.b', 'shop.c']);
+    expect(result.current.selection).toEqual({ mode: 'list', tables: ['shop.b', 'shop.c'] });
   });
   test('a diagram imported with all tables (none listed) shows none listed, not the older list of the connection', async () => {
     const { result } = setup({ source: { connId: 'p1', schemas: ['shop'], tables: [] } });
     act(() => result.current.pick({ ...PERSONAL, tables: ['shop.other'] }));
-    expect(result.current.tableSel).toEqual([]);
+    expect(result.current.selection).toEqual({ mode: 'all', tables: [] });
   });
   test('a connection that is not the link of the diagram keeps its own saved tables', async () => {
     const { result } = setup({ source: { connId: 'zzz', schemas: ['x'], tables: ['x.y'] } });
     act(() => result.current.pick(PERSONAL));
-    expect(result.current.tableSel).toEqual(['shop.a']);
+    expect(result.current.selection).toEqual({ mode: 'list', tables: ['shop.a'] });
   });
 });
 
@@ -142,7 +197,7 @@ describe('pick (regression: a shared connection offered no schemas, tables or Im
     expect(calls().some((c) => c.p === 'schemas')).toBe(false);
     expect(result.current.schemas).toEqual(['shop']);
     expect(result.current.picked).toEqual(['shop']);
-    expect(result.current.tableSel).toEqual(['shop.a']);
+    expect(result.current.selection).toEqual({ mode: 'list', tables: ['shop.a'] });
   });
   test('Full DDL follows the diagram link: on for the linked connection with ddl, off for another one', async () => {
     const source = { connId: 'p1', schemas: ['shop'], tables: [], ddl: true };
@@ -222,7 +277,7 @@ describe('test connection, tables, save, delete, reset', () => {
     const { result } = setup();
     act(() => result.current.pick(PERSONAL));
     act(() => result.current.reset());
-    expect(result.current).toMatchObject({ form: EMPTY, schemas: [], picked: [], tableSel: [], tableList: null, tableGroups: null, warnings: [] });
+    expect(result.current).toMatchObject({ form: EMPTY, schemas: [], picked: [], selection: { mode: 'all', tables: [] }, tableList: null, tableGroups: null, warnings: [] });
   });
   test('groups belong to their diagram: opening another one drops them', async () => {
     const { result, rerender, props } = setup();
@@ -235,5 +290,13 @@ describe('test connection, tables, save, delete, reset', () => {
     act(() => result.current.set('host')({ target: { value: 'x', type: 'text' } }));
     act(() => result.current.set('blockWritable')({ target: { checked: true, type: 'checkbox' } }));
     expect(result.current.form).toMatchObject({ host: 'x', blockWritable: true });
+  });
+});
+
+describe('goneNote (a chosen table the database no longer has is said, in one message)', () => {
+  test('nothing missing: empty', () => { expect(goneNote([])).toBe(''); expect(goneNote(undefined)).toBe(''); });
+  test('names up to three, then an ellipsis', () => {
+    expect(goneNote(['a.x'])).toBe('Not in the database any more: a.x');
+    expect(goneNote(['a.x', 'a.y', 'a.z', 'a.w'])).toBe('Not in the database any more: a.x, a.y, a.z…');
   });
 });

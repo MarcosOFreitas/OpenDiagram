@@ -2,11 +2,12 @@ import { describe, test, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TablePicker, { matcher, tableMatcher } from './TablePicker.jsx';
+import { ALL, fromStored } from './tableSelection.js';
 
 const items = ['shop.customers', 'shop.orders', 'shop.items', 'shop.vw_totals', 'audit.log', 'audit.mv_daily'].map((name) => ({ name, view: /\.(vw|mv)_/.test(name) }));
 const setup = (props = {}) => {
   const onApply = vi.fn(), onClose = vi.fn();
-  render(<TablePicker items={items} selected={[]} groups={[]} onApply={onApply} onClose={onClose} {...props} />);
+  render(<TablePicker items={items} selection={ALL} groups={[]} onApply={onApply} onClose={onClose} {...props} />);
   return { onApply, onClose, user: userEvent.setup() };
 };
 const card = (name) => screen.getByTitle(name).querySelector('input'); // Tables tab card: title = schema.table
@@ -14,33 +15,33 @@ const footer = () => document.querySelector('.tp-foot .hint').textContent;
 const useBtn = () => screen.getByRole('button', { name: /^Use / });
 
 describe('imported with all tables (regression: editing the connection showed every table unticked, as if the selection was lost)', () => {
-  test('allSelected: every table starts ticked and the footer says it is "all"', () => {
-    setup({ allSelected: true });
+  test('imported before as all: every table starts ticked and the footer says it is "all"', () => {
+    setup({ imported: true });
     expect(items.every((i) => card(i.name).checked)).toBe(true);
     expect(footer()).toMatch(/^All 6 selected = import all/);
     expect(useBtn().textContent).toBe('Use all tables');
   });
   test('applying without touching anything keeps "all" (no list), so tables the database gets later are imported too', async () => {
-    const { user, onApply } = setup({ allSelected: true });
+    const { user, onApply } = setup({ imported: true });
     await user.click(useBtn());
-    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ tables: [] }));
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ selection: { mode: 'all', tables: [] } }));
   });
   test('unticking one table makes an explicit list of the others', async () => {
-    const { user, onApply } = setup({ allSelected: true });
+    const { user, onApply } = setup({ imported: true });
     await user.click(card('audit.log'));
     expect(footer()).toMatch(/^5 selected of 6/);
     await user.click(useBtn());
-    const { tables } = onApply.mock.calls[0][0];
+    const { tables } = onApply.mock.calls[0][0].selection;
     expect(tables).toHaveLength(5);
     expect(tables).not.toContain('audit.log');
   });
-  test('without allSelected (a first import) nothing is ticked and nothing means all, as before', () => {
+  test('without a previous import (a first import) nothing is ticked and nothing means all, as before', () => {
     setup();
     expect(items.some((i) => card(i.name).checked)).toBe(false);
     expect(footer()).toMatch(/^Nothing selected = import all 6/);
   });
-  test('an explicit list is shown as it is, even with allSelected', () => {
-    setup({ allSelected: true, selected: ['shop.orders'] });
+  test('an explicit list is shown as it is, even when it was imported before', () => {
+    setup({ imported: true, selection: fromStored(['shop.orders']) });
     expect(card('shop.orders').checked).toBe(true);
     expect(card('shop.items').checked).toBe(false);
   });
@@ -80,7 +81,7 @@ describe('TablePicker import selection', () => {
     const { onApply, user } = setup();
     expect(footer()).toBe('Nothing selected = import all 6');
     await user.click(useBtn());
-    expect(onApply).toHaveBeenCalledWith({ tables: [], groups: [], ddl: false });
+    expect(onApply).toHaveBeenCalledWith({ selection: { mode: 'all', tables: [] }, groups: [], ddl: false });
   });
   test('ticked tables are sent and counted', async () => {
     const { onApply, user } = setup();
@@ -88,7 +89,7 @@ describe('TablePicker import selection', () => {
     await user.click(card('audit.log'));
     expect(footer()).toBe('2 selected of 6');
     await user.click(screen.getByRole('button', { name: 'Use 2 table(s)' }));
-    expect(onApply.mock.calls[0][0].tables.sort()).toEqual(['audit.log', 'shop.orders']);
+    expect(onApply.mock.calls[0][0].selection.tables.sort()).toEqual(['audit.log', 'shop.orders']);
   });
   test('Select shown honours the search, Clear all empties', async () => {
     const { user } = setup();
@@ -124,7 +125,7 @@ describe('TablePicker groups (regression: grouped tables count as selected)', ()
     expect(footer()).toBe('2 selected of 6 · 1 group(s)');
     await user.click(screen.getByRole('button', { name: 'Use 2 table(s)' }));
     const arg = onApply.mock.calls[0][0];
-    expect(arg.tables.sort()).toEqual(['shop.customers', 'shop.orders']);
+    expect(arg.selection.tables.sort()).toEqual(['shop.customers', 'shop.orders']);
     expect(arg.groups).toEqual([expect.objectContaining({ name: 'Sales', tables: ['shop.customers', 'shop.orders'] })]);
   });
   test('a table lives in one group: a second group takes it over', async () => {
@@ -148,9 +149,9 @@ describe('TablePicker groups (regression: grouped tables count as selected)', ()
     expect(onApply.mock.calls[0][0].groups.map((g) => g.name)).toEqual(['Ok']);
   });
   test('apply: with a ticked table the grouped tables are imported too', async () => {
-    const { onApply, user } = setup({ selected: ['shop.orders'], groups: [{ name: 'Ok', color: '#222222', tables: ['shop.items', 'gone.table'] }] });
+    const { onApply, user } = setup({ selection: fromStored(['shop.orders']), groups: [{ name: 'Ok', color: '#222222', tables: ['shop.items', 'gone.table'] }] });
     await user.click(useBtn());
-    expect(onApply.mock.calls[0][0].tables.sort()).toEqual(['shop.items', 'shop.orders']); // gone.table is not in this import
+    expect(onApply.mock.calls[0][0].selection.tables.sort()).toEqual(['shop.items', 'shop.orders']); // gone.table is not in this import
   });
   test('duplicate names across groups are made unique on apply', async () => {
     const { onApply, user } = setup({ groups: [{ name: 'G', color: '#111111', tables: ['shop.items'] }, { name: 'G', color: '#222222', tables: ['shop.orders'] }] });

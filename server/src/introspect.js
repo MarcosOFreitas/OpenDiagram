@@ -284,11 +284,15 @@ const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgIm
 export const listSchemas = (c) => drivers[c.type].schemas(c);
 export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas);
 export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas);
-export async function importModel(c, schemas, tables) {
-  const m = await drivers[c.type].import(c, schemas);
+// `tables` is the stored selection: [] or missing = every table, otherwise exactly those (`schema.name`, or the plain name). Never more than asked for.
+// `m.missing` = the asked-for tables the database does not have (any more): the caller says so instead of silently importing fewer.
+export function filterModel(m, tables) {
+  m.missing = [];
   if (tables?.length) {
     const want = new Set(tables.map((t) => t.toLowerCase()));
     m.tables = m.tables.filter((t) => want.has(t.name.toLowerCase()) || want.has(`${t.schema}.${t.name}`.toLowerCase())); // plain name or schema.name
+    const found = new Set(m.tables.flatMap((t) => [t.name.toLowerCase(), `${t.schema}.${t.name}`.toLowerCase()]));
+    m.missing = tables.filter((t) => !found.has(t.toLowerCase()));
     const have = new Set(m.tables.map((t) => key(t.schema, t.name)));
     m.refs = m.refs.filter((r) => have.has(key(r.from.schema, r.from.name)) && have.has(key(r.to.schema, r.to.name)));
     m.lineage = (m.lineage ?? []).filter((l) => have.has(key(l.target.schema, l.target.name)))
@@ -297,3 +301,4 @@ export async function importModel(c, schemas, tables) {
   }
   return m;
 }
+export async function importModel(c, schemas, tables) { return filterModel(await drivers[c.type].import(c, schemas), tables); }

@@ -14,11 +14,12 @@ import Menu, { useDismiss } from './Menu.jsx';
 import Library from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
 import TablePicker, { tableMatcher } from './TablePicker.jsx';
+import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
 import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
-import { useConnect } from './useConnect.js';
+import { useConnect, goneNote } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
 import { Ic, Logo } from './Icons.jsx';
 
@@ -588,9 +589,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
     setDbml(withGroups(r.dbml, groups ?? parsed.groups)); // groups are re-applied: a new import must not lose them
     setSource(src);
-    notify('ok', `Imported ${r.tables} tables, ${r.refs} relationships — linked for refresh`);
+    notify(r.missing?.length ? 'err' : 'ok', `Imported ${r.tables} tables, ${r.refs} relationships — linked for refresh${r.missing?.length ? `. ${goneNote(r.missing)}` : ''}`);
   };
-  const { conns, form, setForm, schemas, picked, setPicked, tableSel, setTableSel, tableList, picker, setPicker, tableGroups, setTableGroups, warnings, setWarnings, fullDdl, setFullDdl, set, test, loadTables, save, importNow, pick, del, loadPem, reset } =
+  const { conns, form, setForm, schemas, picked, setPicked, selection, setSelection, imported, tableList, picker, setPicker, tableGroups, setTableGroups, warnings, setWarnings, fullDdl, setFullDdl, set, test, loadTables, save, importNow, pick, del, loadPem, reset } =
     useConnect({ shared, notify, docId: doc?.id, source, setSource, setBusy, onImported, reloadOn: [connectOpen, showAdmin] });
   const refresh = useCallback(async (silent = false) => {
     if (!source || refreshing.current) return;
@@ -598,12 +599,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     try {
       const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables, ddl: !!source.ddl, purpose: 'refresh', diagramId: doc.id });
       setSource((x) => ({ ...x, at: r.at, gen: r.gen })); setWarnings(r.warnings || []); setDoc((x) => (x?.refresh ? { ...x, refresh: null } : x)); // the manual refresh worked: the server also lifts its pause
-      if (r.gen === source.gen || r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
+      const gone = goneNote(r.missing); // one toast only: a second one would replace it
+      if (r.gen === source.gen || r.dbml === lastGen.current) { if (!silent || gone) notify(gone ? 'err' : 'ok', gone ? `Already up to date. ${gone}` : 'Already up to date'); return; }
       const cur = dbmlRef.current, merged = keepGroups(cur, r.dbml);
       lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
       if (merged !== cur) entryRef.current = 'refresh';
       setDbml(merged);
-      notify('ok', `Metadata refreshed: ${diffSummary(cur, merged)}`);
+      notify(gone ? 'err' : 'ok', `Metadata refreshed: ${diffSummary(cur, merged)}${gone ? `. ${gone}` : ''}`);
     } catch (e) { notify('err', `Refresh failed: ${errMsg(e)}`); } finally { refreshing.current = false; setBusy(''); }
   }, [source, notify, doc]);
   const linked = conns.find((c) => c.id === source?.connId);
@@ -875,8 +877,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                     <label key={s} className="chk"><input type="checkbox" checked={picked.includes(s)} onChange={(e) => setPicked(e.target.checked ? [...picked, s] : picked.filter((x) => x !== s))} /> {s}</label>
                   ))}
                 </div>
-                <h4>Tables {tableSel.length > 0 && <a onClick={() => setTableSel([])}>clear</a>}</h4>
-                <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : tableSel.length ? `${tableSel.length} table(s) selected${tableGroups?.length ? ` · ${tableGroups.length} group(s)` : ''} — change…` : 'All tables — choose specific ones…'}</button>
+                <h4>Tables {!isAll(selection) && <a onClick={() => setSelection(ALL)}>clear</a>}</h4>
+                <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : summary(selection, tableGroups?.length)}</button>
                 {fullDdl && <small className="hint">Views and materialized views are imported with their full CREATE statement.</small>}
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>
               </>)}
@@ -952,7 +954,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </div>
         </div>
       )}
-      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} allSelected={!!source && source.connId === form.id && !tableSel.length} onClose={() => setPicker(false)} onApply={({ tables, groups, ddl }) => { setTableSel(tables); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
+      {picker && tableList && <TablePicker items={tableList} selection={selection} imported={imported} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} onClose={() => setPicker(false)} onApply={({ selection: next, groups, ddl }) => { setSelection(next); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>

@@ -1,6 +1,6 @@
 # 12 — Table selection: bugs so far and the rules that stop them
 
-**Status:** living. Written after the fourth bug in the table selection (2026-10-16), from the commits that fixed the earlier ones. Read it before changing the table picker (`web/src/TablePicker.jsx`), the connection flow (`web/src/useConnect.js`), `importModel` or the refresh.
+**Status:** living; the structural fix recommended after the fourth bug is in (see "Where the logic lives now"). Written from the commits that fixed the earlier bugs (2026-10-16). Read it before changing the table picker (`web/src/TablePicker.jsx`), the connection flow (`web/src/useConnect.js`), `importModel` or the refresh.
 
 ## What "the selection" is
 
@@ -45,29 +45,25 @@ Related, not the same bug: `3f45ec5` (a shared connection: Import tried to save 
 6. **Refresh uses `source` as it is**, including `[]` = all, and it must not change it (the scheduled refresh writes `source.at` and `source.gen`, never `tables`).
 7. **The server treats the list literally**: `[]` or missing = all, otherwise exactly those (`schema.name`, or `name`). It never grows the list.
 
-## Tests that must exist (and what is missing)
+## Where the logic lives now (the structural fix, 2026-10-16)
 
-Covered:
+- **`web/src/tableSelection.js`** (pure): the selection is one explicit value, `{ mode: 'all' | 'list', tables }`. `[]` is interpreted **only** in `fromStored` / `toStored` (the stored form of `source.tables`, `connections.tables` and the import request). `ticked` says what the picker shows when it opens, `fromTicks` what the ticks mean (nothing ticked or an untouched "all" is all; grouped tables are always imported), `withGrouped` ticks tables put in a group, `missing` lists chosen tables the database no longer has, `summary` and `footer` are the texts.
+- **`TablePicker`** has no selection logic of its own: it opens with `ticked(selection, items, imported)` and applies with `fromTicks(...)`; its `onApply` gives `{ selection, groups, ddl }`.
+- **`useConnect`** keeps one `selection` value; `pick` starts from the diagram's own `source` when the connection is its link (rule 1), otherwise from what the connection last saved (a list is a starting point, "all" opens empty); `imported` = this diagram is linked to this connection. A shared connection keeps the schemas the diagram imported when its schema list arrives.
+- **Server**: `filterModel` is the only place that reads the list (`[]`/missing = all, never more) and reports `missing`; the manual and the scheduled refresh say so (toast / audit detail) and never write `source.tables`.
 
-- `TablePicker.test.jsx`: selection, groups count as selected, Full DDL, "imported with all tables" (starts ticked, untouched = all, unticking = explicit list, first import starts empty, an explicit list wins).
-- `useConnect.test.js`: shared vs personal import, `pick` starts from the diagram's own import.
-- `behaviorcheck.mjs`: the picker and its groups on a shared connection.
-- `server/test-guardrails.mjs`: "import only the picked schema.table".
+Behaviour (checked in Chrome, personal and shared connection): a first import opens with nothing ticked (= all); an import of all opens with every table ticked and "All N selected = import all, tables the database gets later too"; applying it untouched keeps all; unticking makes a list; a new diagram on a connection used for "all" starts empty; a list of the connection is the starting point of a new diagram; grouping tables on a first import imports just those; an already imported "all" with a group stays all (every table is ticked); two diagrams on one connection each open with their own list.
 
-**Not covered yet** (add them with the next change to this area):
+## Tests
 
-- [ ] An end-to-end round: import all → edit the connection → tick nothing new → Apply → refresh keeps "all" (and a table created in the database after that appears).
-- [ ] Explicit list → edit → add one table → refresh keeps the old ones and adds the new one.
-- [ ] Two diagrams on one connection with different lists: each shows its own.
-- [ ] A group in a first import with nothing ticked (rule 4) on a shared connection, in a test, not only in `behaviorcheck.mjs`.
-- [ ] The scheduled refresh does not change `source.tables`.
-- [ ] A table that no longer exists in the database but is in the explicit list: refresh says so instead of silently dropping it.
+- `tableSelection.test.js`: the stored form, every row of the picker matrix (first import / all / list / list with a gone table x untouched / ticked / unticked / grouped / everything), the texts.
+- `TablePicker.test.jsx`, `useConnect.test.js`: the component and the flow for **personal and shared** connections (what goes to the server and into `source`, a shared connection is never saved, opening from a linked diagram or a new one, two diagrams on one connection, schemas kept for a shared connection).
+- `server/test/introspect.test.js` (`filterModel`), `server/test/refresh.test.js` (the scheduled refresh keeps `[]` and a list and never changes them), `server/test-guardrails.mjs` (section 5b: the list semantics through the API for a personal and a shared connection, a gone table reported, a table created later enters with "all" and not with a list).
+- `behaviorcheck.mjs` / `behavior.golden.json`: the picker on a shared connection (all ticked after an import of all, a group on a first import imports just those).
+- By hand in Chrome on a throw-away instance (2026-10-16), for the personal and the shared connection: first import with nothing ticked / 2 ticked / a group, reopen, clear to all, reopen with all ticked, untick one, tick it back (a list of everything), two diagrams on one connection, refresh with a table created in the database (all gains it, a list does not), a chosen table that is gone (picker warning and one toast).
 
-## The structural fix (recommended before the next feature in this area)
+Still not automated: the same Chrome walk as a script (it needs a real browser; `behaviorcheck.mjs` covers part of it).
 
-The four bugs came from the shape of the state, not from carelessness in one component, so the next change should be the shape, not another patch:
+## When you change this area
 
-1. **One pure module** `web/src/tableSelection.js` with an explicit value `{ mode: 'all' | 'list', tables: [...] }` and the only functions that convert it: `fromStored([])` → `all`, `toStored(sel)` → `[]` or the list, `forPicker(sel, items)` → the ticks, `fromPicker(ticks, items, wasAll)` → the value, `withGroups(sel, groups)`. `[]` stops being interpreted anywhere else.
-2. **The picker is a controlled component** over that value (no copy in its own state), and `useConnect` keeps one value, initialised by `pick` from `source` (rule 1).
-3. **One table-driven test** over the whole matrix (first import / all / list × personal / shared × group / no group × untouched / unticked / ticked), written against the module, so a new case is a new row.
-4. **A short checklist in the pull request** when `TablePicker.jsx`, `useConnect.js`, `importModel` or `source` change: which rule of this file does it touch, which row of the matrix covers it.
+State which rule above you touch and which row of the matrix covers it; add the row first. Do not interpret `[]` anywhere but `tableSelection.js` and `filterModel`.

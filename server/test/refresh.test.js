@@ -111,3 +111,21 @@ test('tick skips a diagram somebody is editing and refreshes the others; a share
   assert.equal(log.action, 'connection.refresh');
   assert.match(log.detail, /^scheduled: /);
 });
+
+test('the scheduled refresh never changes the table selection of the diagram, and says when a chosen table is gone', async () => {
+  const sel = ['shop.a', 'shop.gone'];
+  const id = dg.create(owner.id, { title: 'T', dbml: GEN1 });
+  dg.update(id, { source: { connId: conn(5), schemas: ['shop'], tables: sel, at: 0, gen: 'old' } }, { includeSource: true });
+  const deps = { resolve: async (b, user) => store.getForUse(user, b.id), generate: async () => ({ dbml: GEN2, at: NOW * 1000, missing: ['shop.gone'] }) };
+  await refreshOne(row(id), deps, NOW);
+  const src = JSON.parse(row(id).source);
+  assert.deepEqual(src.tables, sel); // untouched: [] = all stays all, a list stays that list
+  assert.deepEqual(src.schemas, ['shop']);
+  assert.equal(src.gen, genHash(GEN2));
+});
+test('the scheduled refresh keeps "all" as "all"', async () => {
+  const id = dg.create(owner.id, { title: 'T', dbml: GEN1 });
+  dg.update(id, { source: { connId: conn(5), schemas: ['shop'], tables: [], at: 0, gen: 'old' } }, { includeSource: true });
+  await refreshOne(row(id), fake(GEN2), NOW);
+  assert.deepEqual(JSON.parse(row(id).source).tables, []);
+});

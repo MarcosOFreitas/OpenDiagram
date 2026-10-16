@@ -247,7 +247,7 @@ async function generate(c, { schemas, tables, ddl }) {
   if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
   const model = await importModel(c, schemas, tables);
   const dbml = toDbml(model, { ddl: ddl === true });
-  return { dbml, gen: refresh.genHash(dbml), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
+  return { dbml, gen: refresh.genHash(dbml), tables: model.tables.length, refs: model.refs.length, missing: model.missing, warnings, at: Date.now() };
 }
 
 // ---------- diagrams: own and shared with me (directly or through a group)

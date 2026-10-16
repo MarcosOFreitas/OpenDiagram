@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PALETTE } from './Editor.jsx';
+import { isAll, ticked, missing, fromTicks, withGrouped, footer } from './tableSelection.js';
 
 // search text -> predicate on 'schema.table': plain text = contains, `*`/`?` = wildcards (VW_*), /regex/ = regular expression
 export function matcher(text) {
@@ -54,14 +55,16 @@ function TableChooser({ items, value, onToggle, onMany, groupOf }) {
 }
 
 // Centered dialog to choose which tables/views to import and to define TableGroups for them.
-// items: [{ name: 'schema.table', view }]; selected: names (empty = all); groups: [{ name, color, tables: ['schema.table'] }]
-// `allSelected`: the diagram was imported with no explicit tables (= all of them), so the picker opens with every table ticked instead of looking empty;
-// applying with all of them still ticked keeps "all" (tables the database gets later are imported too)
-export default function TablePicker({ items, selected, groups, ddl, allSelected = false, onApply, onClose }) {
-  const startAll = useRef(allSelected && !selected.length);
+// items: [{ name: 'schema.table', view }]; selection: the value of tableSelection.js ({ mode: 'all' | 'list', tables }); imported: this diagram already imported through
+// the connection (so "all" opens with every table ticked); groups: [{ name, color, tables: ['schema.table'] }]. onApply({ selection, groups, ddl }).
+// What the ticks mean (all / list, grouped tables, first import) is decided in tableSelection.js, not here.
+export default function TablePicker({ items, selection, imported = false, groups, ddl, onApply, onClose }) {
+  const [wasAll] = useState(() => isAll(selection)); // the selection when the dialog opened
   const [tab, setTab] = useState('tables');
-  const [sel, setSel] = useState(() => new Set(startAll.current ? items.map((i) => i.name) : selected));
+  const [sel, setSel] = useState(() => ticked(selection, items, imported));
+  const gone = useMemo(() => missing(selection, items), [selection, items]); // chosen before, no longer in the database
   const [gs, setGs] = useState(() => (groups || []).map((g) => ({ ...g, tables: [...g.tables] })));
+  const grouped = useMemo(() => gs.flatMap((g) => g.tables), [gs]); // a grouped table is an imported table
   const [q, setQ] = useState('');
   const [schema, setSchema] = useState('');
   const [kind, setKind] = useState('');
@@ -92,7 +95,7 @@ export default function TablePicker({ items, selected, groups, ddl, allSelected 
 
   // groups: a table belongs to one group (adding it to a group removes it from the previous one)
   // a table put in a group is imported too: it is ticked in the Tables tab right away (so grouping tables without ticking anything imports just those, not "all")
-  const autoSel = (names) => toggle(names, true);
+  const autoSel = (names) => setSel((s) => withGrouped(s, names));
   const dup = gName.trim() && gs.some((g) => g.name === gName.trim());
   const create = () => {
     const name = gName.trim();
@@ -117,11 +120,11 @@ export default function TablePicker({ items, selected, groups, ddl, allSelected 
       seen.add(name);
       return { ...g, name };
     });
-    const tables = sel.size && !(startAll.current && sel.size === items.length) ? [...new Set([...sel, ...out.flatMap((g) => g.tables).filter((t) => have.has(t))])] : []; // grouped tables must be imported too; everything still ticked from an "all" import stays "all"
-    onApply({ tables, groups: out, ddl: full });
+    onApply({ selection: fromTicks(sel, items, { wasAll, grouped: out.flatMap((g) => g.tables) }), groups: out, ddl: full });
   };
 
   const nGroups = gs.filter((g) => g.tables.length).length;
+  const chosen = fromTicks(sel, items, { wasAll, grouped });
   return (
     <div className="admin" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="admin-card tp" role="dialog" aria-label="Choose tables">
@@ -187,11 +190,11 @@ export default function TablePicker({ items, selected, groups, ddl, allSelected 
         )}
 
         <div className="tp-foot">
-          <span className="hint">{startAll.current && sel.size === items.length ? `All ${items.length} selected = import all, tables the database gets later too` : sel.size ? `${sel.size} selected of ${items.length}` : `Nothing selected = import all ${items.length}`}{nGroups ? ` · ${nGroups} group(s)` : ''}</span>
+          <span className="hint">{footer(sel, items, { wasAll })}{gone.length > 0 && ` · ${gone.length} chosen before no longer exist (${gone.slice(0, 3).join(', ')}${gone.length > 3 ? '…' : ''}), dropped when you apply`}{nGroups ? ` · ${nGroups} group(s)` : ''}</span>
           <span style={{ flex: 1 }} />
           {items.some((i) => i.view) && <label className="chk" title="Off: views are imported as their structure only (columns, types, indexes). On: their CREATE VIEW / CREATE MATERIALIZED VIEW statement is added to the note."><input type="checkbox" checked={full} onChange={(e) => setFull(e.target.checked)} /> Full DDL of views</label>}
           <button onClick={onClose}>Cancel</button>
-          <button className="primary" onClick={apply}>Use {sel.size && !(startAll.current && sel.size === items.length) ? `${sel.size} table(s)` : 'all tables'}</button>
+          <button className="primary" onClick={apply}>Use {isAll(chosen) ? 'all tables' : `${chosen.tables.length} table(s)`}</button>
         </div>
       </div>
     </div>

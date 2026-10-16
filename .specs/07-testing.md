@@ -32,6 +32,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `useConnect.test.js` | the Database drawer flow: list reloads when the drawer opens or Administration closes, a shared connection is never saved and imports by its own id, schemas for a connection that has none, Full DDL follows the diagram link, save/delete/reset |
 | web | `layout.test.js` | every layout algorithm: finite positions, no overlapping tables, deterministic, group boxes never overlap, flow direction (left to right, pipeline, lineage), manual positions kept |
 | web | `TablePicker.test.jsx` | search matcher, "nothing ticked = all", tables in a group count as selected, one group per table, Full DDL |
+| web | `tableSelection.test.js` | the table selection value and every row of the picker matrix (first import / all / list / gone table x untouched / ticked / unticked / grouped), see [12](12-table-selection.md) |
 | web | `AdminAgents.test.jsx` | the Agents tab: list, switched-off warning, token shown once, create, disable, delete |
 | web | `Recovery.test.jsx` | the Account recovery-key section (shown once, Copy, wrong password, Remove) and the sign-in screen's "Forgot your password?" form |
 | web | `AccountSecurity.test.jsx` | Account sessions (End, sign out the others) and the delete-account form (password, wrong password, cancel) |

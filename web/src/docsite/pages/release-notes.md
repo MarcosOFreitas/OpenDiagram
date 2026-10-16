@@ -2,6 +2,12 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Table selection, one rule
+
+- The table selection is handled in one place now, and the table picker follows it everywhere: a first import opens with nothing ticked (= all tables); a diagram imported with all tables opens with **every table ticked** and says that tables the database gets later are imported too; applying it untouched keeps *all*. A diagram opens with **its own** selection even when other diagrams use the same connection.
+- A table you chose that is no longer in the database is shown in the picker and in a message when you refresh, instead of silently importing fewer.
+- A shared connection opened from the diagram that imported it keeps the schemas of that diagram (the Import button no longer says 0 schemas).
+
 ## Sequences next to their tables
 
 - A sequence that a table uses is now written in that table's note (a `SEQUENCES` section, with the column on PostgreSQL), instead of a loose note. Sequences used by no imported table stay standalone notes. A refresh updates existing diagrams.

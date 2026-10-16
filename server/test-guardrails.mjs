@@ -92,6 +92,39 @@ check('oracle rejects descriptor injection', r.status === 400, r.error);
 r = await post('schemas', { type: 'oracle', host: 'demo-oracle', port: 1521, database: 'FREEPDB1', user: 'shop', password: 'shop', tls: 'verify' });
 check('oracle tcps against plain listener fails (no hang)', r.status !== 200, r.error?.slice(0, 90));
 
+// 5b. table selection (.specs/12): [] = all, a list = exactly those, never more; a chosen table that is gone is reported; the same for a personal and a shared connection
+{
+  const call = async (method, path, body) => { const x = await fetch(`${BASE}/api/${path}`, { method, headers: { 'content-type': 'application/json', cookie }, body: body === undefined ? undefined : JSON.stringify(body) }); return { status: x.status, ...(await x.json()) }; };
+  const psql = (sql) => execSync(`docker compose exec -T demo-pg psql -U postgres -d demo -v ON_ERROR_STOP=1 -c "${sql}"`, { stdio: 'pipe' });
+  const personal = (await post('connections', { name: 'sel-personal', ...pg('reader', 'reader'), tls: 'off', blockWritable: true })).id;
+  const shared = (await call('POST', 'admin/connections', { type: 'postgres', name: 'sel-shared', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' })).id;
+  const tabs = (r) => r.dbml.match(/^Table [^ ]+/gm)?.map((l) => l.slice(6)).sort() ?? [];
+  const imp = (id, tables) => post('import', { id, schemas: ['shop'], tables });
+  for (const [kind, id] of [['personal', personal], ['shared', shared]]) {
+    const all = await imp(id, []);
+    check(`selection (${kind}): [] imports every table`, all.status === 200 && all.tables >= 7, `${all.tables} tables`);
+    const none = await imp(id, undefined);
+    check(`selection (${kind}): no list is the same as []`, none.tables === all.tables);
+    const two = await imp(id, ['shop.orders', 'shop.customers']);
+    check(`selection (${kind}): a list is exactly those`, two.tables === 2 && tabs(two).join() === 'shop.customers,shop.orders', tabs(two).join());
+    const plain = await imp(id, ['orders']);
+    check(`selection (${kind}): a plain name matches`, plain.tables === 1);
+    const gone = await imp(id, ['shop.orders', 'shop.gone']);
+    check(`selection (${kind}): a chosen table that does not exist is reported`, gone.tables === 1 && JSON.stringify(gone.missing) === '["shop.gone"]', JSON.stringify(gone.missing));
+    check(`selection (${kind}): nothing is reported missing for [] and for a complete list`, all.missing.length === 0 && two.missing.length === 0);
+  }
+  // a table created after the import: "all" brings it in at the next refresh, a list does not
+  try {
+    psql('create table shop.late_table (id int)');
+    for (const [kind, id] of [['personal', personal], ['shared', shared]]) {
+      const all = await imp(id, []), list = await imp(id, ['shop.orders', 'shop.customers']);
+      check(`selection (${kind}): a table the database gets later is imported with "all"`, tabs(all).includes('shop.late_table'));
+      check(`selection (${kind}): ...and not with an explicit list`, !tabs(list).includes('shop.late_table'));
+    }
+  } finally { try { psql('drop table if exists shop.late_table'); } catch { /* */ } }
+  await call('DELETE', `connections/${personal}`); await call('DELETE', `admin/connections/${shared}`);
+}
+
 // 6. scheduled refresh on the server: a linked diagram whose last import is "old" is re-read by the next one-minute round with no page open (takes up to ~2 minutes)
 const call = async (method, path, body) => { const x = await fetch(`${BASE}/api/${path}`, { method, headers: { 'content-type': 'application/json', cookie }, body: body ? JSON.stringify(body) : undefined }); return { status: x.status, ...(await x.json()) }; };
 const sc = await post('connections', { name: 'sched-e2e', ...pg('reader', 'reader'), tls: 'off', blockWritable: true, refreshMinutes: 5 });
