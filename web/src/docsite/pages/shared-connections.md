@@ -32,7 +32,7 @@ You use it like any connection: **Test connection**, pick the schemas and tables
 
 A diagram imported through a shared connection keeps a link to it (never the credential). People who **can edit** the diagram **and** have access to the connection can press **↻** to re-read the metadata, not only the owner. Anyone without access to the connection does not see the link or the button.
 
-The automatic refresh (every N minutes) still runs only in the **owner's** open page, so one open browser makes one refresh.
+The automatic refresh (every N minutes, at least 5) runs on the server as the **owner** of the diagram, so it stops (with an error shown to the owner) if the owner is disabled or loses access to the connection.
 
 ## What is recorded
 

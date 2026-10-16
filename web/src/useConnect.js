@@ -49,7 +49,7 @@ export function useConnect({ shared, notify, docId, source, setSource, setBusy, 
     const id = form.shared ? form.id : await persist({ schemas: picked, tables }); // a shared connection is used as registered: it is never saved (or changed) from here
     const r = await api('import', { id, schemas: picked, tables, ddl: fullDdl });
     setWarnings(r.warnings || []);
-    onImported(r, { connId: id, schemas: picked, tables, ddl: fullDdl, at: r.at }, tableGroups);
+    onImported(r, { connId: id, schemas: picked, tables, ddl: fullDdl, at: r.at, gen: r.gen }, tableGroups);
   });
   const listSchemas = async (id) => { // a saved connection that was never imported has no schemas to offer yet: list them, as the Test connection button would
     setBusy('test');

@@ -8,7 +8,7 @@ Open-source, self-hostable database diagramming tool in the spirit of dbdiagram.
 
 - **Live import** from PostgreSQL and Oracle: tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
 - **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL and Oracle (TCPS) with certificate verification and a custom CA.
-- **Keep metadata fresh**: manual refresh or an automatic interval (while the page is open); your TableGroups and layout survive a refresh.
+- **Keep metadata fresh**: manual refresh or an automatic interval (every 5 minutes at the least, run by the server even with no page open); your TableGroups and layout survive a refresh.
 - **DBML editor** (CodeMirror 6): highlighting, autocomplete, inline parser errors, color swatches with a picker, search and replace.
 - **Diagram** (React Flow): five auto-arrange algorithms, a Tables panel (search, hide, saved views, detail levels), TableGroups with colors, draggable relationship labels, sticky notes, light and dark theme.
 - **Data lineage**: dashed arrows from source tables to the views built from them, down to the column (read from the view's SQL), or written by hand in the DBML.
@@ -104,7 +104,7 @@ In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connec
 - PostgreSQL and Oracle only for live import; functions and procedures are not imported. MySQL / SQL Server work as SQL file import and export targets.
 - Oracle SQL **files** cannot be imported (parser limitation): use the live Oracle import. JSON is export-only.
 - Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
-- Auto-refresh runs in the browser and stops when the page is closed; there is no server-side scheduled refresh yet.
+- The scheduled refresh runs in the server process (one instance); it skips a diagram that someone is editing and pauses after 5 failures in a row.
 - Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.
 - No e-mail verification, self-service password reset, SSO or account self-deletion yet; accounts are created by administrators (no e-mail invitations); share links are bearer secrets.
 - Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS` (mount the PEM and set it on the `app` service in `docker-compose.yml`).

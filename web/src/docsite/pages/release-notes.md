@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Scheduled refresh on the server
+
+- The automatic refresh no longer needs an open page: the server re-reads linked diagrams (every 5 minutes at the least), skips one that someone is editing, and saves each change as a **Refresh from database** entry by *Scheduled refresh*. Five failures in a row pause it and the Database drawer shows the error.
+- The shortest interval is now 5 minutes (1 minute settings are raised to 5).
+
 ## Audit log filters and view DDL
 
 - The **Audit log** can be filtered by who did it, by target (a shared database, a diagram, users, groups, settings) and by type of operation (added, changed, deleted, tested, listed tables, imported, refreshed); the CSV follows the filters.

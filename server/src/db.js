@@ -58,6 +58,11 @@ create table if not exists diagrams (
   created_at integer not null, updated_at integer not null,
   version integer not null default 1 -- +1 on every content save: edit-conflict detection and history
 );
+-- scheduled refresh of a linked diagram (see refresh.js): last run, last error, and the failures in a row (5 pause it until a manual refresh works)
+create table if not exists refresh_state (
+  diagram_id text primary key references diagrams(id) on delete cascade,
+  last_run integer, last_error text, failures integer not null default 0, paused integer not null default 0
+);
 create table if not exists shares (
   id text primary key,
   diagram_id text not null references diagrams(id) on delete cascade,

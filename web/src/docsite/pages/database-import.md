@@ -44,7 +44,7 @@ Not imported yet: check constraints, partitions, functions and procedures.
 
 ## Keep it fresh
 
-After an import the top bar shows a **↻** button with the connection name and when it was read. Press it to re-read the metadata. In the connection you can set an **automatic refresh** (every 1, 5, 15, 30 minutes or hourly); it runs while the page is open.
+After an import the top bar shows a **↻** button with the connection name and when it was read. Press it to re-read the metadata. In the connection you can set an **automatic refresh** (every 5, 15, 30 minutes or hourly). It runs **on the server**, even when nobody has the diagram open: as the diagram's owner, only for a diagram linked to that connection, and it waits while someone is editing. Each change is saved as a history entry by *Scheduled refresh*. After 5 failures in a row it pauses and the Database drawer shows the last error; **Refresh now** turns it back on.
 
 A refresh keeps your **table groups**, **table positions** and the **data lineage lines you wrote by hand**. Other manual edits to imported tables are replaced by what the database says, by design.
 

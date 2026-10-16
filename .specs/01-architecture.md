@@ -35,7 +35,7 @@ One Docker image: multi-stage build — Vite builds the UI into `server/public`,
 - **Introspection via catalogs** (`pg_catalog`, `ALL_*`) not `information_schema`, for exact types (`format_type`), expressions and ordering.
 - **Neutral model** between drivers and DBML so adding an engine = one driver (`schemas`, `tables`, `import`, `privileges`).
 - **Oracle thin mode**: no Instant Client in the image; TLS through the TCPS descriptor only (no wallets; a private CA is trusted by the server process with `NODE_EXTRA_CA_CERTS`).
-- **Client-side refresh timer**: runs in the owner's open browser. Diagrams are now stored server-side, so a server-side scheduler is possible (roadmap).
+- **Scheduled refresh** (`refresh.js`): a job in the server process, every minute, over the linked diagrams whose connection has an interval; see [03](03-connections-import.md).
 - **SQLite via `node:sqlite`** (built in, no native dependency, Node 24): one file in the data volume keeps the single-container deployment. Move to PostgreSQL if write concurrency or multiple app instances are needed.
 
 ## Data flow: import / refresh

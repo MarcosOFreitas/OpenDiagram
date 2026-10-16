@@ -11,6 +11,7 @@ import * as admin from './admin.js';
 import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
 import { assertHostAllowed } from './policy.js';
+import * as refresh from './refresh.js';
 
 const app = Fastify({ logger: true, bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1' });
 const bad = (msg, statusCode = 400) => Object.assign(new Error(msg), { statusCode });
@@ -161,20 +162,27 @@ app.post('/api/import', async (req) => {
   const { schemas, tables, ddl } = req.body ?? {};
   if (!schemas?.length) throw bad('select at least one schema');
   const c = await resolve(req.body, req.user);
-  return audited(req, c, req.body?.purpose === 'refresh' ? 'refresh' : 'import', (r) => `${schemas.join(', ')}: ${r.tables} tables, ${r.refs} refs`, async () => {
-    const warnings = await checkPrivileges(c, schemas);
-    if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
-    const model = await importModel(c, schemas, tables);
-    return { dbml: toDbml(model, { ddl: ddl === true }), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
-  });
+  const refreshing = req.body?.purpose === 'refresh';
+  const out = await audited(req, c, refreshing ? 'refresh' : 'import', (r) => `${schemas.join(', ')}: ${r.tables} tables, ${r.refs} refs`, () => generate(c, { schemas, tables, ddl }));
+  const id = refreshing && diagramOf(req);
+  if (id) refresh.clear(id); // a manual refresh that works lifts the pause of the scheduled one
+  return out;
 });
+// the import itself: used by the manual import/refresh and by the scheduled refresh (refresh.js), so both obey the same guardrail
+async function generate(c, { schemas, tables, ddl }) {
+  const warnings = await checkPrivileges(c, schemas);
+  if (warnings.length && c.blockWritable) throw bad(`Blocked by guardrail: this credential ${warnings.join('; ')}. Use a read-only user, or turn off "Block credentials with write privileges".`, 403);
+  const model = await importModel(c, schemas, tables);
+  const dbml = toDbml(model, { ddl: ddl === true });
+  return { dbml, gen: refresh.genHash(dbml), tables: model.tables.length, refs: model.refs.length, warnings, at: Date.now() };
+}
 
 // ---------- diagrams: own and shared with me (directly or through a group)
 const LEVEL = { ...dg.RANK, admin: 3, owner: 4 }; // 'admin' = administrator on someone else's diagram
 const can = (role, min) => LEVEL[role] >= LEVEL[min];
 app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));
-app.get('/api/diagrams/:id', (req) => dg.getForUser(req.user, req.params.id));
+app.get('/api/diagrams/:id', (req) => { const d = dg.getForUser(req.user, req.params.id); return d.role === 'owner' && d.source ? { ...d, refresh: refresh.stateOf(d.id) } : d; }); // refresh: last scheduled run / error / paused, for the owner
 const baseVersion = (b) => (Number.isInteger(b?.baseVersion) ? b.baseVersion : undefined); // the version the client last saw; a stale one is answered with 409
 const saveOpts = (req) => ({ baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || req.body?.entry === 'refresh', reason: req.body?.entry === 'refresh' ? 'Refresh from database' : '' }); // overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh. Both get their own history entry
 app.put('/api/diagrams/:id', (req) => {
@@ -282,4 +290,5 @@ app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
 audit.purge(); setInterval(audit.purge, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days
+refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
 await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });

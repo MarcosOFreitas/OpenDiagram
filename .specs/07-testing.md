@@ -19,6 +19,8 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `policy.test.js` | SSRF policy: private/CGNAT/link-local ranges, allowlist, public-only |
 | server | `audit.test.js` | every filter of the audit log, paging, facets, CSV formula guard, retention |
 | server | `store.test.js` | secrets encrypted at rest and never listed, shared connection access by user and by group, what members may see |
+| server | `merge.test.js` | what a refresh keeps (TableGroups, hand-written lineage) and its summary: the same cases as the browser copy in `diagramModel.test.js` |
+| server | `refresh.test.js` | scheduled refresh: which diagrams are due (minimum 5 min, jitter, pause), saved as its own history entry, same text = no-op, baseline for old links, failures and pause, conflict retried, disabled owner / lost connection, skipped while someone edits, audit of shared connections |
 | server | `diagrams.test.js` | `roleFor`, grants, 404 for other accounts' diagrams, version conflicts (409), history, summaries |
 | server | `auth.test.js` | password rules, login throttling, sessions and cookies, sign-up policy |
 | server | `admin.test.js` | last-administrator guard, groups, settings, directory search |
@@ -48,7 +50,7 @@ To run the unit tests before every commit: `git config core.hooksPath .githooks`
 
 ### Not covered by unit tests yet
 
-- The rest of the `Workspace` component (refresh timer, autosave, presence, conflict dialog) is covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts only. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
+- The rest of the `Workspace` component (autosave, presence, conflict dialog) is covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts only. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
 - The e2e job has run only through its script on a laptop, not yet on GitHub: check the Actions tab after the first push. Chrome there is started with `--no-sandbox` (when `CI` is set).
 - Database drivers (`pgWith`, Oracle) need a real database, see `test-guardrails.mjs`.
 - Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code.
@@ -89,7 +91,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 - Edit DBML with a syntax error → underline + status; fix → clears.
 - Toggle dark theme and grid. Open **More → Documentation**: every page opens, no broken internal link, search finds a page, anchors scroll.
 - Alter the demo DB, press `↻` → toast with diff, TableGroup kept; press again → "Already up to date".
-- Set refresh 1 min, alter DB, wait → editor updates without interaction.
+- Set refresh 5 min on a linked diagram, alter the DB, wait with **no page open** (or set `source.at` far in the past) → the next minute's round saves a *Refresh from database* entry by *Scheduled refresh*; a stopped database shows the error in the Database drawer, and five failures pause it.
 - Switch to Docs: sidebar, search, relationship links; collapse/expand a table (chevron), Collapse all / Expand all, reload keeps collapsed state; add a table and a column comment, reload keeps them; export Docs `.html`/`.md` includes the comments and the `.html` opens standalone with working search.
 - Export each format; open PNG/SVG and confirm all tables are present (**not yet automated**).
 

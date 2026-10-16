@@ -135,7 +135,7 @@ const ALGOS = [
   { k: 'snowflake', name: 'Snowflake', desc: 'The most connected table in the center, related tables in rings around it.' },
   { k: 'compact', name: 'Compact', desc: 'Tables in a compact rectangle, ignoring relationships and data lineage.' },
 ];
-const REFRESH = [[0, 'Off (manual refresh only)'], [1, 'Every 1 minute'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
+const REFRESH = [[0, 'Off (manual refresh only)'], [5, 'Every 5 minutes'], [15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour']];
 
 const EXPORTS = [ // key, label, extension, group of the Export menu
   ['dbml', 'DBML', '.dbml', 'Other'], ['postgres', 'PostgreSQL', '.sql', 'SQL'], ['mysql', 'MySQL', '.sql', 'SQL'], ['mssql', 'SQL Server', '.sql', 'SQL'],
@@ -596,8 +596,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     refreshing.current = true; setBusy('refresh');
     try {
       const r = await api('import', { id: source.connId, schemas: source.schemas, tables: source.tables, ddl: !!source.ddl, purpose: 'refresh', diagramId: doc.id });
-      setSource((x) => ({ ...x, at: r.at })); setWarnings(r.warnings || []);
-      if (r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
+      setSource((x) => ({ ...x, at: r.at, gen: r.gen })); setWarnings(r.warnings || []); setDoc((x) => (x?.refresh ? { ...x, refresh: null } : x)); // the manual refresh worked: the server also lifts its pause
+      if (r.gen === source.gen || r.dbml === lastGen.current) { if (!silent) notify('ok', 'Already up to date'); return; }
       const cur = dbmlRef.current, merged = keepGroups(cur, r.dbml);
       lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
       if (merged !== cur) entryRef.current = 'refresh';
@@ -607,11 +607,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }, [source, notify, doc]);
   const linked = conns.find((c) => c.id === source?.connId);
   const every = linked?.refreshMinutes || 0;
-  useEffect(() => {
-    if (!source || !every || !owner) return undefined; // the timer runs in the owner's page only (one refresh, not one per open browser)
-    const t = setInterval(() => refresh(true), every * 60000);
-    return () => clearInterval(t);
-  }, [source?.connId, every, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const importText = (text, fmt = sqlFmt) => {
     if (readOnly) return notify('err', 'This diagram is read-only for you');
@@ -701,7 +696,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </button>
         </div>
         <div className="grow" />
-        {canEdit && source && linked && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · auto every ${every} min` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
+        {canEdit && source && linked && <button className="tbtn" disabled={busy === 'refresh'} onClick={() => refresh(false)} title={`Re-read metadata from ${linked?.name ?? 'the database'}${every ? ` · the server refreshes it every ${every} min` : ''}${doc?.refresh?.lastError ? ` · last scheduled refresh failed: ${doc.refresh.lastError}` : ''}`}>{busy === 'refresh' ? '↻ Refreshing…' : `↻ ${linked?.name ?? 'source'} · ${ago(source.at)}`}</button>}
         {tabName.share && <button className={`tbtn ${drawer === 'share' ? 'on' : ''}`} onClick={() => open('share')}>{tabName.share}</button>}
         <Menu trigger="Export" title="Download the diagram or its documentation"
           items={[...['Image', 'SQL', 'Other'].flatMap((g) => [{ header: g }, ...EXPORTS.filter((e) => e[3] === g).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) }))]),
@@ -818,10 +813,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <div className="dbody">
               {source && (
                 <div className="linked">
-                  <span>Linked to <b>{linked?.name ?? 'connection'}</b> · {source.schemas.join(', ')}{every ? ` · auto ${every} min` : ''}</span>
+                  <span>Linked to <b>{linked?.name ?? 'connection'}</b> · {source.schemas.join(', ')}{every ? ` · server refresh every ${every} min` : ''}</span>
                   <span><a onClick={() => refresh(false)}>Refresh now</a> · <a onClick={() => setSource(null)}>Unlink</a></span>
                 </div>
               )}
+              {source && doc?.refresh?.lastError && <div className="warn">The last scheduled refresh failed: {doc.refresh.lastError}.{doc.refresh.paused ? ' Scheduled refresh is paused after 5 failures in a row; Refresh now (when it works) turns it back on.' : ''}</div>}
               <h4>Saved connections <a onClick={reset}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
               {conns.map((c) => (
@@ -859,7 +855,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <label className="chk"><input type="checkbox" checked={!!form.blockWritable} onChange={set('blockWritable')} /> Block credentials with write privileges (strict)</label>
               <h4>Keep metadata fresh</h4>
               <select value={form.refreshMinutes} onChange={set('refreshMinutes')}>{REFRESH.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-              <small className="hint">Runs while this page is open, for the connection linked after an import. Refresh keeps your TableGroups and table positions; other manual edits to imported tables are replaced.</small>
+              <small className="hint">Runs on the server, even with no page open, at most every 5 minutes, for diagrams linked to this connection after an import (as their owner; a diagram someone is editing waits for the next round). Refresh keeps your TableGroups and table positions; other manual edits to imported tables are replaced.</small>
               </fieldset>
               <div className="row">
                 <button onClick={test} disabled={!!busy}>{busy === 'test' ? 'Connecting…' : 'Test connection'}</button>

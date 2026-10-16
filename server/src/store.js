@@ -14,7 +14,7 @@ const json = (s, d) => { try { return JSON.parse(s) ?? d; } catch { return d; } 
 const shape = (r) => ({
   id: r.id, shared: !!r.shared, name: r.name, type: r.type, host: r.host, port: r.port, database: r.database, user: r.db_user,
   tls: r.tls, serverDn: r.server_dn || '', blockWritable: !!r.block_writable,
-  schemas: json(r.schemas, []), tables: json(r.tables, []), refreshMinutes: r.refresh_minutes || 0,
+  schemas: json(r.schemas, []), tables: json(r.tables, []), refreshMinutes: r.refresh_minutes ? Math.max(5, r.refresh_minutes) : 0, // minimum 5 minutes (older settings of 1 are raised)
 });
 
 // private connections of one account (shared ones are not "theirs")
@@ -63,7 +63,7 @@ export function upsert(owner, c, { shared = false } = {}) { // shared: an admini
   const row = [
     old?.owner_id ?? owner, c.name, c.type, c.host, +c.port, c.database, c.user, c.tls ?? 'off', c.serverDn || '', c.blockWritable ? 1 : 0,
     JSON.stringify(Array.isArray(c.schemas) ? c.schemas : json(old?.schemas, [])), JSON.stringify(Array.isArray(c.tables) ? c.tables : json(old?.tables, [])),
-    Math.max(0, +c.refreshMinutes || 0), secret('password'), secret('caPem'),
+    (+c.refreshMinutes > 0 ? Math.max(5, +c.refreshMinutes) : 0), secret('password'), secret('caPem'),
   ];
   if (old) {
     db.prepare(`update connections set owner_id=?, name=?, type=?, host=?, port=?, database=?, db_user=?, tls=?, server_dn=?, block_writable=?, schemas=?, tables=?, refresh_minutes=?, password=?, ca_pem=? where id = ?`).run(...row, id);
