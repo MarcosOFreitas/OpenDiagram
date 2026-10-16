@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Hide relationship lines
+
+- **More → View → Hide relationship lines** hides every relationship line and keeps the tables; off by default, remembered in the browser and saved with each view. Data lineage arrows are separate.
+
 ## License
 
 - OpenDiagram is now released under the **PolyForm Noncommercial License 1.0.0**: free to use for noncommercial purposes, and not to be sold, offered as a paid service or used in a commercial product or business. Earlier versions stay under the MIT License. See [License](license).

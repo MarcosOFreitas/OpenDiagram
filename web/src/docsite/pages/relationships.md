@@ -63,6 +63,7 @@ Ref: order_items.(order_id, product_id) > stock.(order_id, product_id)
 | Drag the label of a line | The line bends through the new point. Double-click the label to reset. |
 | **Highlight relationships** (dock button or **More → View**) | Every line turns blue and shows the name of each named `Ref` instead of the cardinality (unnamed refs keep it). |
 | **More → View → Relationship lines** | Curved, rounded, step or straight lines. |
+| **More → View → Hide relationship lines** | Hides every relationship line and keeps the tables (off by default). Data lineage arrows stay unless you turn them off too. *Highlight relationships* is disabled while the lines are hidden. The choice is remembered in the browser and saved with a [view](tables-panel-and-views). |
 
 Lines always attach to the sides of the tables that face each other, so they do not cross the tables they connect. This is recalculated while you drag a table.
 

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid } from './diagramModel.js';
+import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown } from './diagramModel.js';
 
 const DBML = `Table shop.customers { id int [pk] }
 Table shop.orders { id int [pk]
@@ -88,4 +88,24 @@ describe('readable', () => {
     expect(readable('#F39C12')).toBe('#111827'); // orange: white would fail 4.5:1
     expect(['#fff', '#111827']).toContain(readable('nonsense'));
   });
+});
+
+describe('edgeShown (which lines the canvas draws)', () => {
+  const ref = { source: 'a', target: 'b', data: { kind: 'ref' } }, lin = { source: 'a', target: 'b', data: { kind: 'lineage' } };
+  const none = new Set();
+  test('everything by default', () => { expect(edgeShown(ref, { hidden: none })).toBe(true); expect(edgeShown(lin, { hidden: none })).toBe(true); });
+  test('a line that touches a hidden table is not drawn', () => {
+    expect(edgeShown(ref, { hidden: new Set(['a']) })).toBe(false);
+    expect(edgeShown(lin, { hidden: new Set(['b']) })).toBe(false);
+  });
+  test('lineage off hides only the lineage arrows', () => {
+    expect(edgeShown(lin, { hidden: none, lineageOn: false })).toBe(false);
+    expect(edgeShown(ref, { hidden: none, lineageOn: false })).toBe(true);
+  });
+  test('"Hide relationship lines" hides the relationships and keeps the lineage arrows', () => {
+    expect(edgeShown(ref, { hidden: none, hideRefs: true })).toBe(false);
+    expect(edgeShown(lin, { hidden: none, hideRefs: true })).toBe(true);
+    expect(edgeShown(lin, { hidden: none, hideRefs: true, lineageOn: false })).toBe(false);
+  });
+  test('off by default: no flag, no change', () => expect(edgeShown(ref, { hidden: none, hideRefs: undefined })).toBe(true));
 });

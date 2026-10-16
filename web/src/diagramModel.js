@@ -54,6 +54,8 @@ export function keepGroups(oldDbml, newDbml) {
   const manual = oldDbml.split('\n').filter((l) => MANUAL.test(l) && !have.has(l.trim())); // data lineage written by hand survives a refresh; `(auto)` lines are regenerated
   return withGroups(manual.length ? `${newDbml.replace(/\n*$/, '\n')}\n${manual.join('\n')}\n` : newDbml, o.groups);
 }
+// which lines the canvas draws: never one that touches a hidden table; data lineage arrows only when they are on; relationship (Ref) lines unless "Hide relationship lines" is on
+export const edgeShown = (e, { hidden, lineageOn = true, hideRefs = false }) => !hidden.has(e.source) && !hidden.has(e.target) && (lineageOn || e.data.kind !== 'lineage') && (!hideRefs || e.data.kind === 'lineage');
 export function diffSummary(oldDbml, newDbml) {
   const o = parse(oldDbml), n = parse(newDbml);
   if (o.error || n.error) return 'schema changed';

@@ -17,7 +17,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -25,7 +25,7 @@ import { Ic, Logo } from './Icons.jsx';
 
 import { BLANK, TEMPLATES } from './templates.js';
 
-const VIEW0 = { edgeType: 'default', hiRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
+const VIEW0 = { edgeType: 'default', hiRefs: false, hideRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
 
 
 function TableNode({ data: t, selected }) {
@@ -199,13 +199,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   // The live state always sits at the root of the layout; leaving a view stores it back (so switching never loses changes).
   const snapView = () => ({
     pos: Object.fromEntries(nodes.filter((n) => n.type === 'table' || n.type === 'note').map((n) => [n.id, { x: Math.round(n.position.x), y: Math.round(n.position.y) }])),
-    sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs, lineage: view.lineage !== false,
+    sizes: layoutRef.current['@sizes'], hidden: layoutRef.current['@hidden'], labels: layoutRef.current['@labels'], detail: view.detail || 'full', hiRefs: !!view.hiRefs, hideRefs: !!view.hideRefs, lineage: view.lineage !== false,
   });
   const applySnap = (sn, views, base, active) => {
     const keep = Object.keys(views).length ? { '@views': views } : {};
     layoutRef.current = { ...sn.pos, ...(sn.sizes ? { '@sizes': sn.sizes } : {}), ...(sn.hidden ? { '@hidden': sn.hidden } : {}), ...(sn.labels ? { '@labels': sn.labels } : {}), ...keep, ...(base ? { '@base': base } : {}), ...(active ? { '@view': active } : {}) };
     setNodes((old) => old.map((n) => (sn.pos[n.id] ? { ...n, position: sn.pos[n.id] } : n)));
-    setView((v) => ({ ...v, detail: sn.detail || 'full', hiRefs: !!sn.hiRefs, lineage: sn.lineage !== false }));
+    setView((v) => ({ ...v, detail: sn.detail || 'full', hiRefs: !!sn.hiRefs, hideRefs: !!sn.hideRefs, lineage: sn.lineage !== false }));
     setLayoutTick((k) => k + 1);
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 200);
   };
@@ -266,9 +266,9 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [view, setView] = useState(() => { try { return { ...VIEW0, ...JSON.parse(store('view') || '{}') }; } catch { return VIEW0; } });
   useEffect(() => { // while a named view is active, its detail level and highlight travel with the diagram (not only with this browser)
     const lr = layoutRef.current;
-    if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs && lr['@lineage'] === (view.lineage !== false))) return;
-    layoutRef.current = { ...lr, '@detail': view.detail || 'full', '@hiRefs': !!view.hiRefs, '@lineage': view.lineage !== false }; setLayoutTick((k) => k + 1);
-  }, [view.detail, view.hiRefs, view.lineage, doc, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!doc || !lr['@view'] || (lr['@detail'] === (view.detail || 'full') && lr['@hiRefs'] === !!view.hiRefs && lr['@hideRefs'] === !!view.hideRefs && lr['@lineage'] === (view.lineage !== false))) return;
+    layoutRef.current = { ...lr, '@detail': view.detail || 'full', '@hiRefs': !!view.hiRefs, '@hideRefs': !!view.hideRefs, '@lineage': view.lineage !== false }; setLayoutTick((k) => k + 1);
+  }, [view.detail, view.hiRefs, view.hideRefs, view.lineage, doc, layoutTick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { store('view', JSON.stringify(view)); }, [view]);
   const canvasBg = view.theme === 'dark' ? '#0e1420' : '#f4f5f7';
   const [activeId, setActiveId] = useState(null);
@@ -315,7 +315,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     lastGen.current = (d.id && store(`gen:${d.id}`)) || '';
     layoutRef.current = d.layout ?? {};
     const lr0 = layoutRef.current, sn0 = lr0['@views']?.[lr0['@view']];
-    if (lr0['@view']) setView((v) => ({ ...v, detail: lr0['@detail'] ?? sn0?.detail ?? v.detail, hiRefs: lr0['@hiRefs'] ?? sn0?.hiRefs ?? v.hiRefs, lineage: lr0['@lineage'] ?? sn0?.lineage ?? v.lineage })); // a named view carries its detail level / highlight
+    if (lr0['@view']) setView((v) => ({ ...v, detail: lr0['@detail'] ?? sn0?.detail ?? v.detail, hiRefs: lr0['@hiRefs'] ?? sn0?.hiRefs ?? v.hiRefs, hideRefs: lr0['@hideRefs'] ?? sn0?.hideRefs ?? v.hideRefs, lineage: lr0['@lineage'] ?? sn0?.lineage ?? v.lineage })); // a named view carries its detail level / highlight
     idsKey.current = '';
     savedRef.current = JSON.stringify(payloadOf(d));
     setNodes([]); setEdges([]);
@@ -525,7 +525,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     const gSet = activeGroup ? new Set((parsed.groups || []).find((g) => g.name === activeGroup)?.tables || []) : null;
     const geo = new Map(nodes.filter((n) => n.type === 'table').map((n) => [n.id, { x: n.position.x, w: n.measured?.width ?? tableWidth(n.data) }]));
     const linAll = edges.filter((e) => e.data.kind === 'lineage'), linC = activeId && lineageOn ? closure(linAll, activeId) : null;
-    return edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target) && (lineageOn || e.data.kind !== 'lineage')).map((e) => {
+    return edges.filter((e) => edgeShown(e, { hidden, lineageOn, hideRefs: view.hideRefs })).map((e) => {
     // nearest path: leave through the side that faces the other table (both on the same side when they overlap horizontally)
     const a = geo.get(e.source), b = geo.get(e.target);
     let sp = 'right', tp = 'left';
@@ -556,7 +556,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       ? { background: view.theme === 'dark' ? '#111826' : '#fff', border: `1px solid ${view.theme === 'dark' ? '#2c3f66' : '#bfd3ff'}`, color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9fc0ff' : '#1d4ed8', fontWeight: 600, fontSize: 10.5 }
       : { background: canvasBg, border: '1px solid transparent', color: picked ? (view.theme === 'dark' ? '#fbbf24' : '#b45309') : view.theme === 'dark' ? '#9aa6bd' : '#526071', fontWeight: picked ? 700 : 400, fontSize: 10 };
     return { ...e, ...handles, type: 'ref', zIndex: picked ? 20 : on ? 10 : 0, interactionWidth: 20, style, data: { ...e.data, edgeType: view.edgeType, off: labels[e.id], text, css, onMove: setLabel, onPick: (id) => { setActiveId(null); setActiveEdge(id); } } };
-  }); }, [edges, nodes, lineageOn, view.edgeType, view.hiRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
+  }); }, [edges, nodes, lineageOn, view.edgeType, view.hiRefs, view.hideRefs, activeId, activeEdge, activeGroup, canvasBg, hidden, layoutTick, setLabel, parsed.groups]);
 
   const [algoOpen, setAlgoOpen] = useState(false);
   useDismiss(algoOpen, () => setAlgoOpen(false), (t) => t.closest?.('.algo-pop, .algo-toggle')); // (a fixed backdrop inside the transformed dock would only cover the dock)
@@ -930,7 +930,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               </div>
               <h4>Tables</h4>
               <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
-              <label className="chk"><input type="checkbox" checked={view.hiRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
+              <label className="chk"><input type="checkbox" checked={!!view.hideRefs} onChange={(e) => setView({ ...view, hideRefs: e.target.checked })} /> Hide relationship lines</label>
+              <label className="chk"><input type="checkbox" checked={view.hiRefs} disabled={!!view.hideRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
               <label className="chk"><input type="checkbox" checked={lineageOn} onChange={(e) => setView({ ...view, lineage: e.target.checked })} /> Show data lineage (dashed arrows)</label>
               <label className="chk"><input type="checkbox" checked={notesOn} onChange={(e) => setView({ ...view, notes: e.target.checked })} /> Show sticky notes</label>
               <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>

@@ -41,7 +41,7 @@ A **view** is a named way of looking at the same diagram. It stores:
 - which tables are visible,
 - where they are and their sizes,
 - the offsets of the relationship labels,
-- the detail level, the relationship highlight and the data lineage switch.
+- the detail level, the relationship highlight, whether the relationship lines are hidden and the data lineage switch.
 
 At the top of the Tables panel:
 
