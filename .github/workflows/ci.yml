@@ -2,7 +2,15 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: ['*.md', '.specs/**', LICENSE]  # root docs only: web/src/docsite/pages/*.md is part of the build
   pull_request:
+    paths-ignore: ['*.md', '.specs/**', LICENSE]
+  workflow_dispatch:
+
+# a newer push to the same branch or PR cancels the run still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit:
@@ -27,8 +35,10 @@ jobs:
           npm test
           npx vite build
 
+  # ~25 min: runs on main and on demand (Actions -> ci -> Run workflow), not on every pull request
   e2e:
     needs: unit
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
