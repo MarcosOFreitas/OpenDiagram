@@ -107,6 +107,25 @@ describe('import (regression: a shared connection must be used as registered, ne
   });
 });
 
+describe('pick (regression: editing the connection of a diagram showed the selection of ANOTHER diagram)', () => {
+  test('the own import of the diagram (schemas and tables) wins over what the connection saved last', async () => {
+    const mine = { connId: 'p1', schemas: ['shop'], tables: ['shop.b', 'shop.c'] };
+    const { result } = setup({ source: mine });
+    act(() => result.current.pick({ ...PERSONAL, tables: ['shop.other'] })); // another diagram imported shop.other through the same connection
+    expect(result.current.tableSel).toEqual(['shop.b', 'shop.c']);
+  });
+  test('a diagram imported with all tables (none listed) shows none listed, not the older list of the connection', async () => {
+    const { result } = setup({ source: { connId: 'p1', schemas: ['shop'], tables: [] } });
+    act(() => result.current.pick({ ...PERSONAL, tables: ['shop.other'] }));
+    expect(result.current.tableSel).toEqual([]);
+  });
+  test('a connection that is not the link of the diagram keeps its own saved tables', async () => {
+    const { result } = setup({ source: { connId: 'zzz', schemas: ['x'], tables: ['x.y'] } });
+    act(() => result.current.pick(PERSONAL));
+    expect(result.current.tableSel).toEqual(['shop.a']);
+  });
+});
+
 describe('pick (regression: a shared connection offered no schemas, tables or Import)', () => {
   test('a connection with no stored schemas lists them through the server', async () => {
     const { result } = setup();

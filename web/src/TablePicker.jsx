@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PALETTE } from './Editor.jsx';
 
 // search text -> predicate on 'schema.table': plain text = contains, `*`/`?` = wildcards (VW_*), /regex/ = regular expression
@@ -55,9 +55,12 @@ function TableChooser({ items, value, onToggle, onMany, groupOf }) {
 
 // Centered dialog to choose which tables/views to import and to define TableGroups for them.
 // items: [{ name: 'schema.table', view }]; selected: names (empty = all); groups: [{ name, color, tables: ['schema.table'] }]
-export default function TablePicker({ items, selected, groups, ddl, onApply, onClose }) {
+// `allSelected`: the diagram was imported with no explicit tables (= all of them), so the picker opens with every table ticked instead of looking empty;
+// applying with all of them still ticked keeps "all" (tables the database gets later are imported too)
+export default function TablePicker({ items, selected, groups, ddl, allSelected = false, onApply, onClose }) {
+  const startAll = useRef(allSelected && !selected.length);
   const [tab, setTab] = useState('tables');
-  const [sel, setSel] = useState(() => new Set(selected));
+  const [sel, setSel] = useState(() => new Set(startAll.current ? items.map((i) => i.name) : selected));
   const [gs, setGs] = useState(() => (groups || []).map((g) => ({ ...g, tables: [...g.tables] })));
   const [q, setQ] = useState('');
   const [schema, setSchema] = useState('');
@@ -114,7 +117,7 @@ export default function TablePicker({ items, selected, groups, ddl, onApply, onC
       seen.add(name);
       return { ...g, name };
     });
-    const tables = sel.size ? [...new Set([...sel, ...out.flatMap((g) => g.tables).filter((t) => have.has(t))])] : []; // grouped tables must be imported too
+    const tables = sel.size && !(startAll.current && sel.size === items.length) ? [...new Set([...sel, ...out.flatMap((g) => g.tables).filter((t) => have.has(t))])] : []; // grouped tables must be imported too; everything still ticked from an "all" import stays "all"
     onApply({ tables, groups: out, ddl: full });
   };
 
@@ -184,11 +187,11 @@ export default function TablePicker({ items, selected, groups, ddl, onApply, onC
         )}
 
         <div className="tp-foot">
-          <span className="hint">{sel.size ? `${sel.size} selected of ${items.length}` : `Nothing selected = import all ${items.length}`}{nGroups ? ` · ${nGroups} group(s)` : ''}</span>
+          <span className="hint">{startAll.current && sel.size === items.length ? `All ${items.length} selected = import all, tables the database gets later too` : sel.size ? `${sel.size} selected of ${items.length}` : `Nothing selected = import all ${items.length}`}{nGroups ? ` · ${nGroups} group(s)` : ''}</span>
           <span style={{ flex: 1 }} />
           {items.some((i) => i.view) && <label className="chk" title="Off: views are imported as their structure only (columns, types, indexes). On: their CREATE VIEW / CREATE MATERIALIZED VIEW statement is added to the note."><input type="checkbox" checked={full} onChange={(e) => setFull(e.target.checked)} /> Full DDL of views</label>}
           <button onClick={onClose}>Cancel</button>
-          <button className="primary" onClick={apply}>Use {sel.size ? `${sel.size} table(s)` : 'all tables'}</button>
+          <button className="primary" onClick={apply}>Use {sel.size && !(startAll.current && sel.size === items.length) ? `${sel.size} table(s)` : 'all tables'}</button>
         </div>
       </div>
     </div>

@@ -952,7 +952,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           </div>
         </div>
       )}
-      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} onClose={() => setPicker(false)} onApply={({ tables, groups, ddl }) => { setTableSel(tables); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
+      {picker && tableList && <TablePicker items={tableList} selected={tableSel} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} allSelected={!!source && source.connId === form.id && !tableSel.length} onClose={() => setPicker(false)} onApply={({ tables, groups, ddl }) => { setTableSel(tables); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
       {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
       {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
     </div>

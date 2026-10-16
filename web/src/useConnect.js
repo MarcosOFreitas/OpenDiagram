@@ -55,7 +55,8 @@ export function useConnect({ shared, notify, docId, source, setSource, setBusy, 
     setBusy('test');
     try { const r = await api('schemas', { id }); setSchemas(r.schemas); setPicked(r.schemas.length === 1 ? r.schemas : []); setWarnings(r.warnings || []); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(''); }
   };
-  const pick = (c) => { if (!c.schemas?.length) listSchemas(c.id); setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || []); setPicked(c.schemas || []); setTableSel(c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
+  // the diagram's own import (schemas and tables) wins over what the connection last saved: the same connection can feed several diagrams
+  const pick = (c) => { const mine = source?.connId === c.id ? source : null; if (!c.schemas?.length) listSchemas(c.id); setForm({ ...EMPTY, ...c, password: '', caPem: '', clearCa: false }); setSchemas(c.schemas || mine?.schemas || []); setPicked(mine?.schemas?.length ? mine.schemas : c.schemas || []); setTableSel(mine ? mine.tables || [] : c.tables || []); setFullDdl(source?.connId === c.id && !!source.ddl); setTableList(null); setTableGroups(null); setWarnings([]); };
   const del = async (c) => { await api(`connections/${c.id}`, undefined, 'DELETE'); if (form.id === c.id) setForm(EMPTY); if (source?.connId === c.id) setSource(null); loadConns(); };
   const loadPem = async (f) => { if (f) { const t = await f.text(); setForm((x) => ({ ...x, caPem: t, clearCa: false })); } };
   const reset = () => { setForm(EMPTY); setSchemas([]); setPicked([]); setTableSel([]); setTableList(null); setTableGroups(null); setWarnings([]); }; // "+ new"

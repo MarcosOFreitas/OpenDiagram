@@ -13,6 +13,39 @@ const card = (name) => screen.getByTitle(name).querySelector('input'); // Tables
 const footer = () => document.querySelector('.tp-foot .hint').textContent;
 const useBtn = () => screen.getByRole('button', { name: /^Use / });
 
+describe('imported with all tables (regression: editing the connection showed every table unticked, as if the selection was lost)', () => {
+  test('allSelected: every table starts ticked and the footer says it is "all"', () => {
+    setup({ allSelected: true });
+    expect(items.every((i) => card(i.name).checked)).toBe(true);
+    expect(footer()).toMatch(/^All 6 selected = import all/);
+    expect(useBtn().textContent).toBe('Use all tables');
+  });
+  test('applying without touching anything keeps "all" (no list), so tables the database gets later are imported too', async () => {
+    const { user, onApply } = setup({ allSelected: true });
+    await user.click(useBtn());
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ tables: [] }));
+  });
+  test('unticking one table makes an explicit list of the others', async () => {
+    const { user, onApply } = setup({ allSelected: true });
+    await user.click(card('audit.log'));
+    expect(footer()).toMatch(/^5 selected of 6/);
+    await user.click(useBtn());
+    const { tables } = onApply.mock.calls[0][0];
+    expect(tables).toHaveLength(5);
+    expect(tables).not.toContain('audit.log');
+  });
+  test('without allSelected (a first import) nothing is ticked and nothing means all, as before', () => {
+    setup();
+    expect(items.some((i) => card(i.name).checked)).toBe(false);
+    expect(footer()).toMatch(/^Nothing selected = import all 6/);
+  });
+  test('an explicit list is shown as it is, even with allSelected', () => {
+    setup({ allSelected: true, selected: ['shop.orders'] });
+    expect(card('shop.orders').checked).toBe(true);
+    expect(card('shop.items').checked).toBe(false);
+  });
+});
+
 describe('matcher', () => {
   test('plain text = contains, case-insensitive', () => {
     const m = matcher('ORD');
