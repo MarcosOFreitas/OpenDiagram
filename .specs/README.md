@@ -20,5 +20,6 @@ Living specifications for OpenDiagram. Rules:
 | 09 | [Accounts, administration, groups & sharing](09-accounts-sharing.md) — admin + users, flat groups, sharing with people/groups/links | implemented (self-hosted) |
 | 10 | [Documentation site](10-documentation-site.md) — the public `/docs` pages | implemented |
 | 11 | [UI/UX review checklist](11-ui-review.md) — rules, per-screen audit, what is not covered | implemented |
+| 12 | [Table selection](12-table-selection.md) — the four bugs so far, their common root cause, the rules and the missing tests | living |
 
 Origin: features were chosen by studying the public behaviour of comparable tools; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.

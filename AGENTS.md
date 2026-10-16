@@ -99,6 +99,7 @@ Every UI change follows [`.specs/11-ui-review.md`](.specs/11-ui-review.md). The 
 ## Working agreements
 
 - **Every bug fix ships a regression test that fails on the old code** (break the fix on purpose, watch it fail, restore it); every feature ships unit tests for its logic. Keep logic out of components when a plain module can hold it (`web/src/diagramModel.js` is the example). Details and rules: `.specs/07-testing.md`.
+- The table selection (picker, `useConnect`, `source.tables`, `importModel`) broke four times in three days, three times for the same reason (an empty list means "all"). Read [`.specs/12-table-selection.md`](.specs/12-table-selection.md) before touching it and add the missing tests it lists.
 - Smallest change that solves the problem; reuse what exists. Report honestly what was and was not tested (for example: no Oracle server with a real private CA was tried).
 - Do not weaken a security invariant to make a test pass; fix the test or ask.
 - A change that fails `uiaudit.mjs` or breaks an e2e script is not finished.
