@@ -20,6 +20,8 @@ For a client that only speaks to local programs (such as Claude Desktop), use a 
 
 The address is the same server and port as the app, path `/mcp`. Over a network, put the app behind **HTTPS** (see [Self-hosting](self-hosting)): the token travels in a header.
 
+![Administration → Agents: an agent, its token and the button to make another.](admin-agents.jpg)
+
 ## What the agent can do
 
 | Tool | Needs | What it does |

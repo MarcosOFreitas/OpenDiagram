@@ -35,6 +35,8 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 
 The administrator decides which hosts users can reach with the `DB_HOST_POLICY` setting: `open` (default), `public-only` (blocks private, loopback and link-local addresses) or `allowlist`. See [Self-hosting](self-hosting).
 
+The connection is opened by the **server**, so a database behind a VPN or a firewall is reachable only if the server is. People who use the app do not need the VPN. Internal and VPN addresses are private, so `public-only` blocks them. See [Self-hosting → Databases behind a VPN or a firewall](self-hosting).
+
 ## Shared connections
 
 A connection registered by an administrator can be used by people and groups without showing them the user or the password. It is always used exactly as registered (a request cannot redirect it to another host), and every use is recorded in the [audit log](administration#audit-log). See [Shared connections](shared-connections).

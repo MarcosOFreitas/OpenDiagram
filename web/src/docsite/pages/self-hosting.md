@@ -21,6 +21,8 @@ docker compose --profile oracle up -d    # demo Oracle Free (the first start is 
 
 > **Warning** The `demo-*` services are only for trying the app (their passwords are public). Remove them for a real deployment, and also remove from the `app` service the `NODE_EXTRA_CA_CERTS` variable and the `./demo/oracle-tls/server.pem` volume line: they only exist to trust the demo Oracle TLS proxy.
 
+> **Info** How much CPU, memory and disk it needs, measured: [Hosting requirements](hosting-requirements). A database behind a VPN or a firewall: see *Databases behind a VPN or a firewall* below.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -32,6 +34,21 @@ docker compose --profile oracle up -d    # demo Oracle Free (the first start is 
 | `DB_HOST_ALLOWLIST` | | comma-separated exact host names (no wildcards or ranges), only with `allowlist` |
 | `COOKIE_SECURE` | `0` | `1` when served over HTTPS (it is also set automatically when the proxy sends `X-Forwarded-Proto: https`) |
 | `TRUST_PROXY` | `0` | `1` behind a reverse proxy, so rate limits use the real client address |
+
+## Databases behind a VPN or a firewall
+
+OpenDiagram connects to your databases **from the server**, not from the browser. So the machine that runs the app (or its container) must be able to reach the database host and port, **exactly as any program on that machine would**. There is no VPN setting inside the app, and the people who use it do **not** need the VPN: only the server does.
+
+- **The server is already on the network** (a VM or a host in the company network, or with the VPN client running on it): nothing to configure. Docker containers on a Linux host reuse the host's routes, so they reach what the host reaches.
+- **Docker Desktop (Windows, macOS)**: containers run in a small VM and often **do not** use the VPN of your PC. Run the app directly on the PC (`cd server && npm start`, Node 24) while you work on it, or put the app on a server that is on the VPN.
+- **A VPN client in a container** (a "sidecar", for example OpenVPN or WireGuard): run it as a service in `docker-compose.yml` and attach the app to its network with `network_mode: "service:vpn"` on the `app` service. The app then sees the VPN, and its port `3000` is published on the `vpn` service.
+- **Only one bastion is reachable**: open an SSH tunnel on the server (`ssh -N -L 0.0.0.0:15432:db.internal:5432 user@bastion`; keep that port closed to the network with a firewall) and register the connection with that host and port. From a container use `host.docker.internal` (on Linux add `extra_hosts: ["host.docker.internal:host-gateway"]` to the `app` service).
+- **Names**: use the host name the server can resolve. If the container does not resolve internal names, use the IP address or set `dns:` for the `app` service.
+- **Host policy**: VPN and internal addresses are private. `DB_HOST_POLICY=public-only` **blocks** them; keep `open` (the default) or use `allowlist` with the exact host names. See *Configuration* above.
+
+If a connection test says it cannot connect, test from the same place the app runs: `docker compose exec app node -e "require('net').connect(5432,'db.internal').on('connect',()=>{console.log('ok');process.exit()}).on('error',e=>{console.log(e.message);process.exit(1)})"` (change the host and port).
+
+Importing and refreshing read only the catalog, so a read-only user is enough. The scheduled refresh also runs on the server, so it needs the same network path. A shared or scheduled connection stops working when the VPN is down, and the Database drawer shows the last error.
 
 ## Publishing it
 

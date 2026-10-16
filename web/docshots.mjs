@@ -34,6 +34,10 @@ const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, 
   lineageExtra: "\n\nNote note_1 {\n  'Views are drawn with dashed arrows from the tables they read.'\n}\n", // a sticky note for the lineage picture
   versions: [[base, 'Added customer birth date'], [base.replace('  is_default boolean', '  country char(2)\n  is_default boolean'), 'Country on addresses']] });
 await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
+await admin.call('PUT', '/api/admin/settings', { allowAgents: true });
+const bot = await admin.call('POST', '/api/admin/agents', { name: 'Claude of the data team' }); // for the Agents picture: one agent with a token and a share
+await admin.call('POST', `/api/admin/agents/${bot.id}/tokens`, { name: 'laptop', expiresInDays: 90 });
+await admin.call('POST', `/api/diagrams/${shop}/access`, { type: 'user', subjectId: bot.id, access: 'comment' });
 console.log(`fixtures ready (diagrams ${shop.slice(0, 8)}, ${lin.slice(0, 8)})`);
 
 // ---------- Chrome over CDP
@@ -106,6 +110,12 @@ try {
       await ev(`(async () => { await H.click('Sign-ins', document.querySelector('.admin-head .dtabs')); await H.w(700); const s = document.querySelector('.audit-bar select[aria-label="Type of operation"]'); H.set(s, 'connection'); await H.w(900); })()`);
       await shot('admin-audit');
     }
+  }
+  if (want('account-panel')) { await go('/', dg); await ev(`(async () => { const m = [...document.querySelectorAll('header.top .menu > .tbtn')].pop(); m.click(); await H.w(300); await H.click('Account', document.querySelector('.menu-pop')); await H.w(1200); })()`); await shot('account-panel'); }
+  if (want('admin-groups') || want('admin-agents') || want('admin-settings')) {
+    await go('/', dg);
+    await ev(`(async () => { document.querySelector('.menu .tbtn.user, header.top .menu:last-child .tbtn').click(); await H.w(300); await H.click('Administration', document.querySelector('.menu-pop')); await H.w(500); })()`);
+    for (const [name, tab] of [['admin-groups', 'Groups'], ['admin-agents', 'Agents'], ['admin-settings', 'Settings']]) if (want(name)) { await ev(`H.click(${JSON.stringify(tab)}, document.querySelector('.admin-head .dtabs'))`); await sleep(1100); await shot(name); }
   }
   if (want('lineage-notes-presence')) {
     await go('/', { lastDiagram: lin, tablesPanel: '0' }); await wide();

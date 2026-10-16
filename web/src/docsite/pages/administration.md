@@ -13,9 +13,15 @@ Administrators open the panel from the **avatar menu → Administration**.
 
 Flat groups (no hierarchy). Create a group, add or remove members. A person can be in several groups. Groups are used to share diagrams with many people at once.
 
+![Administration → Groups: the cards share the row (one takes it all, two half each, up to three).](admin-groups.jpg)
+
 ## Connections
 
 **Connections** registers **shared database connections**: one read-only credential that chosen people and groups can use without seeing it. See [Shared connections](shared-connections).
+
+## Agents
+
+**Agents** creates the accounts and the tokens of AI clients such as Claude Code (the MCP connector). An agent can open nothing until a diagram owner shares the diagram with it, and it never sees a database connection or a credential. Switch the connector on first in **Settings → Agents**. See [Connect Claude (MCP)](connect-claude-mcp).
 
 ## Audit log
 
@@ -26,7 +32,8 @@ There are two logs, in two tabs, newest first. Both are kept for **180 days**.
 **Sign-ins & connections** is what people did to get in and what they used:
 
 - **sign-ins** and **failed sign-ins** (the e-mail that was tried, the device and the address, never the password), sign-outs, password changes, ended sessions, new accounts and **closed accounts**. Only the last 50,000 failed sign-ins are kept, so a flood of attempts cannot push the rest out;
-- the **use of shared connections**: test, list tables, import and refresh (also the scheduled ones), with the diagram, whether it worked and a short detail (schemas, number of tables, or the error).
+- the **use of shared connections**: test, list tables, import and refresh (also the scheduled ones), with the diagram, whether it worked and a short detail (schemas, number of tables, or the error);
+- the **calls of agents** (MCP): which agent, which tool, which diagram, whether it worked. Never the content of the diagram.
 
 ![Administration → Sign-ins & connections, filtered to the use of shared connections.](admin-audit.jpg)
 
@@ -43,7 +50,13 @@ Filter by **Done by** (a person), **Target** (a shared database, a diagram, or U
 | Setting | Effect |
 |---------|--------|
 | **Organisation name** | shown on the sign-in screen and in the top bar instead of "OpenDiagram" |
-| **Let people create their own account (as members)** | lets anybody create a member account. Keep it off unless the instance is for an open community. Press **Save settings**. |
+| **Let people create their own account (as members)** | lets anybody create a member account. Keep it off unless the instance is for an open community. |
+| **Allow agents to connect (MCP)** | off by default; while it is off no agent token works. See [Connect Claude (MCP)](connect-claude-mcp). |
+| **Session length** and **Sign out after days without use** | see *Sessions and closed accounts* above. |
+
+Press **Save settings** (at the bottom of the panel).
+
+![Administration → Settings.](admin-settings.jpg)
 
 The environment can force these (`ALLOW_SIGNUP`), see [Self-hosting](self-hosting).
 

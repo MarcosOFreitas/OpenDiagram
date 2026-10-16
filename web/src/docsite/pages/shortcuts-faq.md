@@ -21,6 +21,22 @@
 
 No. Database sessions are read-only and only query catalog views (`pg_catalog`, `ALL_*`). See [Security & TLS](database-security).
 
+### My database is behind a VPN. Do I configure it in OpenDiagram?
+
+No. The **server** opens the connection, so the machine that runs OpenDiagram must reach the database like any program on it; the people using the app do not need the VPN. Run the app where the VPN is (a server on the network, or a VPN client beside it). Docker Desktop on a PC often does not use the PC's VPN. See [Self-hosting → Databases behind a VPN or a firewall](self-hosting).
+
+### Where do the sequences of the database appear?
+
+A sequence that is **not** owned by a column (a serial or identity column owns its own) is written as a **note** with its settings, outside any table, because DBML has no sequence object. Notes starting with `SEQUENCE` are documentation, not sticky notes. See [Import from a database](database-import).
+
+### I forgot my password. What now?
+
+If you made a **recovery key** (Account → Recovery key), use **Forgot your password?** on the sign-in screen. If not, an administrator resets it. See [Accounts & permissions](accounts-and-sharing).
+
+### Can an AI assistant use my diagrams?
+
+Yes, through the MCP connector, at the level you give it (view, comment or edit) and only on the diagrams you share with it. It never sees a database credential. See [Connect Claude (MCP)](connect-claude-mcp).
+
 ### Can two people edit at the same time?
 
 Not in real time yet. If both save changes, the second save is refused and a dialog asks whether to load the other person's version or keep yours (the other version stays in the history). See [Versions & history](versions-and-history). Giving the other person *Comment* access avoids the question.

@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Documentation
+
+- New pages and sections: *Connect Claude (MCP)*, *Hosting requirements*, *Databases behind a VPN or a firewall* (Self-hosting), and FAQ entries on VPN, sequences, forgotten passwords and AI assistants. New pictures: Account, Groups, Agents and Settings.
+
 ## MCP connector for AI clients
 
 - **Agents**: accounts for an AI client, created by an administrator (**Administration → Agents**), with tokens that are shown once, can expire and can be revoked. Off until **Settings → Agents** is switched on.
