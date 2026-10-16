@@ -35,11 +35,11 @@ describe('AdminAudit', () => {
   });
   test('each tab asks for its own kinds of event, and offers its own targets and types', async () => {
     await setup('access');
-    expect(lastAudit().get('action')).toBe('auth,connection');
+    expect(lastAudit().get('action')).toBe('auth,connection,mcp');
     const t = screen.getByLabelText('Target');
     expect([...t.querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Databases', 'Diagrams']);
     expect(t.textContent).toContain('d2bbbbbb (deleted)');
-    expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Sign-in and accounts', 'Shared-connection use']);
+    expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Sign-in and accounts', 'Agent calls (MCP)', 'Shared-connection use']);
     expect(screen.queryByText('Clear filters')).toBeNull(); // the tab's own kinds are not a filter
   });
   test('the changes tab asks for administrator actions and offers the administration areas', async () => {

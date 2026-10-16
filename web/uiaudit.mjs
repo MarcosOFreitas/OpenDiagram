@@ -32,6 +32,9 @@ const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, 
 const open = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
 const locked = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view', password: 'link-secret-1' });
 await maya.call('POST', `/api/diagrams/${shop}/comments`, { body: 'A comment from Maya', target: 'table:customers' }).catch(() => {});
+// an agent with a token (Administration -> Agents), shared with the sample diagram
+const bot = await admin.call('POST', '/api/admin/agents', { name: 'Claude of the data team' });
+await admin.call('POST', `/api/admin/agents/${bot.id}/tokens`, { name: 'laptop' });
 // a person who closed their account: their diagram waits for an administrator (Administration -> Users), and the sign-in log has entries
 const leaver = new Api(BASE);
 await admin.call('POST', '/api/admin/users', { email: 'leaver@example.com', name: 'Lea Vitor', password: 'Leaver-temp-pass-0' });
@@ -207,7 +210,7 @@ await run('docs-view', async () => { await go('/', { local: D }); await ev(`H.cl
 await run('docs-view-changelog-comments', async () => { await go('/', { local: D }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); await H.click('Changelog', H.q('.dx-nav')); await H.w(600); const c = H.q('.dx-main .cmt-in, .dx-main [class*="cmt"] textarea, .dx-main .cmt'); c?.click(); await H.w(400); })()`); }, { vps: ['desktop'] });
 await run('docs-view-collapsed', async () => { await go('/', { local: D }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); await H.click('Collapse all', H.q('.dx-nav')); await H.w(400); })()`); }, { vps: ['desktop'] });
 // 7. administration
-for (const t of ['Users', 'Groups', 'Connections', 'Audit', 'Sign-ins', 'Settings']) await run(`admin-${t.toLowerCase()}`, async () => { await go('/', { local: D }); await adminOverlay(t); }, { vps: ['desktop', 'phone'], dialog: t === 'Users' ? '.admin-card' : undefined });
+for (const t of ['Users', 'Groups', 'Connections', 'Agents', 'Audit', 'Sign-ins', 'Settings']) await run(`admin-${t.toLowerCase()}`, async () => { await go('/', { local: D }); await adminOverlay(t); }, { vps: ['desktop', 'phone'], dialog: t === 'Users' ? '.admin-card' : undefined });
 await run('admin-audit-filters', async () => { await go('/', { local: D }); await adminOverlay('Sign-ins'); await ev(`(async () => { const sel = (l) => document.querySelector('.audit-bar select[aria-label="' + l + '"]'); H.set(sel('Type of operation'), 'connection.import'); H.set(sel('Done by'), sel('Done by').options[1].value); await H.w(900); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('admin-register-connection-form', async () => { await go('/', { local: D }); await adminOverlay('Connections'); await ev(`H.click('+ Register', H.q('.admin-body'))`); }, { vps: ['desktop', 'phone'] });
 await run('admin-create-user-result', async () => { await go('/', { local: D }); await adminOverlay('Users'); await ev(`(async () => { const i = [...document.querySelectorAll('.admin-form input')]; H.set(i[0], 'new.person@example.com'); H.set(i[1], 'New Person'); await H.click('Add user', H.q('.admin-form')); await H.w(900); })()`); }, { vps: ['desktop'] });

@@ -12,16 +12,18 @@ const KINDS = {
     hint: <>Every change made in the Administration panel, kept for 180 days. It never holds a password or a request body. Sign-ins and shared-connection use are in <b>Sign-ins &amp; connections</b>.</>,
   },
   access: {
-    base: 'auth,connection', scopes: false, facets: ['connections', 'diagrams'],
+    base: 'auth,connection,mcp', scopes: false, facets: ['connections', 'diagrams'],
     types: [
       ['auth', 'Sign-in and accounts', [['auth.login', 'Signed in'], ['auth.login_failed', 'Failed sign-in'], ['auth.logout', 'Signed out'], ['auth.password_changed', 'Password changed'], ['auth.session_revoked', 'Session ended'], ['auth.register', 'Registered'], ['auth.account_closed', 'Account closed'], ['auth.account_purged', 'Account deleted'], ['auth.recovery_key_created', 'Recovery key made'], ['auth.recovery_key_removed', 'Recovery key removed'], ['auth.password_recovered', 'Password recovered'], ['auth.recovery_failed', 'Failed recovery']]],
+      ['mcp', 'Agent calls (MCP)', [['mcp.list_diagrams', 'Listed diagrams'], ['mcp.get_diagram', 'Read a diagram'], ['mcp.list_comments', 'Read comments'], ['mcp.add_comment', 'Commented'], ['mcp.update_diagram', 'Edited a diagram']]],
       ['connection', 'Shared-connection use', [['connection.import', 'Imported'], ['connection.refresh', 'Refreshed'], ['connection.test', 'Tested'], ['connection.tables', 'Listed tables']]],
     ],
-    hint: <>Kept for 180 days (failed sign-ins: the last 50,000). Sign-ins with the address and device, failed attempts (never the password), password changes, ended sessions, closed accounts, and the use of <b>shared</b> connections (test, list tables, import, refresh). Personal connections are private and are not recorded.</>,
+    hint: <>Kept for 180 days (failed sign-ins: the last 50,000). The calls of <b>agents</b> (which tool, which diagram, never the content), sign-ins with the address and device, failed attempts (never the password), password changes, ended sessions, closed accounts, and the use of <b>shared</b> connections (test, list tables, import, refresh). Personal connections are private and are not recorded.</>,
   },
 };
 const LABEL = { 'admin.post': 'Added', 'admin.put': 'Changed', 'admin.patch': 'Changed', 'admin.delete': 'Deleted', 'connection.import': 'Imported', 'connection.refresh': 'Refreshed', 'connection.test': 'Tested', 'connection.tables': 'Listed tables',
-  'auth.login': 'Signed in', 'auth.login_failed': 'Failed sign-in', 'auth.logout': 'Signed out', 'auth.password_changed': 'Password changed', 'auth.session_revoked': 'Session ended', 'auth.register': 'Registered', 'auth.account_closed': 'Account closed', 'auth.account_purged': 'Account deleted', 'auth.recovery_key_created': 'Recovery key made', 'auth.recovery_key_removed': 'Recovery key removed', 'auth.password_recovered': 'Password recovered', 'auth.recovery_failed': 'Failed recovery' };
+  'auth.login': 'Signed in', 'auth.login_failed': 'Failed sign-in', 'auth.logout': 'Signed out', 'auth.password_changed': 'Password changed', 'auth.session_revoked': 'Session ended', 'auth.register': 'Registered', 'auth.account_closed': 'Account closed', 'auth.account_purged': 'Account deleted', 'auth.recovery_key_created': 'Recovery key made', 'auth.recovery_key_removed': 'Recovery key removed', 'auth.password_recovered': 'Password recovered', 'auth.recovery_failed': 'Failed recovery',
+  'mcp.list_diagrams': 'Listed diagrams', 'mcp.get_diagram': 'Read a diagram', 'mcp.list_comments': 'Read comments', 'mcp.add_comment': 'Commented', 'mcp.update_diagram': 'Edited a diagram' };
 const SCOPES = [['users', 'Users'], ['groups', 'Groups'], ['settings', 'Settings']];
 const when = (t) => new Date(t * 1000).toLocaleString();
 

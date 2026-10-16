@@ -57,7 +57,7 @@ export default function SharePanel({ diagramId, notify }) {
       </div>
       {found.map((u) => (
         <div key={u.id} className="card" onClick={() => !granted('user', u.id) && grant('user', u.id)}>
-          <div className="grow"><b>{u.name}</b><small>{u.email}</small></div>
+          <div className="grow"><b>{u.name}</b>{u.kind === 'agent' ? <span className="chip">AI agent</span> : <small>{u.email}</small>}</div>
           <small>{granted('user', u.id) ? 'already has access' : '+ add'}</small>
         </div>
       ))}
@@ -68,7 +68,7 @@ export default function SharePanel({ diagramId, notify }) {
       {grants.map((g) => (
         <div key={g.id} className="share">
           <div className="row">
-            <div className="grow"><b>{g.name}</b><small className="hint"> {g.type === 'group' ? `group · ${g.members} member${g.members === 1 ? '' : 's'}` : g.email}</small></div>
+            <div className="grow"><b>{g.name}</b><small className="hint"> {g.type === 'group' ? `group · ${g.members} member${g.members === 1 ? '' : 's'}` : g.agent ? 'AI agent' : g.email}</small></div>
           </div>
           <div className="row">
             <Levels value={g.access} onChange={(v) => act(() => api(`access/${g.id}`, { access: v }, 'PATCH'), 'Permission updated')()} />

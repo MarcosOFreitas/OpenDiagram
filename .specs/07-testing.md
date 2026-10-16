@@ -22,6 +22,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `merge.test.js` | what a refresh keeps (TableGroups, hand-written lineage) and its summary: the same cases as the browser copy in `diagramModel.test.js` |
 | server | `refresh.test.js` | scheduled refresh: which diagrams are due (minimum 5 min, jitter, pause), saved as its own history entry, same text = no-op, baseline for old links, failures and pause, conflict retried, disabled owner / lost connection, skipped while someone edits, audit of shared connections |
 | server | `sessions.test.js` | the session list (device, current one, ids that are not the stored hash), revoking one / all but the current / never another person's, session length and inactivity limit, the persistent failed-attempt limiter under a hashed key, link expiry |
+| server | `mcp.test.js` | agents (member, no sign-in, hidden, not promotable), tokens (hash only, expiry, revoke, disabled, switched off), the protocol, every tool at each access level, "cannot see = does not exist", stale version, invalid DBML, the history entry, group grants, **no connection data in any output**, audit without content, rate limit |
 | server | `recovery.test.js` | the recovery key: needs the password, shown once, any spelling works once, same answer for every failure, limits per address and per e-mail, a new key replaces the old, an administrator reset voids it |
 | server | `closing.test.js` | closing an account (signed out, private connections gone, links and grants removed, shared connections kept), the 7-day waiting list, handing a diagram to a person and a group, purge, the failed-sign-in cap |
 | server | `diagrams.test.js` | `roleFor`, grants, 404 for other accounts' diagrams, version conflicts (409), history, summaries |
@@ -31,6 +32,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `useConnect.test.js` | the Database drawer flow: list reloads when the drawer opens or Administration closes, a shared connection is never saved and imports by its own id, schemas for a connection that has none, Full DDL follows the diagram link, save/delete/reset |
 | web | `layout.test.js` | every layout algorithm: finite positions, no overlapping tables, deterministic, group boxes never overlap, flow direction (left to right, pipeline, lineage), manual positions kept |
 | web | `TablePicker.test.jsx` | search matcher, "nothing ticked = all", tables in a group count as selected, one group per table, Full DDL |
+| web | `AdminAgents.test.jsx` | the Agents tab: list, switched-off warning, token shown once, create, disable, delete |
 | web | `Recovery.test.jsx` | the Account recovery-key section (shown once, Copy, wrong password, Remove) and the sign-in screen's "Forgot your password?" form |
 | web | `AccountSecurity.test.jsx` | Account sessions (End, sign out the others) and the delete-account form (password, wrong password, cancel) |
 | web | `diagramModel.test.js` | DBML to diagram data, TableGroups kept on refresh, change summary, view kind |

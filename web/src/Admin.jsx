@@ -6,6 +6,7 @@ import AdminAudit from './AdminAudit.jsx';
 // Administration overlay: users, groups (flat; one user can be in several) and instance settings
 import Loading from './Loading.jsx';
 import Empty from './Empty.jsx';
+import AdminAgents from './AdminAgents.jsx';
 
 export default function Admin({ me, onClose, notify, onSettings }) {
   const [tab, setTab] = useState('users');
@@ -68,7 +69,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
         <div className="admin-head">
           <h2>Administration</h2>
           <div className="dtabs">
-            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['audit', 'Audit log'], ['access', 'Sign-ins & connections'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+            {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['agents', 'Agents'], ['audit', 'Audit log'], ['access', 'Sign-ins & connections'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
           </div>
           <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
         </div>
@@ -156,6 +157,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
           </>)}
 
           {ready && tab === 'connections' && <AdminConnections users={users} groups={groups} act={act} setErr={setErr} />}
+          {ready && tab === 'agents' && <AdminAgents settings={settings} act={act} setErr={setErr} notify={notify} />}
           {ready && tab === 'audit' && <AdminAudit kind="changes" setErr={setErr} />}
           {ready && tab === 'access' && <AdminAudit kind="access" setErr={setErr} />}
 
@@ -176,13 +178,21 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                 <small className="hint">Keep this off to make the instance invitation-only: administrators create every account.</small>
               </div>
               <div className="group-card">
+                <h4>Agents</h4>
+                <label className="chk">
+                  <input type="checkbox" checked={!!settings.allowAgents} onChange={(e) => setSettings({ ...settings, allowAgents: e.target.checked })} />
+                  Allow agents to connect (MCP)
+                </label>
+                <small className="hint">Off by default. While it is off, no agent token works. Agents are created in the Agents tab and see only the diagrams shared with them.</small>
+              </div>
+              <div className="group-card">
                 <h4>Sessions</h4>
                 <label>Session length (days)<input type="number" min="1" max="90" value={settings.sessionDays} onChange={(e) => setSettings({ ...settings, sessionDays: e.target.value })} /></label>
                 <label>Sign out after days without use (0 = never)<input type="number" min="0" max="90" value={settings.sessionIdleDays} onChange={(e) => setSettings({ ...settings, sessionIdleDays: e.target.value })} /></label>
                 <small className="hint">The session length applies to new sign-ins; the inactivity limit applies to every session at once.</small>
               </div>
               </div>
-              <div className="admin-settings-foot"><button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button></div>
+              <div className="admin-settings-foot"><button className="primary" onClick={act(async () => { const s = await api('admin/settings', { orgName: settings.orgName, allowSignup: settings.allowSignup, allowAgents: !!settings.allowAgents, sessionDays: +settings.sessionDays, sessionIdleDays: +settings.sessionIdleDays }, 'PUT'); onSettings(s.orgName); }, 'Settings saved')}>Save settings</button></div>
             </div>
           )}
         </div>

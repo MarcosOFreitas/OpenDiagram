@@ -15,7 +15,7 @@ export const NAV = [
   { title: 'Working with diagrams', items: ['diagram-basics', 'tables-panel-and-views', 'arrange', 'table-groups', 'data-lineage'] },
   'generated-documentation',
   'import-export',
-  { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links', 'versions-and-history'] },
+  { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links', 'versions-and-history', 'connect-claude-mcp'] },
   'administration',
   'self-hosting',
   'hosting-requirements',

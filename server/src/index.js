@@ -12,6 +12,8 @@ import { listSchemas, importModel, listTables, privilegeWarnings } from './intro
 import { toDbml } from './dbml.js';
 import { assertHostAllowed } from './policy.js';
 import * as refresh from './refresh.js';
+import * as agents from './agents.js';
+import * as mcp from './mcp.js';
 
 const app = Fastify({ logger: true, bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1' });
 const bad = (msg, statusCode = 400) => Object.assign(new Error(msg), { statusCode });
@@ -151,6 +153,14 @@ app.patch('/api/admin/users/:id', (req) => { adminOnly(req); return { user: admi
 app.post('/api/admin/users/:id/reset-password', async (req) => { adminOnly(req); return { tempPassword: await auth.adminSetPassword(uid(req), req.body?.password) }; });
 app.delete('/api/admin/users/:id', (req) => { adminOnly(req); admin.deleteUser(uid(req), req.user.id); return { ok: true }; });
 app.delete('/api/admin/users/:id/sessions', (req) => { adminOnly(req); return { ended: auth.revokeSessions(uid(req)) }; }); // sign this person out everywhere
+// agents (the MCP connector's accounts) and their tokens: administrators only; a token is shown once, when it is made
+app.get('/api/admin/agents', (req) => { adminOnly(req); return agents.listAgents(); });
+app.post('/api/admin/agents', (req) => { adminOnly(req); return agents.createAgent(req.body?.name); });
+app.patch('/api/admin/agents/:id', (req) => { adminOnly(req); agents.updateAgent(uid(req), req.body ?? {}); return { ok: true }; });
+app.delete('/api/admin/agents/:id', (req) => { adminOnly(req); agents.deleteAgent(uid(req)); return { ok: true }; });
+app.post('/api/admin/agents/:id/tokens', (req) => { adminOnly(req); return agents.createToken(uid(req), req.body ?? {}); });
+app.delete('/api/admin/agents/:id/tokens/:tid', (req) => { adminOnly(req); agents.revokeToken(uid(req), req.params.tid); return { ok: true }; });
+
 // diagrams of closed accounts: kept for 7 days, an administrator hands them over or deletes them
 app.get('/api/admin/closed-diagrams', (req) => { adminOnly(req); return admin.listClosed(); });
 app.post('/api/admin/closed-diagrams/:id/adopt', (req) => { adminOnly(req); admin.adoptClosed(req.params.id, req.body?.userId, req.body?.groupId, dg); return { ok: true }; });
@@ -347,6 +357,18 @@ app.put('/api/shared/:token', async (req) => {
 });
 app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));
 app.delete('/api/shared/:token/comments/:cid', async (req) => { const s = await share(req, 'comment'); dg.deleteComment(s.diagramId, req.params.cid, req.user, req.user.id === s.ownerId); return { ok: true }; });
+
+// ---------- MCP connector (agents.js, mcp.js): POST /mcp with `Authorization: Bearer odt_...`; the token works nowhere else
+app.get('/mcp', (_req, reply) => reply.code(405).header('allow', 'POST').send({ error: 'use POST' })); // no server-initiated stream
+app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
+  const origin = req.headers.origin; // browsers send one; a legitimate MCP client does not (DNS-rebinding guard of the transport spec)
+  if (origin) { let host; try { host = new URL(origin).host; } catch { /* malformed */ } if (host !== req.headers.host) return reply.code(403).send({ error: 'origin not allowed' }); }
+  const agent = agents.authenticate(req.headers.authorization);
+  if (!agent) return reply.code(401).header('www-authenticate', 'Bearer').send({ error: 'a valid agent token is required (and agents must be switched on in Administration → Settings)' });
+  if (!agents.withinRate(agent.tokenId)) return reply.code(429).send({ error: 'too many requests, slow down' });
+  const res = mcp.handle(req.body, agent);
+  return res === null ? reply.code(202).send() : reply.send(res);
+});
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
 app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) })); // driver errors (bad password, TLS...) are meant to be shown

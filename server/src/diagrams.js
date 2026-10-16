@@ -218,11 +218,11 @@ export function deleteComment(diagramId, commentId, user, isOwner) {
 // ---- people & groups with access (owner manages)
 export function listGrants(actor, diagramId) {
   getOwned(actor, diagramId);
-  return db.prepare(`select a.id, a.subject_type type, a.subject_id subjectId, a.access, u.name uname, u.email email, g.name gname,
+  return db.prepare(`select a.id, a.subject_type type, a.subject_id subjectId, a.access, u.name uname, case when u.kind = 'agent' then '' else u.email end email, u.kind ukind, g.name gname,
       (select count(*) from group_members m where m.group_id = a.subject_id) members
     from diagram_access a left join users u on a.subject_type = 'user' and u.id = a.subject_id left join groups g on a.subject_type = 'group' and g.id = a.subject_id
     where a.diagram_id = ? order by a.created_at`).all(diagramId)
-    .map((r) => ({ id: r.id, type: r.type, subjectId: r.subjectId, access: r.access, name: r.type === 'user' ? r.uname : r.gname, email: r.email ?? undefined, members: r.type === 'group' ? r.members : undefined }));
+    .map((r) => ({ id: r.id, type: r.type, subjectId: r.subjectId, access: r.access, name: r.type === 'user' ? r.uname : r.gname, email: r.email ?? undefined, agent: r.ukind === 'agent' || undefined, members: r.type === 'group' ? r.members : undefined }));
 }
 export function setGrant(actor, diagramId, { type, subjectId, access }) {
   getOwned(actor, diagramId);

@@ -10,11 +10,11 @@ const activeAdmins = () => db.prepare("select count(*) n from users where role =
 function guardLastAdmin(target, willStop) {
   if (target.role === 'admin' && !target.disabled && willStop && activeAdmins() <= 1) throw bad('at least one active administrator is required', 400);
 }
-const row = (id) => { const u = db.prepare('select * from users where id = ?').get(id); if (!u) throw bad('user not found', 404); return u; };
+const row = (id) => { const u = db.prepare("select * from users where id = ? and kind = 'human'").get(id); if (!u) throw bad('user not found', 404); return u; }; // agents are managed in agents.js: never promoted, reset or deleted through the people routes
 
 export function listUsers() {
   const groups = db.prepare('select m.user_id, g.id, g.name from group_members m join groups g on g.id = m.group_id order by g.name').all();
-  return db.prepare('select id, email, name, role, disabled, must_change_password, created_at from users where deleted_at is null order by lower(name), id').all().map((u) => ({
+  return db.prepare("select id, email, name, role, disabled, must_change_password, created_at from users where deleted_at is null and kind = 'human' order by lower(name), id").all().map((u) => ({
     id: u.id, email: u.email, name: u.name, role: u.role, disabled: !!u.disabled, mustChangePassword: !!u.must_change_password, createdAt: u.created_at,
     groups: groups.filter((g) => g.user_id === u.id).map((g) => ({ id: g.id, name: g.name })),
   }));
@@ -130,10 +130,11 @@ export function addMember(groupId, userId) {
 export function removeMember(groupId, userId) { db.prepare('delete from group_members where group_id = ? and user_id = ?').run(groupId, userId); }
 
 // ---------- settings
-export const getSettings = () => ({ orgName: auth.orgName(), allowSignup: auth.getSetting('allow_signup', '0') === '1', sessionDays: auth.sessionDays(), sessionIdleDays: auth.idleDays(), signupForcedBy: process.env.ALLOW_SIGNUP === '1' || process.env.ALLOW_SIGNUP === '0' ? process.env.ALLOW_SIGNUP : null });
-export function putSettings({ orgName, allowSignup, sessionDays, sessionIdleDays }) {
+export const getSettings = () => ({ orgName: auth.orgName(), allowSignup: auth.getSetting('allow_signup', '0') === '1', allowAgents: auth.getSetting('allow_agents', '0') === '1', sessionDays: auth.sessionDays(), sessionIdleDays: auth.idleDays(), signupForcedBy: process.env.ALLOW_SIGNUP === '1' || process.env.ALLOW_SIGNUP === '0' ? process.env.ALLOW_SIGNUP : null });
+export function putSettings({ orgName, allowSignup, sessionDays, sessionIdleDays, allowAgents }) {
   if (orgName !== undefined) auth.setSetting('org_name', String(orgName).trim().slice(0, 80));
   if (allowSignup !== undefined) auth.setSetting('allow_signup', allowSignup ? '1' : '0');
+  if (allowAgents !== undefined) auth.setSetting('allow_agents', allowAgents ? '1' : '0');
   const days = (v, lo, hi, what) => { const n = Number(v); if (!Number.isInteger(n) || n < lo || n > hi) throw bad(`${what} must be a whole number from ${lo} to ${hi}`); return n; };
   if (sessionDays !== undefined) auth.setSetting('session_days', days(sessionDays, 1, 90, 'session length (days)'));
   if (sessionIdleDays !== undefined) auth.setSetting('session_idle_days', days(sessionIdleDays, 0, 90, 'inactivity limit (days)'));
@@ -145,6 +146,6 @@ export function searchUsers(q, selfId) {
   q = String(q ?? '').trim().toLowerCase();
   if (q.length < 2) return [];
   const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-  return db.prepare("select id, name, email from users where disabled = 0 and id <> ? and (lower(email) like ? escape '\\' or lower(name) like ? escape '\\') order by lower(name) limit 8").all(selfId, like, like);
+  return db.prepare("select id, name, case when kind = 'agent' then '' else email end email, kind from users where disabled = 0 and deleted_at is null and id <> ? and (lower(case when kind = 'agent' then '' else email end) like ? escape '\\' or lower(name) like ? escape '\\') order by lower(name) limit 8").all(selfId, like, like); // agents are found by name only (their e-mail is a placeholder)
 }
 export const directoryGroups = () => db.prepare('select g.id, g.name, (select count(*) from group_members m where m.group_id = g.id) members from groups g order by lower(g.name)').all();

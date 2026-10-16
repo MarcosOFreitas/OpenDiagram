@@ -26,6 +26,11 @@ function withGroups(newDbml, groups) {
   return blocks.length ? `${newDbml.trimEnd()}\n\n${blocks.join('\n\n')}\n` : newDbml;
 }
 
+// null when the text is valid DBML, otherwise the first problem ("line N: message")
+export function validDbml(text) {
+  try { new Parser().parse(text, 'dbmlv2'); return null; } catch (e) { const d = e?.diags?.[0]; return d ? `line ${d.location?.start?.line ?? 1}: ${d.message}` : String(e?.message ?? 'syntax error').split('\n')[0].slice(0, 200); }
+}
+
 export function keepGroups(oldDbml, newDbml) {
   const o = parse(oldDbml);
   if (o.error) return newDbml;

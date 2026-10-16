@@ -19,6 +19,7 @@ create table if not exists users (
   role text not null default 'member',
   disabled integer not null default 0,
   must_change_password integer not null default 0,
+  kind text not null default 'human', -- 'agent' = an AI client's account (agents.js): no password, never an administrator
   recovery_hash text, recovery_at integer, -- sha-256 of the recovery key the person keeps (shown once); a use consumes it
   deleted_at integer -- the person closed the account: signed out for good, their diagrams wait here for an administrator (7 days) and are then deleted
 );
@@ -44,6 +45,13 @@ create table if not exists connection_access (
   subject_type text not null check (subject_type in ('user', 'group')),
   subject_id integer not null,
   primary key (connection_id, subject_type, subject_id)
+);
+-- bearer tokens of agents (agents.js): only the SHA-256 is kept
+create table if not exists api_tokens (
+  id text primary key,
+  user_id integer not null references users(id) on delete cascade,
+  name text not null, hash text unique not null,
+  created_at integer not null, last_used integer, expires_at integer, revoked_at integer
 );
 -- use of shared connections and administrator actions (see audit.js)
 create table if not exists audit_log (
@@ -132,4 +140,5 @@ for (const c of ['created_at integer', 'last_seen integer', 'ip text', 'agent te
 addColumn('shares', 'expires_at', 'integer');
 addColumn('users', 'deleted_at', 'integer');
 addColumn('users', 'recovery_hash', 'text');
+addColumn('users', 'kind', "text not null default 'human'");
 addColumn('users', 'recovery_at', 'integer');

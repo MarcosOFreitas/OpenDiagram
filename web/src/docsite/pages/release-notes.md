@@ -2,6 +2,12 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## MCP connector for AI clients
+
+- **Agents**: accounts for an AI client, created by an administrator (**Administration → Agents**), with tokens that are shown once, can expire and can be revoked. Off until **Settings → Agents** is switched on.
+- An agent opens only the diagrams that were shared with it (view, comment or edit) and **never** sees a database connection or a credential. Tools: list, read, read comments, comment, and replace the DBML (with the version it read; every save is its own history entry).
+- Every call is in **Sign-ins & connections → Agent calls**. See *Connect Claude (MCP)*.
+
 ## Hosting requirements and a clean stop
 
 - New page **Hosting requirements**: memory, CPU, disk, network and browser costs, measured, with the scripts to repeat them (`server/bench.mjs`, `web/benchclient.mjs`).
