@@ -357,3 +357,10 @@ const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed())
 housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
 refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
 await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });
+
+// docker stop / Ctrl+C: finish the requests in flight and fold the WAL into the database file, instead of being killed ten seconds later (exit 137)
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.once(sig, async () => {
+    try { await app.close(); db.exec('pragma wal_checkpoint(truncate)'); } finally { process.exit(0); }
+  });
+}

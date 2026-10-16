@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errMsg } from './api.js';
 import Loading from './Loading.jsx';
+import Empty from './Empty.jsx';
 
 // Two logs in two tabs. `changes`: what the administrators changed. `access`: who signed in (and failed to), what happened to accounts, and who used a shared database.
 // Type filter: value = the comma-separated action prefixes the server matches; the label is also what the table shows for that action. Without a type the tab's own prefixes apply.
@@ -64,7 +65,7 @@ export default function AdminAudit({ kind = 'changes', setErr }) {
       </div>
       <small className="hint">{K.hint}</small>
       {!rows && <Loading label="Loading the log" />}
-      {rows && rows.length === 0 && <small className="hint">Nothing recorded for this filter.</small>}
+      {rows && rows.length === 0 && <Empty title="Nothing recorded for this filter">{active ? 'Clear the filters to see everything.' : 'Events appear here as they happen.'}</Empty>}
       {rows && rows.length > 0 && (
         <table className="admin-table audit">
           <thead><tr><th>When</th><th>Who</th><th>What</th><th>Target</th><th>Diagram</th><th>Detail</th></tr></thead>

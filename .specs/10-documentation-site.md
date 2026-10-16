@@ -16,7 +16,7 @@ A Docusaurus-style layout: top bar, collapsible sidebar tree, content with a *Ne
 
 ## Content
 
-One `.md` file per page, first line `# Title`. The page order is `NAV` in `web/src/docsite/nav.js` (22 pages: introduction, getting started, syntax, database import and security, shared connections, diagram basics, Tables panel, arrange, table groups, data lineage, generated documentation, import/export, accounts and sharing, share links, versions and history, administration, self-hosting, shortcuts and FAQ, release notes). **Update the page in the same change as the behaviour** (see [AGENTS.md](../AGENTS.md)).
+One `.md` file per page, first line `# Title`. The page order is `NAV` in `web/src/docsite/nav.js` (23 pages: introduction, getting started, syntax, database import and security, shared connections, diagram basics, Tables panel, arrange, table groups, data lineage, generated documentation, import/export, accounts and sharing, share links, versions and history, administration, self-hosting, hosting requirements, shortcuts and FAQ, release notes). **Update the page in the same change as the behaviour** (see [AGENTS.md](../AGENTS.md)).
 
 ## Acceptance criteria
 

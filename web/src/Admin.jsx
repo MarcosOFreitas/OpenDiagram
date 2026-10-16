@@ -5,6 +5,7 @@ import AdminAudit from './AdminAudit.jsx';
 
 // Administration overlay: users, groups (flat; one user can be in several) and instance settings
 import Loading from './Loading.jsx';
+import Empty from './Empty.jsx';
 
 export default function Admin({ me, onClose, notify, onSettings }) {
   const [tab, setTab] = useState('users');
@@ -132,7 +133,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
               <button type="submit" className="primary">Create group</button>
             </form>
             <small className="hint">Groups are flat and a person can be in several. Share a diagram with a group from the diagram's Share tab.</small>
-            {groups.length === 0 && <small className="hint">No groups yet.</small>}
+            {groups.length === 0 && <Empty title="No groups yet">Type a name above and press Create group. People in a group can be given access to a diagram in one step.</Empty>}
             <div className="admin-grid">
             {groups.map((g) => (
               <div key={g.id} className="group-card">

@@ -36,6 +36,8 @@ node web/lineage-check.mjs           # the `// lineage:` comment parser (pure)
 cd web && node roundtrip.mjs         # import -> export -> re-import per format (needs the oracle profile)
 node web/uiaudit.mjs [screen ...]    # UI audit of every screen: light/dark, desktop/phone, keyboard (throw-away instance, see the file header)
 node web/docshots.mjs                # retakes the documentation pictures (throw-away instance, see the file header)
+node server/bench.mjs                # server load measurements for the Hosting requirements page (throw-away container with CPU/memory limits, see the header)
+node web/benchclient.mjs             # browser cost of diagrams of several sizes (same page)
 node web/visualsnap.mjs snap|compare # refactors: pixel comparison of 21 screens between two builds (see the file header)
 node web/behaviorcheck.mjs           # refactors: behaviour fingerprint of menus, popovers, search and the table picker; diff old vs new build
 ```

@@ -94,7 +94,7 @@ describe('AdminAudit', () => {
   test('nothing found says so', async () => {
     api.mockImplementation(async (p) => (p === 'admin/audit/facets' ? FACETS : []));
     render(<AdminAudit setErr={vi.fn()} />);
-    expect(await screen.findByText('Nothing recorded for this filter.')).toBeTruthy();
+    expect(await screen.findByText('Nothing recorded for this filter')).toBeTruthy();
   });
   test('a server error goes to setErr', async () => {
     api.mockImplementation(() => Promise.reject(new Error('forbidden')));

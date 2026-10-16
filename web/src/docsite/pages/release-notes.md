@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Hosting requirements and a clean stop
+
+- New page **Hosting requirements**: memory, CPU, disk, network and browser costs, measured, with the scripts to repeat them (`server/bench.mjs`, `web/benchclient.mjs`).
+- The server now stops cleanly on `docker stop` (about 1 second, exit code 0) instead of being killed after ten seconds.
+
 ## Sessions, sign-in log and closing an account
 
 - **Account → Sessions**: see where you are signed in and end any session. Administrators can sign a person out everywhere, and set the session length and an inactivity limit.

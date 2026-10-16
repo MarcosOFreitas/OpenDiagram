@@ -18,6 +18,7 @@ export const NAV = [
   { title: 'Sharing & collaboration', items: ['accounts-and-sharing', 'share-links', 'versions-and-history'] },
   'administration',
   'self-hosting',
+  'hosting-requirements',
   'shortcuts-faq',
   'release-notes',
 ];

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from './api.js';
 import Loading from './Loading.jsx';
+import Empty from './Empty.jsx';
 
 const BLANK = { id: '', type: 'postgres', name: '', host: '', port: 5432, database: '', user: '', password: '', tls: 'verify', serverDn: '', caPem: '', blockWritable: true };
 
@@ -26,8 +27,10 @@ export default function AdminConnections({ users, groups, act, setErr }) {
 
   return (
     <>
-      <small className="hint">Register a connection once with a <b>read-only</b> database user and choose who may use it. People see its name, type, host and database, never the user, the password or the certificate. Every use is recorded in the <b>Audit log</b>.</small>
-      {!open && <button className="primary" onClick={() => { setForm(BLANK); setOpen(true); }}>+ Register a shared connection</button>}
+      <div className="admin-top">
+        <small className="hint">Register a connection once with a <b>read-only</b> database user and choose who may use it. People see its name, type, host and database, never the user, the password or the certificate. Every use is recorded in the <b>Sign-ins &amp; connections</b> log.</small>
+        {!open && <button className="primary" onClick={() => { setForm(BLANK); setOpen(true); }}>+ Register a shared connection</button>}
+      </div>
       {open && (
         <form className="conn-form" onSubmit={(e) => { e.preventDefault(); save(); }} autoComplete="off">
           <div className="seg">{[['postgres', 'PostgreSQL'], ['oracle', 'Oracle']].map(([v, l]) => <button type="button" key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port: v === 'oracle' ? 1521 : 5432 })}>{l}</button>)}</div>
@@ -47,7 +50,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
         </form>
       )}
       {!list && <Loading label="Loading connections" />}
-      {list && list.length === 0 && !open && <small className="hint">No shared connections yet.</small>}
+      {list && list.length === 0 && !open && <Empty title="No shared connections yet">Register one with a read-only database user, then choose the groups and people who may use it.</Empty>}
       <div className="admin-grid">
       {list?.map((c) => {
         const addable = [...groups.filter((g) => !c.access.some((a) => a.type === 'group' && a.id === g.id)).map((g) => ({ type: 'group', id: g.id, name: `Group: ${g.name}` })),
