@@ -1,103 +1,39 @@
 ---
 name: requesting-code-review
-description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
+description: Use after finishing a feature or a risky fix, before merging, or when stuck and a fresh pair of eyes helps. Dispatches a reviewer subagent with the diff, the requirements and the project's rules, and tells you how to act on what comes back. Gatilhos (pt): revisar código, pedir revisão, code review, revisar antes do merge, receber e tratar feedback de revisão.
 ---
 
-<!-- Third-party skill: requesting-code-review, from https://github.com/obra/superpowers/tree/bb92a7774141/skills/requesting-code-review (MIT). Text kept as published, plus the section "In this repo" at the end. See ../THIRD_PARTY.md. -->
+# Requesting and handling a code review
 
-# Requesting Code Review
+A reviewer that starts with a clean context sees what you stopped seeing. Give it exactly what it needs and nothing of your session.
 
-Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precisely crafted context for evaluation — never your session's history.
+## Request
 
-**Core principle:** Review early, review often.
+1. Get the range: `BASE=$(git merge-base origin/main HEAD)` (or the commit before your work), `HEAD=$(git rev-parse HEAD)`. Uncommitted work: review `git diff` and `git diff --cached`.
+2. Make sure the checks of `verification-before-completion` are green first; reviewing red code wastes the review.
+3. Dispatch a `general-purpose` subagent with the prompt in [reviewer-prompt.md](reviewer-prompt.md), filling: what was built, the requirements or spec (a file path is best), the range, and **the project's rules**: tell it to read `AGENTS.md` / `CLAUDE.md` / `CONVENTIONS.md` and to treat the invariants written there (security, data, UI standard, test rules) as review criteria. A change that weakens one is Critical.
+4. The reviewer is read-only and does not spawn reviewers of its own.
 
-## When to Request Review
+## What a good review contains
 
-**Mandatory:**
-- After each task in subagent-driven development
-- After completing major feature
-- Before merge to main
+The full criteria are in [reviewer-prompt.md](reviewer-prompt.md); the points that decide its quality:
 
-**Optional but valuable:**
-- When stuck (fresh perspective)
-- Before refactoring (baseline check)
-- After fixing complex bug
+- **Read the tests first**: they say what the author believes the change does. Judge only changed code, but read each changed file whole. Very large diffs are a finding by themselves: ask for a split, or review in passes and say so.
+- **A bug needs the situation that triggers it**; when unsure the reviewer says so instead of flagging. **A security finding says who controls the input, which control is missing, and what it costs.**
+- **Declined to judge:** what the reviewer set aside as out of scope, one line each, so nothing disappears silently.
+- Severity is honest, not inflated: **Critical** (bug, security hole, data loss, broken contract), **Important** (design problem, missing behavior, weak error handling, test gap), **Minor** (style, polish; one line each: `path:line: problem. fix.`). Findings are ordered by leverage, with `path:line`, why it matters and how to fix. Tone: matter-of-fact, no flattery, no padding to reach a quota. A verdict is required: ready to merge — yes / no / with fixes.
 
-## How to Request
+## Handle the feedback
 
-**1. Get git SHAs:**
-```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or: git merge-base origin/main HEAD
-HEAD_SHA=$(git rev-parse HEAD)
-```
+1. **Read all of it before acting.** Clarify anything unclear first; items can depend on each other.
+2. **Verify each finding against the code** before changing anything. A reviewer can be wrong or lack context.
+3. Fix Critical now, Important before moving on, note Minor. Test each fix.
+4. **Push back with evidence** (code, a test, a spec line) when a finding is wrong. Do not argue valid feedback; do not agree performatively ("You're absolutely right!"): act or answer.
+5. "Implement it properly" suggestions get a YAGNI check: is the feature used? If nothing needs it, say so instead of building it.
+6. Re-run the checks after the fixes, then report what was changed and what was declined and why.
 
-**2. Dispatch code reviewer subagent:**
+## Never
 
-Dispatch a `general-purpose` subagent, filling the template at [code-reviewer.md](code-reviewer.md)
+Skip review because "it's simple". Ignore Critical items. Proceed with unfixed Important ones. Review code you did not read.
 
-**Placeholders:**
-- `{DESCRIPTION}` - Brief summary of what you built
-- `{PLAN_OR_REQUIREMENTS}` - What it should do
-- `{BASE_SHA}` - Starting commit
-- `{HEAD_SHA}` - Ending commit
-
-**3. Act on feedback:**
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
-- Push back if reviewer is wrong (with reasoning)
-
-## Example
-
-```
-[Just completed Task 2: Add verification function]
-
-You: Let me request code review before proceeding.
-
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | cut -d' ' -f1)
-HEAD_SHA=$(git rev-parse HEAD)
-
-[Dispatch code reviewer subagent]
-  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-  PLAN_OR_REQUIREMENTS: Task 2 from .specs/03-connections-import.md
-  BASE_SHA: a7981ec
-  HEAD_SHA: 3df7661
-
-[Subagent returns]:
-  Strengths: Clean architecture, real tests
-  Issues:
-    Important: Missing progress indicators
-    Minor: Magic number (100) for reporting interval
-  Assessment: Ready to proceed
-
-You: [Fix progress indicators]
-[Continue to Task 3]
-```
-
-## Common Rationalizations
-
-| Excuse | Reality |
-|--------|---------|
-| "I'll just review the diff myself instead of dispatching a reviewer" | You're the coordinator — reviewing the diff inline burns the context window you need to keep driving the work. Dispatch a reviewer subagent: the diff and the evaluation live in its context, and only the findings come back to you. |
-| "The reviewer needs my whole session history to understand the change" | Hand it precisely crafted context, never your session's history. That keeps the reviewer on the work product, not your thought process. |
-
-## Red Flags
-
-**Never:**
-- Skip review because "it's simple"
-- Ignore Critical issues
-- Proceed with unfixed Important issues
-- Argue with valid technical feedback
-
-**If reviewer wrong:**
-- Push back with technical reasoning
-- Show code/tests that prove it works
-- Request clarification
-
-See template at: [code-reviewer.md](code-reviewer.md)
-
-## In this repo (OpenDiagram)
-
-- Give the reviewer the relevant spec in `.specs/` as `PLAN_OR_REQUIREMENTS` and tell it to read `AGENTS.md`: the **security invariants** (read-only database sessions, no secrets returned or logged, authorization only on the server, SSRF policy, the MCP connector limits) and the **UI standard** are review criteria, and a change that weakens one is Critical.
-- A bug fix without a regression test that fails on the old code is Important at least.
-- Before asking for review, the checks of `verification-before-completion` must be green.
+<!-- Composed for this project from: obra/superpowers requesting-code-review, code-reviewer template and receiving-code-review (MIT, Jesse Vincent: SHA range, read-only reviewer, "Declined to judge", handling feedback); addyosmani/agent-skills code-review-and-quality (MIT, Addy Osmani: invert-a-condition check, change size); the ideas of the code-review skill of vercel-labs (certainty before flagging, exploit-path wording, no flattery: license not verified, reworded, no text kept); one-line Minor format from the cavecrew-reviewer of this user's setup. See THIRD_PARTY.md. -->

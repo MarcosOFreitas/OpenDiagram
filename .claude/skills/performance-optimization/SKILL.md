@@ -1,31 +1,43 @@
 ---
 name: performance-optimization
-description: Measure, fix the one bottleneck the measurement shows, measure again, add a guard. Use when something is slow, when a change may have slowed the canvas, the import, the API or the Docs view, when diagrams of many tables feel heavy, or before adding a cache, memo or index "to be faster".
-license: MIT
-metadata:
-  derived_from: https://github.com/addyosmani/agent-skills/tree/aeac41d4d005/skills/performance-optimization
-  original_author: Addy Osmani
+description: Use when something is slow, when a change may have caused a regression, when load or response times must improve, or before adding a cache, memoization or index to "make it faster". Measure, fix the one bottleneck the measurement shows, measure again, guard. Gatilhos (pt): está lento, otimizar, desempenho, gargalo, medir antes de otimizar, regressão de velocidade, cache para acelerar.
 ---
-
-<!-- Third-party skill: the workflow (measure, find the bottleneck, fix only that, verify, guard) is from Addy Osmani's performance-optimization (MIT); the text and the repository specifics are ours. See ../THIRD_PARTY.md. -->
 
 # Performance optimization
 
-**Measure before optimizing.** Without a number, a performance change is a guess that adds code. If there is no evidence of a problem, do not optimize.
+Without a number a performance change is a guess that adds code. If there is no evidence of a problem, do not optimize.
 
 ## Workflow
 
-1. **Measure.** Write down the baseline (what, how, the number) before touching code. Same machine, same data, several runs; say how much they vary.
-2. **Find the bottleneck.** Profile, do not assume. Name the one thing that costs most.
-3. **Fix only that.** No unrelated refactor, no second optimization in the same change.
-4. **Measure again.** Keep the change only if the number moved by more than the noise; otherwise revert it. Report before and after.
-5. **Guard.** A budget, a bench in the repo, or a test that fails when it regresses; a comment with the measured number is the minimum.
+1. **Measure.** Find the project's own benchmarks, profilers and budgets first and use them. Record the baseline: what, how, the number, and how much it varies across runs (same machine, same data, several runs).
+2. **Find the bottleneck.** Profile in the real runtime (browser, server, database); do not assume. Name the one thing that costs most.
+3. **Fix only that.** One change at a time: no unrelated refactor, no second optimization in the same step.
+4. **Measure again, same way.** Keep the change only if the number moved by more than the noise. **Neutral is a revert. Faster but a test went red is a revert.** Say before and after.
+5. **Guard.** A budget, a benchmark in the repository or a test that fails on regression; at minimum a comment with the measured number.
 
-## In this repo (OpenDiagram)
+## Keep a ledger
 
-- **Server** (API, import, refresh, audit): `node server/bench.mjs` runs a throw-away container with CPU and memory limits (see its header). The numbers feed the *Hosting requirements* documentation page.
-- **Browser** (canvas, Docs view, layout, many tables): `node web/benchclient.mjs` measures the cost of diagrams of several sizes. Layout algorithms are pure functions in `web/src/layout.js`: time them in a unit-style script before touching the canvas.
-- **Database side**: the import runs catalog queries only, inside a read-only session; never add a query that reads user table data to "speed something up". `EXPLAIN` on the catalog queries is fine.
-- Usual suspects: re-rendering every React Flow node on a state change that only concerns one (stable references, `memo`), work done per node that could be done once per diagram, a `useMemo` that recomputes on every keystroke of the editor, loading the whole history list when one version is needed.
-- Motion stays on `opacity` / `transform`, never on canvas nodes (UI standard in `AGENTS.md`).
-- If a measured number changes on purpose, update the *Hosting requirements* page and `.specs/` in the same change.
+In the pull request text, one line per attempt, kept or reverted:
+
+| Idea | Before → after | Kept? | Why |
+|---|---|---|---|
+
+Reverted attempts are results too; they stop the next person from repeating them.
+
+## Rules
+
+- Never trade correctness, security or data guarantees for speed. A query that reads data it should not read, a cache that serves another user's data, a dropped validation: not allowed, whatever it saves.
+- Complexity is a cost. A cache, memo or index needs a measured win that pays for it; say what it must be invalidated by.
+- For databases, read the query plan (`EXPLAIN`) instead of guessing "add an index"; check that the plan really changed.
+- For UIs, look for work repeated per item that could happen once, re-renders triggered by unrelated state, and recomputation on every keystroke. Motion and layout cost count too.
+- If a measured number changes on purpose, update whatever documents it (requirements, specs) in the same change.
+
+## Checklist
+
+- [ ] Baseline recorded with its variation
+- [ ] The bottleneck was shown by a profile, not guessed
+- [ ] One change per step; the ledger lists every attempt
+- [ ] Improvement larger than the noise; tests still green
+- [ ] A guard exists; documentation updated if a number changed
+
+<!-- Composed for this project from: addyosmani/agent-skills performance-optimization (MIT, Addy Osmani: measure, keep-or-revert, regression guard, attempt ledger), shortened. See THIRD_PARTY.md. -->

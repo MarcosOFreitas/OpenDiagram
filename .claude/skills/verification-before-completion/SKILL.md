@@ -1,137 +1,45 @@
 ---
 name: verification-before-completion
-description: Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always
+description: Use before saying work is done, fixed, passing or ready, and before a commit, a pull request or a hand-off. Run the command that proves the claim, read its output, then state the result with that evidence. Gatilhos (pt): antes de dizer que terminou, que está pronto, corrigido ou passando, antes de commit, PR ou entrega, conferir se realmente funciona.
 ---
 
-<!-- Third-party skill: verification-before-completion, from https://github.com/obra/superpowers/tree/bb92a7774141/skills/verification-before-completion (MIT). Text kept as published, plus the section "In this repo" at the end. See ../THIRD_PARTY.md. -->
+# Verification before completion
 
-# Verification Before Completion
+A claim about the state of the work needs evidence from the current state of the code. "Should work" is not evidence.
 
-## Overview
+## Gate
 
-**Core principle:** Evidence before claims, always.
+Before claiming done, fixed, passing, clean or ready:
 
-**Violating the letter of this rule is violating the spirit of this rule.**
+1. **Identify** the command that proves the claim.
+2. **Run** it in full, fresh (not a result from before your last edit).
+3. **Read** the output and the exit code; count failures.
+4. **Compare** with the claim. If they disagree, report the real status with the evidence.
+5. **State** the claim with the evidence (command and result).
 
-## The Iron Law
+Use one of four outcomes, nothing vaguer: **pass**, **fail**, **unavailable** (the check cannot run here: say why), **blocked** (something outside your control stops it).
 
-```
-NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
-```
+## Which evidence proves which claim
 
-If you haven't run the verification command in this message, you cannot claim it passes.
+| Claim | Needs | Does not prove it |
+|---|---|---|
+| Tests pass | the project's test command, 0 failures, the whole suite (slow end-to-end suites only when the change needs them) | an earlier run, one file, "should pass" |
+| The build works | the build command, exit 0 | the linter or the tests passing |
+| The linter is clean | the linter output, 0 errors | a partial run |
+| A bug is fixed | the original symptom now passes | "the code changed" |
+| A regression test is real | red then green: it fails with the fix reverted and passes with it | it passed once |
+| A UI change works | the page loaded and exercised in a real browser, or the project's UI check | the code compiling |
+| Requirements met | a line-by-line check against the requirements | the tests passing |
+| A delegated agent finished | the diff shows the change and the checks pass | the agent's report |
 
-## The Gate Function
+## Rules
 
-```
-BEFORE claiming any status or expressing satisfaction:
+- In a validation-only task, do not edit the product to make a check pass: report the result.
+- Reuse a result only if it is from this task and nothing it covers has changed since. Stop when the proof is complete; do not widen the scope to look thorough.
+- Hedging words ("should", "probably", "seems to") and celebration before the evidence ("Done!", "Fixed!") are the signal that a check is missing. Run it first.
+- Say what you did **not** verify (an environment you do not have, a path you did not exercise). An honest "not tested" beats a confident guess.
+- A failure you did not cause still goes in the report, by name.
+- If a check fails, fix the code. If the check itself is wrong, say so and fix it in the open (or ask); never weaken a test, a threshold or a security rule quietly to turn it green.
+- Applies to claims about the work: before saying it, before committing, before opening a pull request, before handing over. It does not govern ordinary conversation.
 
-1. IDENTIFY: What command proves this claim?
-2. RUN: Execute the FULL command (fresh, complete)
-3. READ: Full output, check exit code, count failures
-4. VERIFY: Does output confirm the claim?
-   - If NO: State actual status with evidence
-   - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
-
-Skip any step = lying, not verifying
-```
-
-## Common Failures
-
-| Claim | Requires | Not Sufficient |
-|-------|----------|----------------|
-| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
-| Linter clean | Linter output: 0 errors | Partial check, extrapolation |
-| Build succeeds | Build command: exit 0 | Linter passing, logs look good |
-| Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
-| Regression test works | Red-green cycle verified | Test passes once |
-| Agent completed | VCS diff shows changes | Agent reports "success" |
-| Requirements met | Line-by-line checklist | Tests passing |
-
-## Red Flags - STOP
-
-- Using "should", "probably", "seems to"
-- Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
-- About to commit/push/PR without verification
-- Trusting agent success reports
-- Relying on partial verification
-- Thinking "just this once"
-- Tired and wanting work over
-- **ANY wording implying success without having run verification**
-
-## Rationalization Prevention
-
-| Excuse | Reality |
-|--------|---------|
-| "Should work now" | RUN the verification |
-| "I'm confident" | Confidence ≠ evidence |
-| "Just this once" | No exceptions |
-| "Linter passed" | Linter ≠ compiler |
-| "Agent said success" | Verify independently |
-| "I'm tired" | Exhaustion ≠ excuse |
-| "Partial check is enough" | Partial proves nothing |
-| "Different words so rule doesn't apply" | Spirit over letter |
-
-## Key Patterns
-
-**Tests:**
-```
-✅ [Run test command] [See: 34/34 pass] "All tests pass"
-❌ "Should pass now" / "Looks correct"
-```
-
-**Regression tests (TDD Red-Green):**
-```
-✅ Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
-❌ "I've written a regression test" (without red-green verification)
-```
-
-**Build:**
-```
-✅ [Run build] [See: exit 0] "Build passes"
-❌ "Linter passed" (linter doesn't check compilation)
-```
-
-**Requirements:**
-```
-✅ Re-read plan → Create checklist → Verify each → Report gaps or completion
-❌ "Tests pass, phase complete"
-```
-
-**Agent delegation:**
-```
-✅ Agent reports success → Check VCS diff → Verify changes → Report actual state
-❌ Trust agent report
-```
-
-## When To Apply
-
-**ALWAYS before:**
-- ANY variation of success/completion claims
-- ANY expression of satisfaction
-- ANY positive statement about work state
-- Committing, PR creation, task completion
-- Moving to next task
-- Delegating to agents
-
-**Rule applies to:**
-- Exact phrases
-- Paraphrases and synonyms
-- Implications of success
-- ANY communication suggesting completion/correctness
-
-## In this repo (OpenDiagram)
-
-What proves a claim here:
-
-| Claim | Command |
-|-------|---------|
-| Unit tests pass | `cd server && npm test` and `cd web && npm test` (both, not only the file you touched) |
-| The web builds | `cd web && npx vite build`; API syntax: `node --check server/src/*.js` |
-| A UI change works | load it in a browser, then `node web/uiaudit.mjs <screens>` on a throw-away instance: zero findings |
-| A refactor changed nothing visible | `visualsnap.mjs` compare (all screens identical) and `behaviorcheck.mjs` (fingerprint equal) between the old and the new image |
-| An end-to-end change works | the scripts of `.specs/07-testing.md`, or `bash .github/ci-e2e.sh` |
-| A regression test is real | it fails on the old code (red-green cycle above) |
-
-Say what was **not** tested (for example: no Oracle server with a real private CA, no real screen reader). Never weaken a security invariant or an expected value to make a check pass.
+<!-- Composed for this project from: obra/superpowers verification-before-completion (MIT, Jesse Vincent) and the verify-and-stop skill of this user (outcome vocabulary, reuse of current results). See THIRD_PARTY.md. -->

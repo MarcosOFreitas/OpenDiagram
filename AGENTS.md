@@ -98,18 +98,40 @@ Every UI change follows [`.specs/11-ui-review.md`](.specs/11-ui-review.md). The 
 
 ## Agent skills (the harness)
 
-Skills live in `.claude/skills/<name>/SKILL.md`; any agent can read one as a plain guide. Each ends with a section "In this repo" that ties it to this project. Use them in this order of a change:
+Skills live in `.claude/skills/<name>/SKILL.md`; any agent can read one as a plain guide. They are generic on purpose: **the rules of this repository are in this file and win over a skill**; the part below says how each skill applies here. Several can apply to one task (a feature usually goes through the first five rows in order).
 
 | When | Skill |
 |------|-------|
-| Before a large feature, or a change to table selection, sharing, connections or security | `grill-me`: interview the plan, one question at a time, with a recommended answer |
-| Implementing a feature or fixing a bug | `test-driven-development`: failing test first (and the regression-test rule above) |
-| Something is slow, or before adding a cache, memo or index | `performance-optimization`: measure, fix the one bottleneck, measure again, guard |
-| Before saying "done", "fixed" or "passes", before a commit or PR | `verification-before-completion`: run the command, read the output, then claim |
-| After a feature or before merging | `requesting-code-review`: a reviewer subagent with the spec and the security invariants |
-| Changing or reviewing UI | `ui-ux-pro-max` with the UI standard above |
+| Before a large feature, or a change to table selection, sharing, connections or security | `grill-me` |
+| Implementing a feature or fixing a bug | `test-driven-development` |
+| Before saying "done", "fixed" or "passes", before a commit or PR | `verification-before-completion` |
+| After a feature, before merging | `requesting-code-review` |
+| Refactoring | `code-simplification` |
+| Input, authentication, secrets, outbound fetches, dependencies | `security-and-hardening` |
+| A failing test, a broken build, unexpected behavior | `debugging-discipline` |
+| Something is slow, before adding a cache, memo or index | `performance-optimization` |
+| SQL, Oracle or PostgreSQL queries and catalog reads | `oracle-postgres-sql` |
+| Routes, error shapes, retries, share-link payloads | `api-and-interface-design` |
+| The MCP connector (`server/src/mcp.js`) | `mcp-builder` |
+| Workflows, the e2e job, Docker, Compose | `ci-cd`, `docker` |
+| Checking a UI change in a real browser | `browser-verification`, with the UI standard above and `ui-ux-pro-max` |
 
-`grill-me`, `test-driven-development`, `verification-before-completion`, `requesting-code-review` and `performance-optimization` are adapted from MIT-licensed skills; sources, commits and what was left out on purpose are in `.claude/skills/THIRD_PARTY.md`. Add a skill only after reading all of it (scripts, hooks and network calls included) and record it there.
+**How each applies here**
+
+- **`test-driven-development`**: server tests are `cd server && npm test` (`node:test`, `server/test/*.test.js`; a test that touches SQLite imports `./env.js` first); web tests are `cd web && npm test` (Vitest + Testing Library; a plain-module test starts with `// @vitest-environment node`; `userEvent.setup({ delay: null })`). A bug fix ships a regression test that fails on the old code (see Working agreements). Logic that needs a test leaves the component: `diagramModel.js`, `layout.js`, `tableSelection.js`. What each test pins down: `.specs/07-testing.md`. Read `.specs/12-table-selection.md` before touching the table selection.
+- **`verification-before-completion`**: the commands that prove a claim here: both `npm test`; `cd web && npx vite build`; `node --check server/src/*.js`; a UI change is loaded in a browser and `node web/uiaudit.mjs <screens>` reports zero findings on a throw-away instance; a refactor that must not change the UI passes `visualsnap.mjs` (all screens identical) and `behaviorcheck.mjs` (fingerprint equal); an end-to-end change passes the scripts of `.specs/07-testing.md` or `bash .github/ci-e2e.sh`. Say what was not tested (for example no Oracle server with a real private CA).
+- **`requesting-code-review`**: give the reviewer the spec in `.specs/` and tell it to read this file: the **security invariants** and the **UI standard** are review criteria and a change that weakens one is Critical; a bug fix without a test that fails on the old code is Important at least.
+- **`grill-me`**: anchor the questions in the invariants and the specs, and always ask what the smallest version is, which failing test proves it, what it does for a member, a share-link visitor and an agent account, and how it looks at 375 px and in the dark theme. Record locked-in decisions in the matching `.specs/NN` file in the same change.
+- **`performance-optimization`**: `node server/bench.mjs` (server, throw-away container with limits) and `node web/benchclient.mjs` (browser cost of diagrams of several sizes); the numbers feed the *Hosting requirements* documentation page. Layouts are pure functions in `web/src/layout.js`: time them before touching the canvas. The import runs catalog queries only; never add a query that reads user table data to speed something up. Motion stays on `opacity` / `transform`, never on canvas nodes.
+- **`oracle-postgres-sql`**: invariants 1, 3 and 4 above are the first layer (read-only sessions, the `SAFE` descriptor check, privilege warnings as warnings); the catalog queries live in `server/src/introspect.js`; remember `ALL_TAB_COLS` and `attname::text` from Gotchas; demo databases are in `demo/`.
+- **`api-and-interface-design`**: errors carry `statusCode` and the handler returns `{ error }`; every `/api` route except `health`, `auth/*` and `shared/*` requires a session; never put `source`, connections or secrets in a `/api/shared` payload.
+- **`mcp-builder`**: invariant 7 is binding (the connector never returns a connection, a credential, `source`, a share link or a setting; `server/test/mcp.test.js` checks it).
+- **`ci-cd`**: `.github/workflows/ci.yml` has `unit` on every push and pull request and the sharded `e2e` on `main` and on demand; running e2e only on `main` is a conscious trade-off (see `.specs/07-testing.md`), so keep the golden `web/behavior.golden.json` current.
+- **`docker`**: Windows + Git Bash notes (`MSYS_NO_PATHCONV=1`, anonymous volumes of the postgres images) are in Gotchas.
+- **`browser-verification`**: this repository drives Chrome through `web/cdp.mjs`; run against a throw-away instance, never one with real data.
+- **`code-simplification`**: for a refactor that must not change the UI, the proof is `visualsnap.mjs` plus `behaviorcheck.mjs` on the old and the new image.
+
+The skills are composed from MIT and Apache-2.0 sources; sources, licences and notices are in `.claude/skills/THIRD_PARTY.md`. Add a skill only after reading all of it (scripts, hooks and network calls included) and record it there. The maintainer keeps a wider personal set outside this repository.
 
 ## Working agreements
 
