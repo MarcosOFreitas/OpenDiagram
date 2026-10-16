@@ -11,11 +11,20 @@ import { existsSync } from 'node:fs';
 export async function launch({ port = 9444, width = 1280, height = 800, focus = true } = {}) {
   const bin = CANDIDATES.find((p) => existsSync(p));
   if (!bin) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
-  const profile = mkdtempSync(join(tmpdir(), 'od-cdp-'));
-  const proc = spawn(bin, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', ...(process.env.CI ? ['--no-sandbox'] : []), '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
-  let wsUrl;
-  for (let i = 0; i < 60 && !wsUrl; i++) { await sleep(300); try { wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl; } catch { /* starting */ } }
-  if (!wsUrl) throw new Error('Chrome did not start');
+  // Chrome sometimes takes long to answer on a busy CI runner (one run of the UI audit failed with "Chrome did not start" after 18 s): wait up to 45 s, try twice,
+  // and say why when it still fails (its exit code and what it wrote to stderr). /dev/shm is small on runners: --disable-dev-shm-usage.
+  let profile, proc, wsUrl, why = '';
+  for (let attempt = 1; attempt <= 2 && !wsUrl; attempt++) {
+    profile = mkdtempSync(join(tmpdir(), 'od-cdp-'));
+    let err = '', exited = null;
+    proc = spawn(bin, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    proc.stderr.on('data', (d) => { err = (err + d).slice(-600); });
+    proc.on('exit', (code) => { exited = code; });
+    for (let i = 0; i < 150 && !wsUrl && exited === null; i++) { await sleep(300); try { wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl; } catch { /* starting */ } }
+    if (!wsUrl) { why = `attempt ${attempt}: ${exited === null ? 'no answer in 45 s' : `exited with ${exited}`}${err ? ` — ${err.trim().split('\n').slice(-3).join(' | ')}` : ''}`; try { proc.kill(); } catch { /* gone */ } await sleep(500); try { rmSync(profile, { recursive: true, force: true }); } catch { /* held */ } }
+  }
+  if (!wsUrl) throw new Error(`Chrome did not start (${why})`);
+  proc.stderr.removeAllListeners('data'); proc.stderr.resume();
   const ws = new WebSocket(wsUrl); await new Promise((r) => ws.addEventListener('open', r));
   let seq = 0; const waiting = new Map(); const dialogs = [];
   ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } else if (d.method === 'Page.javascriptDialogOpening') { dialogs.push(d.params); cdp('Page.handleJavaScriptDialog', { accept: true }).catch(() => {}); } });
