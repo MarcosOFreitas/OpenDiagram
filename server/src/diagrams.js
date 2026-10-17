@@ -170,7 +170,7 @@ export function listShares(actor, diagramId) {
 const expiry = (days) => { if (days == null || days === '') return null; const n = Number(days); if (!Number.isInteger(n) || n < 1 || n > 365) throw bad('a link lasts 1 to 365 days'); return now() + n * 86400; };
 export function createShare(actor, diagramId, access, passwordHash = null, expiresInDays = null) {
   getOwned(actor, diagramId);
-  if (!(access in RANK)) throw bad('access must be view, comment or edit');
+  if (!Object.hasOwn(RANK, access)) throw bad('access must be view, comment or edit');
   const id = randomUUID(), token = randomBytes(18).toString('base64url');
   const expiresAt = expiry(expiresInDays);
   db.prepare('insert into shares (id, diagram_id, token, access, created_at, password_hash, expires_at) values (?, ?, ?, ?, ?, ?, ?)').run(id, diagramId, token, access, now(), passwordHash, expiresAt);
@@ -183,7 +183,7 @@ function ownedShare(actor, shareId) {
 }
 export function setShareAccess(actor, shareId, access) {
   ownedShare(actor, shareId);
-  if (!(access in RANK)) throw bad('access must be view, comment or edit');
+  if (!Object.hasOwn(RANK, access)) throw bad('access must be view, comment or edit');
   db.prepare('update shares set access = ? where id = ?').run(access, shareId);
 }
 export function setShareExpiry(actor, shareId, days) { ownedShare(actor, shareId); db.prepare('update shares set expires_at = ? where id = ?').run(expiry(days), shareId); }
@@ -227,7 +227,7 @@ export function listGrants(actor, diagramId) {
 export function setGrant(actor, diagramId, { type, subjectId, access }) {
   getOwned(actor, diagramId);
   const ownerId = db.prepare('select owner_id from diagrams where id = ?').get(diagramId).owner_id;
-  if (!(access in RANK)) throw bad('access must be view, comment or edit');
+  if (!Object.hasOwn(RANK, access)) throw bad('access must be view, comment or edit');
   subjectId = Number(subjectId);
   if (type === 'user') {
     if (subjectId === ownerId) throw bad('this person already owns the diagram');
@@ -244,7 +244,7 @@ function ownedGrant(actor, grantId) {
 }
 export function setGrantAccess(actor, grantId, access) {
   ownedGrant(actor, grantId);
-  if (!(access in RANK)) throw bad('access must be view, comment or edit');
+  if (!Object.hasOwn(RANK, access)) throw bad('access must be view, comment or edit');
   db.prepare('update diagram_access set access = ? where id = ?').run(access, grantId);
 }
 export function deleteGrant(actor, grantId) { ownedGrant(actor, grantId); db.prepare('delete from diagram_access where id = ?').run(grantId); }

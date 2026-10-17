@@ -136,3 +136,11 @@ test('comments and share links: a link level is validated and its token resolves
   assert.throws(() => dg.createShare(owner, id, 'owner'), { statusCode: 400 });
   assert.throws(() => dg.createShare(nobody, id, 'view'), { statusCode: 404 });
 });
+
+test('access names that exist on Object.prototype are a 400, not a 500', () => {
+  const id = fresh();
+  for (const access of ['toString', 'constructor', '__proto__']) {
+    assert.throws(() => dg.setGrant(owner, id, { type: 'user', subjectId: viewer.id, access }), { statusCode: 400 });
+    assert.throws(() => dg.createShare(owner, id, access), { statusCode: 400 });
+  }
+});

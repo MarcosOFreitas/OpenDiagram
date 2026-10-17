@@ -256,7 +256,7 @@ const can = (role, min) => LEVEL[role] >= LEVEL[min];
 app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));
 app.get('/api/diagrams/:id', (req) => { const d = dg.getForUser(req.user, req.params.id); return d.role === 'owner' && d.source ? { ...d, refresh: refresh.stateOf(d.id) } : d; }); // refresh: last scheduled run / error / paused, for the owner
-const baseVersion = (b) => (Number.isInteger(b?.baseVersion) ? b.baseVersion : undefined); // the version the client last saw; a stale one is answered with 409
+const baseVersion = (b) => { if (b?.baseVersion === undefined) return undefined; if (!Number.isInteger(b.baseVersion)) throw bad('baseVersion must be an integer'); return b.baseVersion; }; // the version the client last saw; a stale one is answered with 409
 const saveOpts = (req) => ({ baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || req.body?.entry === 'refresh', reason: req.body?.entry === 'refresh' ? 'Refresh from database' : '' }); // overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh. Both get their own history entry
 app.put('/api/diagrams/:id', (req) => {
   const d = dg.getForUser(req.user, req.params.id);
@@ -371,7 +371,7 @@ app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
 });
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
-app.setErrorHandler((e, _req, reply) => reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) })); // driver errors (bad password, TLS...) are meant to be shown
+app.setErrorHandler((e, req, reply) => { if (!e.statusCode || e.statusCode >= 500) req.log.error(e); return reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) }); }); // driver errors (bad password, TLS...) are meant to be shown
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
