@@ -22,6 +22,9 @@ Sign in · first run (create the first account) · forced password change · mai
 
 ## Rules learnt from the audit
 
+- Something that answers a click is a `<button>` (or gets `press()` from `a11y.js`: `role=button`, `tabIndex=0`, Enter/Space). A `div` or `a` with only `onClick` is invisible to the keyboard and to screen readers; `uiaudit.mjs` reports it as `mouseOnly`. A card that opens something uses the stretched `.card-open` button inside `.card.act` (see `Library.jsx`), never an `onClick` on the card.
+- A control whose text is only a symbol (✕, ×, ▸) needs `aria-label`: the visible glyph wins over `title` as the name (`glyphName` finding).
+
 - A panel that waits for the server shows `Loading.jsx` (two tables joined by a line, a dot running between them; opacity/transform only, still under `prefers-reduced-motion`), at the size the content will have. The Administration card has one fixed size (`.admin-card.adm`) on every tab, so nothing jumps when a tab loads. The Administration tabs and the Account drawer use the same sections: `.group-card` with an `h4` title.
 
 - The dark theme sets `--muted`/`--line` for the canvas and drawers, but the Administration card, menus and pickers stay white: tokens are reset on `.admin` / `.menu-pop` (a new white surface must do the same).
