@@ -55,7 +55,7 @@ const grp = await api('POST', '/api/admin/groups', { name: 'Analytics' });
 const sc = await api('POST', '/api/admin/connections', { type: 'postgres', name: 'Shared demo', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' });
 await api('PUT', `/api/admin/connections/${sc.id}/access`, { groups: [grp.id], users: [] });
 out.shared = await ev(`(async () => { const r = {}; document.querySelector('.drawer .x')?.click(); await H.w(300); H.btn('More', document.querySelector('header.top')).click(); await H.w(250); await H.click('Database', document.querySelector('.menu-pop')); await H.w(500);
-  const card = [...document.querySelectorAll('.drawer .card')].find((c) => /Shared demo/.test(c.textContent)); r.listed = !!card; card?.click(); await H.w(2500);
+  const card = [...document.querySelectorAll('.drawer .card')].find((c) => /Shared demo/.test(c.textContent)); r.listed = !!card; card?.querySelector('.card-open')?.click(); await H.w(2500);
   r.schemasListedOnSelect = document.querySelectorAll('.drawer .schemas input[type=checkbox]').length; const c = [...document.querySelectorAll('.drawer .schemas input[type=checkbox]')].find((x) => /shop/.test(x.closest('label,div').textContent)); c && c.click(); await H.w(300);
   r.importEnabled = !H.btn('Import', document.querySelector('.drawer'))?.disabled; await H.click('Import', document.querySelector('.drawer')); await H.w(3500); r.imported = (document.querySelector('.cm-content')?.innerText || '').includes('shop.customers'); return r; })()`);
 // 9. table picker on the shared connection: tables put in a group count as selected, and the Full DDL option reaches the diagram

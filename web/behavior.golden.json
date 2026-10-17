@@ -38,7 +38,7 @@
   "wildcard": "order_items",
   "cleared": true
  },
- "icons": "{\"dock\":[\"Zoom out:1\",\"Zoom in:1\",\"Fit to screen:1\",\"Collapse all tables:1\",\"Expand all tables:1\",\"Highlight relationships (show their names):1\",\"Add a sticky note (a Note block in the DBML):1\",\"Auto arrange (Auto):1\",\"Choose the arrange algorithm:1\"],\"panelIc\":[\"Save what you see now as a new view:1\",\"Filters:1\",\"Hide the tables listed below:1\",\"Hide all tables of this group:1\",\"Hide all tables of this group:1\",\"Hide all tables of this group:1\"]}",
+ "icons": "{\"dock\":[\"Zoom out:1\",\"Zoom in:1\",\"Fit to screen:1\",\"Collapse all tables:1\",\"Expand all tables:1\",\"Highlight relationships (show their names):1\",\"Add a sticky note (a Note block in the DBML):1\",\"Auto arrange (Auto):1\",\"Choose the arrange algorithm:1\"],\"panelIc\":[\"Save what you see now as a new view:1\",\"Filters:1\",\"Hide the tables listed below:1\",\"Expand Customers:1\",\"Hide all tables of this group:1\",\"Expand Catalog:1\",\"Hide all tables of this group:1\",\"Expand Sales:1\",\"Hide all tables of this group:1\"]}",
  "copy": "Clipboard blocked",
  "brokenView": "Light|Curved|Full",
  "picker": {

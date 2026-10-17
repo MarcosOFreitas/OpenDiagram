@@ -93,7 +93,7 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
         {sections.map((s) => (
           <div key={s.key} className="tpn-sec">
             <div className="tpn-sh" data-mouse-extra onClick={() => toggleOpen(s.key)}>
-              <button className="tpn-ic sm" aria-expanded={isOpen(s.key)} aria-label={`${isOpen(s.key) ? 'Collapse' : 'Expand'} ${s.key}`} onClick={(e) => { e.stopPropagation(); toggleOpen(s.key); }}><Chev open={isOpen(s.key)} /></button>
+              <button className="tpn-ic sm" aria-expanded={isOpen(s.key)} title={`${isOpen(s.key) ? 'Collapse' : 'Expand'} ${s.key}`} aria-label={`${isOpen(s.key) ? 'Collapse' : 'Expand'} ${s.key}`} onClick={(e) => { e.stopPropagation(); toggleOpen(s.key); }}><Chev open={isOpen(s.key)} /></button>
               {s.color ? <i className="tpn-dot" style={{ background: s.color }} /> : <i className="tpn-dot sq" />}
               <span className="tpn-sn" title={s.key}>{s.key}</span>
               <small className="tpn-cnt">{shownCount(s.all)}/{s.all.length}</small>
