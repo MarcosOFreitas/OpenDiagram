@@ -27,7 +27,7 @@ docker compose --profile oracle up -d    # demo Oracle Free (the first start is 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_SECRET` | `dev-secret-change-me` | Key that encrypts saved passwords and certificates. **Set it** outside local development. Changing it makes saved connections unreadable. |
+| `APP_SECRET` | empty | Key that encrypts saved passwords and certificates. Empty = a public development key and a warning at startup (local trial only); the server refuses to start without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it makes saved connections unreadable. |
 | `PORT`, `DATA_DIR` | `3000`, `/data` | fixed inside the image (Dockerfile); they are not read from `.env`. To change the host port edit `ports:` in `docker-compose.yml` (for example `8080:3000`). `app.db` lives in `DATA_DIR` (Docker volume `appdata`). **Back it up.** |
 | `ALLOW_SIGNUP` | empty | empty: the administrator decides (closed after the first account); `1` opens sign-up; `0` forces it closed |
 | `DB_HOST_POLICY` | `open` | which database hosts users may reach: `open`, `public-only` (blocks hosts that resolve to private, loopback, link-local, CGNAT or multicast addresses) or `allowlist` |

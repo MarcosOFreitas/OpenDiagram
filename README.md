@@ -72,7 +72,7 @@ docker compose stop app && docker compose cp ./backup/. app:/data && docker comp
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_SECRET` | `dev-secret-change-me` | Key for AES-256-GCM encryption of saved passwords and CA PEMs. **Set it** outside local development; changing it invalidates saved connections. |
+| `APP_SECRET` | empty | Key for AES-256-GCM encryption of saved passwords and CA PEMs. Empty = a public development key and a warning at startup (local trial only); the server **refuses to start** without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it invalidates saved connections. |
 | `PORT` | `3000` | HTTP port. |
 | `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite) lives (Docker volume `appdata`). **Back it up.** |
 | `ALLOW_SIGNUP` | empty | Empty: the administrator decides (closed after the first account). `1` opens self-registration, `0` forces it closed. |

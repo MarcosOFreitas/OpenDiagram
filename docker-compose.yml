@@ -3,14 +3,14 @@ services:
     build: .
     ports: ["3000:3000"]
     environment:
-      APP_SECRET: ${APP_SECRET:-dev-secret-change-me}
+      APP_SECRET: ${APP_SECRET:-}
+      REQUIRE_APP_SECRET: ${REQUIRE_APP_SECRET:-}
       ALLOW_SIGNUP: ${ALLOW_SIGNUP:-}
       DB_HOST_POLICY: ${DB_HOST_POLICY:-open}
       DB_HOST_ALLOWLIST: ${DB_HOST_ALLOWLIST:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
       TRUST_PROXY: ${TRUST_PROXY:-0}
-      NODE_EXTRA_CA_CERTS: /demo-tls/oracle.pem # demo only: trusts the throw-away certificate of demo-oracle-tls (the Oracle driver has no per-connection CA)
-    volumes: [appdata:/data, './demo/oracle-tls/server.pem:/demo-tls/oracle.pem:ro']
+    volumes: [appdata:/data]
 
   # demo DBs to test imports: host "demo-pg" / "demo-oracle" from inside the app
   demo-pg:

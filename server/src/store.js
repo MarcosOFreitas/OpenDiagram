@@ -3,6 +3,13 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync, randomUUID } from 'node:crypto';
 import { db } from './db.js';
 
+// An empty APP_SECRET falls back to a PUBLIC development key: fine for a local trial (it warns), never for an instance others use. Hosted settings refuse to start without one.
+const hosted = process.env.COOKIE_SECURE === '1' || (process.env.DB_HOST_POLICY || 'open') !== 'open' || process.env.REQUIRE_APP_SECRET === '1';
+if (!process.env.APP_SECRET) {
+  const msg = 'APP_SECRET is empty: saved connection passwords would be encrypted with a PUBLIC development key. Set APP_SECRET (openssl rand -hex 32).';
+  if (hosted) throw new Error(`${msg} Refusing to start with COOKIE_SECURE=1, DB_HOST_POLICY other than open, or REQUIRE_APP_SECRET=1.`);
+  console.warn(`[opendiagram] ${msg} Acceptable only for a local trial.`);
+}
 const KEY = scryptSync(process.env.APP_SECRET || 'dev-secret-change-me', 'dbdiagram-open', 32);
 const SECRETS = ['password', 'caPem'];
 const COL = { password: 'password', caPem: 'ca_pem' }; // secret field -> column

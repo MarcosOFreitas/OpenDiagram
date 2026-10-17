@@ -30,7 +30,7 @@ git config core.hooksPath .githooks # once per clone: runs the tests the staged 
 bash .github/ci-e2e.sh              # what the CI `e2e` job runs: stack, test-auth, test-guardrails, uiaudit, behaviorcheck vs web/behavior.golden.json (~20 min; see its header)
 node server/test-auth.mjs            # accounts, roles, groups, sharing, link permissions, shared connections, audit, SSRF policy
 node server/test-guardrails.mjs      # read-only sessions, privilege warnings, PostgreSQL TLS modes
-node server/test-oracle-tls.mjs      # Oracle TLS modes against demo-oracle-tls (needs --profile oracle)
+node server/test-oracle-tls.mjs      # Oracle TLS modes against demo-oracle-tls (needs --profile oracle and -f docker-compose.demo-tls.yml: the app trusts the public demo certificate only then)
 node server/test-lineage.mjs         # column lineage of views from their SQL (pure)
 node web/lineage-check.mjs           # the `// lineage:` comment parser (pure)
 cd web && node roundtrip.mjs         # import -> export -> re-import per format (needs the oracle profile)
