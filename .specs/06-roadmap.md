@@ -16,6 +16,23 @@ Status of what exists and what is planned. Move an item to its own numbered spec
 - **Oracle with a real private CA.** `verify`, `serverDn` and `noverify` are tested against a TLS proxy (`server/test-oracle-tls.mjs`) and `verify` against OCI; a real server whose certificate comes from a private CA (trusted through `NODE_EXTRA_CA_CERTS`) was never tried.
 - **Picture of a member's view of a shared connection** (name/type/host/database, read-only form) for the documentation pages `shared-connections` and `database-security` ([10](10-documentation-site.md)); add it to `docshots.mjs` with the same change.
 
+## Follow-ups (recorded 2026-10-17, after the harness / audit round)
+
+Nothing here blocks a release; take them in this order of value for the effort.
+
+1. **Do the version bumps allow new optimizations, DBML first.** `@dbml/core` went 3.14.1 -> 10.3.1 (web in #14, server in #11), `oracledb` 6.10 -> 26, Vite 7, Vitest 5, `actions/*` 7. Read the changelogs and measure, do not assume:
+   - **`@dbml/core` 10.x**: re-test the two Gotchas in `AGENTS.md` (`importer.import(sql, 'oracle')` returns empty; `json` import does not round-trip its own export) and the `roundtrip.mjs` FAILs (MySQL, MSSQL, JSON): if the library now handles them, import options and exports can grow (and the Gotcha lines go). Look for a faster or incremental parse (the diagram re-parses the whole editor text on every change; time it with `web/benchclient.mjs` before and after), a smaller bundle (Vite warns about a chunk over 500 kB: check what the DBML parser adds, and whether it can load lazily or tree-shake), new DBML syntax (custom properties, check constraints, partitions, which the "Later" list wants), better parse errors with positions for the editor, and a shared parse result so `server/src/merge.js` and the web agree on what is valid.
+   - **`oracledb` 26**: thin-mode pooling and pipelining for the scheduled refresh (`refresh.js` opens one connection per run today); check TLS options that could replace `NODE_EXTRA_CA_CERTS` (a per-connection CA would close the "Oracle with a real private CA" check below).
+   - **Vite 7 / Vitest 5 / React**: build time and the pre-commit hook (the web suite is ~6 s), `manualChunks` for the large chunk, whether React 19 (PR #13, closed) is now worth a try.
+   - Record the numbers in `.specs/07-testing.md` or the hosting page, and add the change as its own commit with a test.
+2. **Finish the UI/UX review round.** `ui-ux-review` of the Library fixed findings 1, 2 and 4. Open: search or sort once there are many diagrams, secondary text at 10.8 px (use the secondary-text token), a 2-line clamp for very long titles, `window.confirm` for delete (undo or the project's dialog). Then review the other screens one by one (Database drawer, History, Docs view, Tables panel, Administration). Rerun `node web/docshots.mjs` and `node web/visualsnap.mjs` for the screens that changed (Library, Tables panel, saved connections); add a very long title to the `uiaudit.mjs` fixtures so overflow in a card is caught.
+3. **MCP connector** (audit 04): enforce the tool `inputSchema` (M3), keep `e.message` out of the audit row (M4), tool annotations (M5), pagination of `list_diagrams` (M6), a default expiry for agent tokens (M7; today "never expires" is the default in `agents.js` and `AdminAgents.jsx`).
+4. **API** (audit 03, optional ones left): validate `POST /api/connections` (type, name, host, port) and `schemas` as an array in `/api/tables` and `/api/import`; a stale `baseVersion` with identical content should not be a 409 (lost response); mask share tokens in request logs.
+5. **Docker** (audit 06): `npm ci` from lockfiles, `USER node`, demo ports bound to 127.0.0.1, `HEALTHCHECK` and a restart policy; regenerate the demo certificate with `CA:FALSE`.
+6. **CI** (audit 05): alert when `main` is red, pin actions by SHA, `npm audit` step, and the required-check trap when the repository goes public (the ruleset is not enforced while it is private; enable Private vulnerability reporting then). Doc drift: `07-testing.md` says "two jobs" (there are three), `AGENTS.md` says "~20 min" for e2e (it is ~11 min in 4 shards).
+7. **Observability** (audit 11): scheduled-refresh failures in the log, `/api/health` doing `select 1`, a request id per request.
+8. **Audits not run yet** (one at a time, no sub-agents): security (01), SQL (02), performance (07), simplicity (08), tests (09), review of the last commits (10), UI/UX of every screen (12). The skills are in `.claude/skills`; `AGENTS.md` says how each applies here.
+
 ## Later
 
 - Cross-dialect SQL export (type and default translation) so PG→MySQL/MSSQL and Oracle→MySQL produce valid DDL.
