@@ -156,6 +156,11 @@ export function nameVersion(id, label, actor) {
   db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, label, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(id, d.version, d.title, d.dbml, d.layout, label, actor.id, actor.name || actor.email, last ? 'named' : 'starting point', t, t);
 }
+// before an agent's first save after a person's work: that state gets a name, so a run of agent saves cannot push it out of the history (unnamed entries are pruned past KEEP)
+export function keepBeforeAgent(id, agent) {
+  const last = db.prepare('select u.kind from diagram_versions v left join users u on u.id = v.author_id where v.diagram_id = ? order by v.version desc limit 1').get(id);
+  if (last?.kind !== 'agent') nameVersion(id, 'Before agent edit', agent);
+}
 export function deleteVersion(id, vid) { db.prepare('delete from diagram_versions where diagram_id = ? and id = ?').run(id, vid); }
 
 export const remove = (actor, id) => db.prepare('delete from diagrams where id = ? and (owner_id = ? or ?)').run(id, actor.id, actor.role === 'admin' ? 1 : 0);
