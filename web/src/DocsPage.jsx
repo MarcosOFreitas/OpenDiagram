@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { slug, display, constraints, ordered, linkCols, commentMap } from './docsModel.js';
+import { press } from './a11y.js';
 
 export const docsCss = `
 .dx{--bg:#fff;--fg:#1f2937;--muted:#5b6472;--line:#e5e7eb;--side:#f8fafc;--accent:#2563eb;--chip:#eef2f9;--code:#f3f4f6;--cmt:#fffbeb;--cmtline:#fcd34d;--cmtfg:#78350f;display:flex;height:100%;background:var(--bg);color:var(--fg);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -94,7 +95,7 @@ export function initDocs(root) {
     toggle.type = 'button'; toggle.className = 'dx-toggle'; grip.className = 'dx-grip';
     const apply = () => {
       dx.style.setProperty('--navw', st.w + 'px'); dx.classList.toggle('nav-closed', st.c);
-      toggle.textContent = st.c ? '›' : '‹'; toggle.title = st.c ? 'Show the list' : 'Hide the list';
+      toggle.textContent = st.c ? '›' : '‹'; toggle.title = st.c ? 'Show the list' : 'Hide the list'; toggle.setAttribute('aria-label', toggle.title);
       toggle.style.left = (st.c ? 0 : st.w) + 'px'; grip.style.left = (st.c ? 0 : st.w) + 'px'; grip.style.display = st.c ? 'none' : '';
     };
     const save = () => { try { localStorage.setItem('opendiagram.docsNav', JSON.stringify(st)); } catch (e) { /* private mode */ } };
@@ -138,7 +139,7 @@ function Thread({ k, ctx, compact }) {
     <>
       {list.map((c) => (
         <div key={c.id} className="cmt">
-          <div className="cmt-meta"><b>{c.author}</b><span>{when(c.createdAt)}</span>{ctx.canDelete && ctx.canDelete(c) && <button type="button" className="cmt-x" title="Delete comment" onClick={() => ctx.onDelete(c.id)}>✕</button>}</div>
+          <div className="cmt-meta"><b>{c.author}</b><span>{when(c.createdAt)}</span>{ctx.canDelete && ctx.canDelete(c) && <button type="button" className="cmt-x" title="Delete comment" aria-label="Delete comment" onClick={() => ctx.onDelete(c.id)}>✕</button>}</div>
           {c.text}
         </div>
       ))}
@@ -151,7 +152,7 @@ function Thread({ k, ctx, compact }) {
             <div className="cmt-actions"><button type="button" onClick={post} disabled={!draft.trim()}>Post</button><button type="button" onClick={() => { setDraft(''); setOpen(false); }}>Cancel</button></div>
           </div>
         )
-        : <div className="cmt none" title="Add a comment (kept in this app, not in the database)" onClick={() => setOpen(true)}>{list.length ? '+ reply' : compact ? '+ comment' : '+ Add comment'}</div>)}
+        : <div className="cmt none" title="Add a comment (kept in this app, not in the database)" {...press(null, () => setOpen(true))}>{list.length ? '+ reply' : compact ? '+ comment' : '+ Add comment'}</div>)}
     </>
   );
 }

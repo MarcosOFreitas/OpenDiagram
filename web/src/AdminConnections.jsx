@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errMsg } from './api.js';
 import Loading from './Loading.jsx';
 import Empty from './Empty.jsx';
+import { press } from './a11y.js';
 
 const BLANK = { id: '', type: 'postgres', name: '', host: '', port: 5432, database: '', user: '', password: '', tls: 'verify', serverDn: '', caPem: '', blockWritable: true };
 
@@ -67,7 +68,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
             </div>
             <div className="group-members">
               {c.access.length === 0 && <small className="hint">Nobody can use it yet (administrators always can).</small>}
-              {c.access.map((a) => <span key={`${a.type}${a.id}`} className="chip member">{a.type === 'group' ? `Group: ${a.name}` : a.name}<a title="Remove access" onClick={() => grant(c, c.access.filter((x) => !(x.type === a.type && x.id === a.id)))}>✕</a></span>)}
+              {c.access.map((a) => <span key={`${a.type}${a.id}`} className="chip member">{a.type === 'group' ? `Group: ${a.name}` : a.name}<a title="Remove access" {...press(`Remove access for ${a.name}`, () => grant(c, c.access.filter((x) => !(x.type === a.type && x.id === a.id))))}>✕</a></span>)}
               <select value="" onChange={(e) => { const a = addable.find((x) => `${x.type}:${x.id}` === e.target.value); if (a) grant(c, [...c.access, a]); }}>
                 <option value="">+ give access to…</option>
                 {addable.map((a) => <option key={`${a.type}:${a.id}`} value={`${a.type}:${a.id}`}>{a.name}</option>)}

@@ -42,6 +42,8 @@ document.addEventListener('keydown', (e) => {
   const at = f.indexOf(document.activeElement);
   if (e.shiftKey && at <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && (at === -1 || at === f.length - 1)) { e.preventDefault(); f[0].focus(); }
 });
+// props for something that is not a <button> but acts like one (a small ✕ inside a chip): focusable, named, and Enter or Space press it
+export const press = (label, fn) => ({ role: 'button', tabIndex: 0, 'aria-label': label, onClick: fn, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); } } });
 export function nameFields() {
   let queued = false;
   new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; fix(); }, 60); }).observe(document.body, { childList: true, subtree: true });

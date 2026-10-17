@@ -24,6 +24,7 @@ import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layou
 import { Ic, Logo } from './Icons.jsx';
 
 import { BLANK, TEMPLATES } from './templates.js';
+import { press } from './a11y.js';
 
 const VIEW0 = { edgeType: 'default', hiRefs: false, hideRefs: false, algo: 'auto', detail: 'full', hideIndexes: false, hideTypes: false, snap: false, grid: true, theme: 'light' }; // display options of a new browser
 
@@ -40,7 +41,7 @@ function TableNode({ data: t, selected }) {
       <div className="tbl-h" style={t.headerColor && !(t.viewKind && /^#94a3b8$/i.test(t.headerColor)) ? { background: t.headerColor, color: readable(t.headerColor) } : undefined} onDoubleClick={() => t.onToggle(t.id)}>
         <Handle type="source" position={Position.Right} id="ls" className="hdl" /><Handle type="source" position={Position.Left} id="lsl" className="hdl" />
         <Handle type="target" position={Position.Left} id="lt" className="hdl" /><Handle type="target" position={Position.Right} id="ltr" className="hdl" />{/* table-level data lineage */}
-        {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
+        {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} aria-label={t.collapsed ? 'Expand table' : 'Collapse table'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
         <span className="tbl-n">{t.name}{t.viewKind && <em className="tbl-kind"> · {t.viewKind}</em>}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
         {(t.collapsed ? t.fields : t.fields.filter((f) => !rows.includes(f))).map((f) => ( // columns that are not drawn (collapsed table, keys-only level) keep their relationship lines: connect them to the header
           <span key={f.name} style={{ display: 'contents' }}>
@@ -728,7 +729,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           <div className={`status ${error ? 'bad' : ''}`}>{error || stat}</div>
         </section>
         {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: edW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
-        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} aria-expanded={editorOpen} title="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
+        {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} aria-expanded={editorOpen} title="Toggle editor" aria-label="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
         <main className="canvas" data-mode={mode} aria-label="Diagram">
           <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
@@ -792,7 +793,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         <aside className={`drawer ${drawer ? 'open' : ''}`} aria-label="Side panel" inert={drawer ? undefined : ''}>
           <div className="dtabs">
             <b className="dtitle">{TITLES[drawer] ?? ''}</b>
-            <button className="x" onClick={() => setDrawer(null)} title="Close (Esc)">✕</button>
+            <button className="x" onClick={() => setDrawer(null)} title="Close (Esc)" aria-label="Close">✕</button>
           </div>
 
           {drawer === 'account' && user && (
@@ -818,17 +819,19 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {source && (
                 <div className="linked">
                   <span>Linked to <b>{linked?.name ?? 'connection'}</b> · {source.schemas.join(', ')}{every ? ` · server refresh every ${every} min` : ''}</span>
-                  <span><a onClick={() => refresh(false)}>Refresh now</a> · <a onClick={() => setSource(null)}>Unlink</a></span>
+                  <span><a {...press(null, () => refresh(false))}>Refresh now</a> · <a {...press(null, () => setSource(null))}>Unlink</a></span>
                 </div>
               )}
               {source && doc?.refresh?.lastError && <div className="warn">The last scheduled refresh failed: {doc.refresh.lastError}.{doc.refresh.paused ? ' Scheduled refresh is paused after 5 failures in a row; Refresh now (when it works) turns it back on.' : ''}</div>}
-              <h4>Saved connections <a onClick={reset}>+ new</a></h4>
+              <h4>Saved connections <a {...press(null, reset)}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
               {conns.map((c) => (
-                <div key={c.id} className={`card ${form.id === c.id ? 'sel' : ''}`} onClick={() => pick(c)}>
-                  <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
-                  <div className="grow"><b>{c.name}</b><small>{`${c.host}:${c.port}/${c.database}`.replace(/([./_])/g, '$1​')}</small></div>
-                  {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete">✕</button>}
+                <div key={c.id} className={`card act ${form.id === c.id ? 'sel' : ''}`}>
+                  <button type="button" className="card-open grow" aria-current={form.id === c.id ? 'true' : undefined} onClick={() => pick(c)}>
+                    <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
+                    <span className="grow"><b>{c.name}</b><small>{`${c.host}:${c.port}/${c.database}`.replace(/([./_])/g, '$1​')}</small></span>
+                  </button>
+                  {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete" aria-label={`Delete ${c.name}`}>✕</button>}
                 </div>
               ))}
               <h4>{form.shared ? 'Shared connection' : form.id ? 'Edit connection' : 'New connection'}</h4>
@@ -853,7 +856,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {form.tls === 'verify' && form.type === 'oracle' && <small className="hint">The server certificate is checked against the certificate authorities the server trusts (a public CA such as OCI's works as is). Wallets are not supported.</small>}
               {form.tls === 'verify' && form.type === 'postgres' && (<>
                 <textarea className="pem" placeholder={form.hasCa && !form.clearCa ? '(CA certificate saved — paste a new PEM to replace)' : 'CA certificate (PEM) — only needed for a private/self-signed CA'} value={form.caPem} onChange={set('caPem')} />
-                <div className="hint"><label className="link">Load .pem file<input type="file" accept=".pem,.crt,.cer" hidden onChange={(e) => { loadPem(e.target.files[0]); e.target.value = ''; }} /></label>{form.hasCa && !form.clearCa && <> · <a onClick={() => setForm({ ...form, clearCa: true, caPem: '' })}>Remove saved CA</a></>}{form.clearCa && ' · saved CA will be removed on Save'}</div>
+                <div className="hint"><label className="link">Load .pem file<input type="file" accept=".pem,.crt,.cer" hidden onChange={(e) => { loadPem(e.target.files[0]); e.target.value = ''; }} /></label>{form.hasCa && !form.clearCa && <> · <a {...press(null, () => setForm({ ...form, clearCa: true, caPem: '' }))}>Remove saved CA</a></>}{form.clearCa && ' · saved CA will be removed on Save'}</div>
               </>)}
               {form.type === 'oracle' && form.tls === 'verify' && <input placeholder="Expected server certificate DN (optional)" value={form.serverDn} onChange={set('serverDn')} />}
               <label className="chk"><input type="checkbox" checked={!!form.blockWritable} onChange={set('blockWritable')} /> Block credentials with write privileges (strict)</label>
@@ -871,13 +874,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
                   <small>Sessions stay read-only, but prefer a dedicated user with SELECT on the catalog only.</small></div>
               )}
               {schemas.length > 0 && (<>
-                <h4>Schemas to import <a onClick={() => setPicked(schemas)}>all</a> · <a onClick={() => setPicked([])}>none</a></h4>
+                <h4>Schemas to import <a {...press(null, () => setPicked(schemas))}>all</a> · <a {...press(null, () => setPicked([]))}>none</a></h4>
                 <div className="schemas">
                   {schemas.map((s) => (
                     <label key={s} className="chk"><input type="checkbox" checked={picked.includes(s)} onChange={(e) => setPicked(e.target.checked ? [...picked, s] : picked.filter((x) => x !== s))} /> {s}</label>
                   ))}
                 </div>
-                <h4>Tables {!isAll(selection) && <a onClick={() => setSelection(ALL)}>clear</a>}</h4>
+                <h4>Tables {!isAll(selection) && <a {...press(null, () => setSelection(ALL))}>clear</a>}</h4>
                 <button disabled={!picked.length || !!busy} onClick={loadTables}>{busy === 'tables' ? 'Loading…' : summary(selection, tableGroups?.length)}</button>
                 {fullDdl && <small className="hint">Views and materialized views are imported with their full CREATE statement.</small>}
                 <button className="primary" disabled={!picked.length || !!busy} onClick={importNow}>{busy === 'import' ? 'Importing…' : `Import ${picked.length} schema(s) → diagram`}</button>

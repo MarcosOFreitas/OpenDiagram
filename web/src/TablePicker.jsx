@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PALETTE } from './Editor.jsx';
 import { isAll, ticked, missing, fromTicks, withGrouped, footer } from './tableSelection.js';
+import { press } from './a11y.js';
 
 // search text -> predicate on 'schema.table': plain text = contains, `*`/`?` = wildcards (VW_*), /regex/ = regular expression
 export function matcher(text) {
@@ -39,7 +40,7 @@ function TableChooser({ items, value, onToggle, onMany, groupOf }) {
     <div className="tp-ch">
       <div className="tp-row">
         <input placeholder="Search: text, VW_* or /regex/" value={q} onChange={(e) => setQ(e.target.value)} />
-        <small className="tp-actions"><a onClick={() => onMany(shown.map((i) => i.name), true)}>Select shown ({shown.length})</a> · <a onClick={() => onMany(shown.map((i) => i.name), false)}>Clear shown</a></small>
+        <small className="tp-actions"><a {...press(null, () => onMany(shown.map((i) => i.name), true))}>Select shown ({shown.length})</a> · <a {...press(null, () => onMany(shown.map((i) => i.name), false))}>Clear shown</a></small>
       </div>
       <div className="tp-chlist">
         {shown.map((i) => {
@@ -134,7 +135,7 @@ export default function TablePicker({ items, selection, imported = false, groups
             <button className={tab === 'tables' ? 'on' : ''} onClick={() => setTab('tables')}>Tables</button>
             <button className={tab === 'groups' ? 'on' : ''} onClick={() => setTab('groups')}>Groups{nGroups ? ` (${nGroups})` : ''}</button>
           </div>
-          <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
+          <button className="x" onClick={onClose} title="Close (Esc)" aria-label="Close">✕</button>
         </div>
 
         {tab === 'tables' && (<>
@@ -145,7 +146,7 @@ export default function TablePicker({ items, selection, imported = false, groups
             <label className="chk"><input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} /> Selected only</label>
           </div>
           <div className="tp-actions">
-            <a onClick={addShown}>Select shown ({shown.length})</a> · <a onClick={dropShown}>Clear shown</a> · <a onClick={() => setSel(new Set())}>Clear all</a>
+            <a {...press(null, addShown)}>Select shown ({shown.length})</a> · <a {...press(null, dropShown)}>Clear shown</a> · <a {...press(null, () => setSel(new Set()))}>Clear all</a>
           </div>
           <div className="tp-list">
             {shown.map((i) => {
@@ -179,7 +180,7 @@ export default function TablePicker({ items, selection, imported = false, groups
                   <button onClick={() => { setGs((l) => l.filter((_, j) => j !== i)); setEditing(null); }} title="Delete group (tables stay)">Delete</button>
                 </div>
                 <div className="tp-chips">
-                  {g.tables.map((t) => <span key={t} className="tp-chip" style={have.has(t) ? undefined : { opacity: 0.5 }} title={have.has(t) ? t : `${t} — not in this import, dropped from the group`}>{split(t)[1]}<a onClick={() => patch(i, { tables: g.tables.filter((x) => x !== t) })}>×</a></span>)}
+                  {g.tables.map((t) => <span key={t} className="tp-chip" style={have.has(t) ? undefined : { opacity: 0.5 }} title={have.has(t) ? t : `${t} — not in this import, dropped from the group`}>{split(t)[1]}<a {...press(`Remove ${t} from the group`, () => patch(i, { tables: g.tables.filter((x) => x !== t) }))}>×</a></span>)}
                   {!g.tables.length && <small className="hint">Empty: removed when you apply.</small>}
                 </div>
                 {editing === i && <TableChooser items={items} value={new Set(g.tables)} onToggle={(n, on) => setMembers(i, [n], on)} onMany={(ns, on) => setMembers(i, ns, on)} groupOf={groupOf} />}

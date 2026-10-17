@@ -52,7 +52,7 @@ export default function History({ diagramId, version, dbml, notify, onRestored }
       {!list && <small className="hint">Loading…</small>}
       {list && list.length === 0 && <small className="hint">No history yet: it starts with the next change.</small>}
       {list?.map((v) => (
-        <div key={v.id} className={`card hist ${v.current ? 'sel' : ''}`}>
+        <div key={v.id} className={`card hist static ${v.current ? 'sel' : ''}`}>
           <div className="grow">
             <b>{v.label || `Version ${v.version}`}{v.current && <span className="chip">current</span>}</b>
             <small>{v.author || 'Original'} · {ago(v.savedAt * 1000)}</small>
@@ -67,7 +67,7 @@ export default function History({ diagramId, version, dbml, notify, onRestored }
       {diff && (
         <div className="admin" onMouseDown={(e) => { if (e.target === e.currentTarget) setDiff(null); }}>
           <div className="admin-card conflict wide" role="dialog" aria-label="Compare versions">
-            <div className="admin-head"><h2>{diff.v.label || `Version ${diff.v.version}`} → now</h2><span className="grow" /><button className="x" onClick={() => setDiff(null)} title="Close">✕</button></div>
+            <div className="admin-head"><h2>{diff.v.label || `Version ${diff.v.version}`} → now</h2><span className="grow" /><button className="x" onClick={() => setDiff(null)} title="Close" aria-label="Close">✕</button></div>
             <div className="diff">
               {diff.lines === null && <p className="hint">Too many differences to show here. Restore the version or export it to compare elsewhere.</p>}
               {diff.lines && !diff.lines.some((l) => l.k !== ' ') && <p className="hint">The DBML is identical (only the layout or title differ).</p>}

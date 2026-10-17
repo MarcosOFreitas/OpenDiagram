@@ -55,7 +55,7 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
 
   return (
     <aside className="tpn" aria-label="Tables panel" style={{ right }}>
-      <div className="tpn-head"><b>Tables</b><small>{tables.length - hidden.size}/{tables.length} visible</small><button className="tpn-x" onClick={onClose} title="Close">✕</button></div>
+      <div className="tpn-head"><b>Tables</b><small>{tables.length - hidden.size}/{tables.length} visible</small><button className="tpn-x" onClick={onClose} title="Close" aria-label="Close">✕</button></div>
       <div className="tpn-bar tpn-views">
         <select value={activeView} onChange={(e) => onView(e.target.value)} aria-label="Diagram view" title="Saved views: which tables are visible and where, detail level, highlights">
           <option value="">Main view</option>
@@ -92,8 +92,8 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
       <div className="tpn-list">
         {sections.map((s) => (
           <div key={s.key} className="tpn-sec">
-            <div className="tpn-sh" onClick={() => toggleOpen(s.key)}>
-              <Chev open={isOpen(s.key)} />
+            <div className="tpn-sh" data-mouse-extra onClick={() => toggleOpen(s.key)}>
+              <button className="tpn-ic sm" aria-expanded={isOpen(s.key)} aria-label={`${isOpen(s.key) ? 'Collapse' : 'Expand'} ${s.key}`} onClick={(e) => { e.stopPropagation(); toggleOpen(s.key); }}><Chev open={isOpen(s.key)} /></button>
               {s.color ? <i className="tpn-dot" style={{ background: s.color }} /> : <i className="tpn-dot sq" />}
               <span className="tpn-sn" title={s.key}>{s.key}</span>
               <small className="tpn-cnt">{shownCount(s.all)}/{s.all.length}</small>

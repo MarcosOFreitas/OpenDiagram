@@ -86,7 +86,7 @@ export default function DocsSite() {
         <nav className="ds-tabs"><a className="on" href={base} onClick={(e) => { e.preventDefault(); go('introduction'); }}>Docs</a><a href="/" >Go to the app</a></nav>
         <span className="ds-grow" />
         <button className="ds-search" onClick={() => setFind(true)}>Search <kbd>Ctrl+K</kbd></button>
-        <button className="ds-theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Light / dark">{theme === 'dark' ? '☀' : '☾'}</button>
+        <button className="ds-theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Light / dark" aria-label="Switch between light and dark">{theme === 'dark' ? '☀' : '☾'}</button>
         <a className="ds-app" href="/">Open app →</a>
       </header>
 

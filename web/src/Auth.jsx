@@ -1,6 +1,7 @@
 import { Logo } from './Icons.jsx';
 import { useState } from 'react';
 import { api } from './api.js';
+import { press } from './a11y.js';
 
 const Brand = ({ org }) => <div className="brand"><Logo /> {org || 'OpenDiagram'}</div>;
 
@@ -38,15 +39,15 @@ export default function AuthScreen({ onDone, onCancel, signup = false, firstRun 
         </>) : <input type="password" placeholder={mode === 'register' ? 'Password (10+ characters)' : 'Password'} value={f.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required />}
         {err && <div className="auth-err">{err}</div>}
         <button className="primary" disabled={busy}>{busy ? '…' : mode === 'recover' ? 'Choose the new password' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
-        {mode === 'login' && !firstRun && <small className="hint"><a onClick={() => { setMode('recover'); setErr(''); }}>Forgot your password?</a></small>}
-        {mode === 'recover' && <small className="hint"><a onClick={() => { setMode('login'); setErr(''); }}>Back to sign in</a></small>}
+        {mode === 'login' && !firstRun && <small className="hint"><a {...press(null, () => { setMode('recover'); setErr(''); })}>Forgot your password?</a></small>}
+        {mode === 'recover' && <small className="hint"><a {...press(null, () => { setMode('login'); setErr(''); })}>Back to sign in</a></small>}
         {signup && !firstRun && (
           <small className="hint">
-            {mode === 'login' ? <>No account? <a onClick={() => { setMode('register'); setErr(''); }}>Create one</a></> : <>Already registered? <a onClick={() => { setMode('login'); setErr(''); }}>Sign in</a></>}
+            {mode === 'login' ? <>No account? <a {...press(null, () => { setMode('register'); setErr(''); })}>Create one</a></> : <>Already registered? <a {...press(null, () => { setMode('login'); setErr(''); })}>Sign in</a></>}
           </small>
         )}
         {!signup && mode === 'login' && <small className="hint">Accounts are created by an administrator of this installation.</small>}
-        {onCancel && <small className="hint"><a onClick={onCancel}>Continue without signing in</a></small>}
+        {onCancel && <small className="hint"><a {...press(null, onCancel)}>Continue without signing in</a></small>}
       </form>
     </div>
   );

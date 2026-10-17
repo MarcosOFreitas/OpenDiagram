@@ -7,6 +7,7 @@ import AdminAudit from './AdminAudit.jsx';
 import Loading from './Loading.jsx';
 import Empty from './Empty.jsx';
 import AdminAgents from './AdminAgents.jsx';
+import { press } from './a11y.js';
 
 export default function Admin({ me, onClose, notify, onSettings }) {
   const [tab, setTab] = useState('users');
@@ -71,17 +72,17 @@ export default function Admin({ me, onClose, notify, onSettings }) {
           <div className="dtabs">
             {[['users', `Users (${users.length})`], ['groups', `Groups (${groups.length})`], ['connections', 'Connections'], ['agents', 'Agents'], ['audit', 'Audit log'], ['access', 'Sign-ins & connections'], ['settings', 'Settings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
           </div>
-          <button className="x" onClick={onClose} title="Close (Esc)">✕</button>
+          <button className="x" onClick={onClose} title="Close (Esc)" aria-label="Close">✕</button>
         </div>
 
         <div className="admin-body">
-          {err && <div className="auth-err">{err} <a onClick={() => setErr('')}>dismiss</a></div>}
+          {err && <div className="auth-err">{err} <a {...press(null, () => setErr(''))}>dismiss</a></div>}
           {secret && (
             <div className="warn">
               {secret.password
                 ? <><b>Temporary password for {secret.who}</b> — shown only once. <code>{secret.password}</code> <button onClick={() => copy(secret.password)}>Copy</button> They must choose a new password at the next sign-in.</>
                 : <><b>{secret.who}</b> was created with the password you typed; they must change it at first sign-in.</>}
-              <button className="ghost" onClick={() => setSecret(null)}>✕</button>
+              <button className="ghost" onClick={() => setSecret(null)} aria-label="Dismiss">✕</button>
             </div>
           )}
 
@@ -145,7 +146,7 @@ export default function Admin({ me, onClose, notify, onSettings }) {
                   <button onClick={() => { if (window.confirm(`Delete group "${g.name}"? Diagrams shared with it stop being visible to its members.`)) act(() => api(`admin/groups/${g.id}`, undefined, 'DELETE'), 'Group deleted')(); }}>Delete</button>
                 </div>
                 <div className="group-members">
-                  {g.members.map((m) => <span key={m.id} className="chip member">{m.name}<a title={`Remove ${m.email}`} onClick={act(() => api(`admin/groups/${g.id}/members/${m.id}`, undefined, 'DELETE'))}>✕</a></span>)}
+                  {g.members.map((m) => <span key={m.id} className="chip member">{m.name}<a title={`Remove ${m.email}`} {...press(`Remove ${m.email}`, act(() => api(`admin/groups/${g.id}/members/${m.id}`, undefined, 'DELETE')))}>✕</a></span>)}
                   <select value="" onChange={(e) => e.target.value && act(() => api(`admin/groups/${g.id}/members/${e.target.value}`, {}, 'PUT'), 'Member added')()}>
                     <option value="">+ add member…</option>
                     {notInGroup(g).map((u) => <option key={u.id} value={u.id}>{u.name} — {u.email}</option>)}
