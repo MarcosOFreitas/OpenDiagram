@@ -15,7 +15,8 @@ import * as refresh from './refresh.js';
 import * as agents from './agents.js';
 import * as mcp from './mcp.js';
 
-const app = Fastify({ logger: true, bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1' });
+const TEST = process.env.OD_NO_LISTEN === '1'; // server/test/http.test.js: routes through app.inject, no port, no timers
+export const app = Fastify({ logger: !TEST, bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1' });
 const bad = (msg, statusCode = 400) => Object.assign(new Error(msg), { statusCode });
 
 // accept an empty body with Content-Type: application/json (DELETE/logout from fetch clients) instead of failing with 400
@@ -375,14 +376,17 @@ app.setErrorHandler((e, req, reply) => { if (!e.statusCode || e.statusCode >= 50
 app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
-const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
-housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
-refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
-await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });
+if (TEST) await app.ready();
+else {
+  const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
+  housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
+  refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
+  await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });
 
-// docker stop / Ctrl+C: finish the requests in flight and fold the WAL into the database file, instead of being killed ten seconds later (exit 137)
-for (const sig of ['SIGTERM', 'SIGINT']) {
-  process.once(sig, async () => {
-    try { await app.close(); db.exec('pragma wal_checkpoint(truncate)'); } finally { process.exit(0); }
-  });
+  // docker stop / Ctrl+C: finish the requests in flight and fold the WAL into the database file, instead of being killed ten seconds later (exit 137)
+  for (const sig of ['SIGTERM', 'SIGINT']) {
+    process.once(sig, async () => {
+      try { await app.close(); db.exec('pragma wal_checkpoint(truncate)'); } finally { process.exit(0); }
+    });
+  }
 }
