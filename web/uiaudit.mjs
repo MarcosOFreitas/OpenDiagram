@@ -1,6 +1,6 @@
 // UI audit: opens every screen, drawer, menu and dialog of the app in headless Chrome and reports what breaks the rules in
 // .specs/11-ui-review.md: control without an accessible name, pointer target < 24px, field without a label, text contrast < 4.5:1,
-// horizontal overflow, dialog without role/focus handling, keyboard focus that is invisible or lost. Light and dark theme,
+// horizontal overflow, a control named only by a symbol, a click target the keyboard cannot reach, dialog without role/focus handling, keyboard focus that is invisible or lost. Light and dark theme,
 // desktop / tablet / phone. Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
 //   docker run -d --name audit-app --network rea_dbdiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) rea_dbdiagram-app
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
@@ -62,14 +62,23 @@ const AUDIT = `window.__audit = () => {
   const rgb = (s) => { const v = (s.match(/[\d.]+/g) || [0, 0, 0, 0]).map(Number); return s.startsWith('color(') ? v.map((x, j) => (j < 3 ? x * 255 : x)) : v; }; // color-mix() comes back as color(srgb 0..1)
   const bgOf = (e) => { while (e) { const m = rgb(getComputedStyle(e).backgroundColor); if (m.length < 4 || m[3] > .5) return m; e = e.parentElement; } return [255, 255, 255]; };
   const vis = (e) => { const r = e.getBoundingClientRect(), s = getComputedStyle(e); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !e.closest('[inert]'); };
-  const out = { noName: [], small: [], noLabel: [], lowContrast: [], overflow: [] };
+  const out = { noName: [], glyphName: [], mouseOnly: [], small: [], noLabel: [], lowContrast: [], overflow: [] };
   const nm = (e) => (e.getAttribute('aria-label') || e.getAttribute('aria-labelledby') || e.title || e.textContent || '').trim();
   const id = (e) => e.tagName.toLowerCase() + (typeof e.className === 'string' && e.className ? '.' + e.className.split(' ').filter(Boolean)[0] : '');
   document.querySelectorAll('button,a[href],[role=button],[role=tab],[role=menuitem]').forEach((e) => {
     if (!vis(e) || e.closest('.react-flow__attribution,.dx-body,.dx-table,.dx-nav,td,p,li,.ds-md,.ds-content')) return;
     if (!nm(e)) out.noName.push(id(e));
+    else if (e.textContent.trim() && !e.closest('[aria-hidden=true]') && !e.getAttribute('aria-label') && !e.getAttribute('aria-labelledby') && ![...e.textContent].some((ch) => ch.toLowerCase() !== ch.toUpperCase() || (ch >= '0' && ch <= '9')) && !e.querySelector('[aria-label]')) out.glyphName.push(id(e) + ' "' + nm(e).slice(0, 8) + '"'); // named only by a symbol such as ✕: a screen reader says "multiplication"
     if (e.closest('.react-flow__viewport')) return; // sizes inside the canvas depend on the zoom
     const r = e.getBoundingClientRect(); if (r.width < 24 || r.height < 24) out.small.push(id(e) + ':' + Math.round(r.width) + 'x' + Math.round(r.height) + ':' + nm(e).slice(0, 14));
+  });
+  // something that answers a click (pointer cursor) but a keyboard cannot reach: not focusable itself, no focusable parent or child
+  const FOC = 'button,a[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"]),[role=button],[role=tab],[role=menuitem],[role=link]';
+  document.querySelectorAll('body *').forEach((e) => {
+    if (!vis(e) || e.closest('.react-flow,.cm-editor,.dx-body,.ds-content,svg,label,[inert],[role=status],[role=alert],[aria-hidden=true],[data-mouse-extra]') || getComputedStyle(e).cursor !== 'pointer') return;
+    if (e.matches(FOC) || e.closest(FOC) || e.closest('.react-flow__attribution')) return;
+    if (e.parentElement && getComputedStyle(e.parentElement).cursor === 'pointer') return; // a child of a clickable element: the parent is the one reported
+    out.mouseOnly.push(id(e) + ' "' + (e.textContent || '').trim().slice(0, 16) + '"');
   });
   document.querySelectorAll('input:not([type=hidden]),select,textarea').forEach((e) => {
     if (!vis(e) || e.closest('.cm-editor,.react-flow')) return;
