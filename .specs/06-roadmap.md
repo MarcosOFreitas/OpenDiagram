@@ -16,6 +16,8 @@ Status of what exists and what is planned. Move an item to its own numbered spec
 - **Oracle with a real private CA.** `verify`, `serverDn` and `noverify` are tested against a TLS proxy (`server/test-oracle-tls.mjs`) and `verify` against OCI; a real server whose certificate comes from a private CA (trusted through `NODE_EXTRA_CA_CERTS`) was never tried.
 - **Picture of a member's view of a shared connection** (name/type/host/database, read-only form) for the documentation pages `shared-connections` and `database-security` ([10](10-documentation-site.md)); add it to `docshots.mjs` with the same change.
 
+A proposal for what comes next, in waves and with how each item would be built, is in [13-feature-plan.md](13-feature-plan.md); agreed items move here.
+
 ## Follow-ups (recorded 2026-10-17, after the harness / audit round)
 
 Nothing here blocks a release; take them in this order of value for the effort.

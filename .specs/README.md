@@ -21,5 +21,6 @@ Living specifications for OpenDiagram. Rules:
 | 10 | [Documentation site](10-documentation-site.md) — the public `/docs` pages | implemented |
 | 11 | [UI/UX review checklist](11-ui-review.md) — rules, per-screen audit, what is not covered | implemented |
 | 12 | [Table selection](12-table-selection.md) — the four bugs so far, their common root cause, the rules and the missing tests | living |
+| 13 | [Feature plan](13-feature-plan.md) — proposed new features and improvements, in waves, with how each would be built and proved | proposal |
 
 Origin: features were chosen by studying the public behaviour of comparable tools; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.
