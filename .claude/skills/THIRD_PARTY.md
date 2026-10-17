@@ -13,6 +13,7 @@ The skills here (a subset of the maintainer's personal collection) were composed
 | `performance-optimization` | addyosmani/agent-skills `performance-optimization` (measure, keep-or-revert, attempt ledger) | MIT |
 | `debugging-discipline` | addyosmani/agent-skills `debugging-and-error-recovery`; obra/superpowers `systematic-debugging` (stop after three failed fixes); the user's `investigate-first` and `surgical-patch` | MIT |
 | `browser-verification` | addyosmani/agent-skills `browser-testing-with-devtools`; Anthropic `webapp-testing` (ideas, reworded) | MIT; Apache-2.0 |
+| `ui-ux-review`, `ui-color-system`, `ui-feedback-states`, `ui-layout-typography` | original, written for the maintainer's harness from general practice (WCAG 2.2 thresholds, usability heuristics, role-based color tokens); no third-party text copied | none needed (own text) |
 | `ci-cd` | addyosmani/agent-skills `ci-cd-and-automation`; alirezarezvani/claude-skills `ci-cd-pipeline-builder` (as a counter-example only) | MIT |
 | `docker` | alirezarezvani/claude-skills `docker-development` (text only) | MIT |
 | `api-and-interface-design` | addyosmani/agent-skills `api-and-interface-design` and `documentation-and-adrs` (one line) | MIT |

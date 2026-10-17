@@ -115,6 +115,7 @@ Skills live in `.claude/skills/<name>/SKILL.md`; any agent can read one as a pla
 | The MCP connector (`server/src/mcp.js`) | `mcp-builder` |
 | Workflows, the e2e job, Docker, Compose | `ci-cd`, `docker` |
 | Checking a UI change in a real browser | `browser-verification`, with the UI standard above and `ui-ux-pro-max` |
+| Reviewing or improving an existing screen; colors, states and feedback, layout and type | `ui-ux-review`, `ui-color-system`, `ui-feedback-states`, `ui-layout-typography` |
 
 **How each applies here**
 
@@ -129,6 +130,7 @@ Skills live in `.claude/skills/<name>/SKILL.md`; any agent can read one as a pla
 - **`ci-cd`**: `.github/workflows/ci.yml` has `unit` on every push and pull request and the sharded `e2e` on `main` and on demand; running e2e only on `main` is a conscious trade-off (see `.specs/07-testing.md`), so keep the golden `web/behavior.golden.json` current.
 - **`docker`**: Windows + Git Bash notes (`MSYS_NO_PATHCONV=1`, anonymous volumes of the postgres images) are in Gotchas.
 - **`browser-verification`**: this repository drives Chrome through `web/cdp.mjs`; run against a throw-away instance, never one with real data.
+- **`ui-ux-review`** (+ `ui-color-system`, `ui-feedback-states`, `ui-layout-typography`): the rubric is the UI standard above and [`.specs/11-ui-review.md`](.specs/11-ui-review.md), not the skill's generic checks (those only fill gaps). Findings use the foundation tokens and components (never a new radius, height, color or icon style); the bar for a touched screen is `node web/uiaudit.mjs <screen>` with zero findings, and a documented screen also reruns `node web/docshots.mjs`. Both themes and 375 px are always part of the review. `ui-ux-pro-max` stays an optional extra reference.
 - **`code-simplification`**: for a refactor that must not change the UI, the proof is `visualsnap.mjs` plus `behaviorcheck.mjs` on the old and the new image.
 
 The skills are composed from MIT and Apache-2.0 sources; sources, licences and notices are in `.claude/skills/THIRD_PARTY.md`. Add a skill only after reading all of it (scripts, hooks and network calls included) and record it there. The maintainer keeps a wider personal set outside this repository.
