@@ -24,7 +24,20 @@ step() {
   timings+=("$((SECONDS - t))s  $name")
 }
 
+# the app answering /api/health, with a limit (3 minutes): a crashed container fails the run with its logs instead of hanging until the job timeout
+wait_health() {
+  local url=$1 n=0
+  until curl -fs "$url" >/dev/null; do n=$((n + 1)); [ $n -gt 90 ] && { echo "timeout waiting for $url"; return 1; }; sleep 2; done
+}
+
 cleanup() {
+  local rc=$?
+  if [ $rc -ne 0 ]; then
+    echo "::group::container logs (the run failed with status $rc)"
+    docker compose logs --tail=80 2>&1 | sed 's/^/[compose] /'
+    docker logs --tail=80 $UI 2>&1 | sed 's/^/[ui] /'
+    echo "::endgroup::"
+  fi
   docker rm -f $UI >/dev/null 2>&1
   [ -z "${OD_REUSE:-}" ] && docker compose down -v >/dev/null 2>&1
 }
@@ -34,11 +47,11 @@ if [ -z "${OD_REUSE:-}" ]; then
   export APP_SECRET=${APP_SECRET:-$(openssl rand -hex 24)}
   docker compose up -d --build app demo-pg demo-pg-tls || exit 1
   export TEST_ADMIN_EMAIL=ci-admin@example.com TEST_ADMIN_PASSWORD='ci-test-password-1'
-  until curl -fs http://localhost:3000/api/health >/dev/null; do sleep 2; done
+  wait_health http://localhost:3000/api/health || exit 1
   docker compose exec -T app node src/cli.js create-admin "$TEST_ADMIN_EMAIL" "$TEST_ADMIN_PASSWORD" >/dev/null || exit 1
 fi
 : "${TEST_ADMIN_EMAIL:?}" "${TEST_ADMIN_PASSWORD:?}"
-until curl -fs http://localhost:3000/api/health >/dev/null; do sleep 2; done
+wait_health http://localhost:3000/api/health || exit 1
 timings+=("${SECONDS}s  stack up (build included)")
 
 if [ -n "$FIRST" ]; then
@@ -49,7 +62,7 @@ fi
 # the UI tools refuse :3000 and create accounts and diagrams: they get their own empty instance of the same image
 docker rm -f $UI >/dev/null 2>&1
 docker run -d --name $UI --network "${P}_default" -p 3100:3000 -e APP_SECRET=ci-ui-secret-000000000000000000000000 -e COOKIE_SECURE=0 "${P}-app" >/dev/null || exit 1
-until curl -fs http://localhost:3100/api/health >/dev/null; do sleep 2; done
+wait_health http://localhost:3100/api/health || exit 1
 docker exec $UI node src/cli.js create-admin ui@example.com 'ui-test-password-1' >/dev/null || exit 1
 export BASE=http://localhost:3100
 

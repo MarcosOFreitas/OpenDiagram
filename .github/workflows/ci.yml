@@ -7,14 +7,19 @@ on:
     paths-ignore: ['*.md', '.specs/**', LICENSE]
   workflow_dispatch:
 
-# a newer push to the same branch or PR cancels the run still going
+# least privilege: nothing here writes to the repository
+permissions:
+  contents: read
+
+# a newer push to the same pull request cancels the run still going; a push to main is never cancelled, or its commit would stay unverified
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -44,7 +49,7 @@ jobs:
   e2e-shard:
     needs: unit
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -63,6 +68,7 @@ jobs:
   e2e:
     needs: e2e-shard
     if: always() && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - run: test "${{ needs.e2e-shard.result }}" = success
