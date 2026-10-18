@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
@@ -436,7 +436,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }, []);
 
   dbmlRef.current = dbml;
-  const parsed = useMemo(() => parse(dbml), [dbml]);
+  const deferredDbml = useDeferredValue(dbml); // typing renders first; the (slow on big diagrams) parse follows and is dropped if the next key arrives
+  const parsed = useMemo(() => parse(deferredDbml), [deferredDbml]);
   const error = parsed.error || '';
   const lastGood = useRef(null);
   if (!parsed.error) lastGood.current = parsed;
