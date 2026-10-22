@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Safer agent tokens
+
+- A new agent token expires after **90 days** unless you choose another length or *Never expires* on purpose. Tokens made before keep their expiry.
+
 ## Import Oracle SQL files
 
 - **Import** now reads Oracle SQL: tables, keys, indexes and comments. Views, sequences and triggers are skipped (the live import reads them).

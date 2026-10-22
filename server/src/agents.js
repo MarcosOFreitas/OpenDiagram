@@ -42,12 +42,13 @@ export function deleteAgent(id) {
 }
 
 // a new token, returned in clear ONCE
-export function createToken(agentId, { name, expiresInDays } = {}) {
+// a token lasts 90 days unless the administrator chooses another length, or `never` on purpose
+export function createToken(agentId, { name, expiresInDays, never = false } = {}) {
   agent(agentId);
   name = String(name ?? '').trim().slice(0, 80) || 'token';
   let exp = null;
-  if (expiresInDays !== undefined && expiresInDays !== null && expiresInDays !== '') {
-    const n = Number(expiresInDays);
+  if (never !== true) {
+    const n = expiresInDays === undefined || expiresInDays === null || expiresInDays === '' ? 90 : Number(expiresInDays);
     if (!Number.isInteger(n) || n < 1 || n > 730) throw bad('a token lasts 1 to 730 days');
     exp = now() + n * 86400;
   }

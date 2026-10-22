@@ -122,7 +122,7 @@ test('edit: needs the version, refuses a stale one and text that does not parse,
   const id = mine(); give(id, 'edit');
   const v = dg.getForUser(owner, id).version;
   const next = `${DBML}Table shop.b {\n  id integer [pk]\n}\n`;
-  assert.match(text(call('update_diagram', { id, dbml: next })), /base_version/);
+  assert.match(handle({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'update_diagram', arguments: { id, dbml: next } } }, agent).error.message, /base_version/); // invalid params, before the tool runs
   assert.match(text(call('update_diagram', { id, dbml: 'Table {', base_version: v })), /does not parse, nothing was saved/);
   assert.equal(dg.getForUser(owner, id).dbml, DBML);
   assert.match(text(call('update_diagram', { id, dbml: '', base_version: v })), /complete DBML/);
@@ -205,4 +205,40 @@ test('history: an agent that saves many times cannot push out the human version 
   const kept = dg.listVersions(id).filter((v) => v.label === 'Before agent edit');
   assert.equal(kept.length, 1);
   assert.match(dg.getVersion(id, kept[0].id).dbml, /human work/);
+});
+
+test('tokens expire after 90 days unless "never" is chosen on purpose', () => {
+  const t = agents.createToken(bot.id, {});
+  const days = (t.expiresAt - Math.floor(Date.now() / 1000)) / 86400;
+  assert.ok(days > 89.9 && days <= 90, `expires in ${days} days`);
+  assert.equal(agents.createToken(bot.id, { never: true }).expiresAt, null);
+});
+
+test('arguments are checked against the tool inputSchema before the tool runs', () => {
+  const id = mine(); give(id, 'edit');
+  const rpc = (args) => handle({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_diagram', arguments: args } }, agent);
+  for (const args of [{}, { id: 5 }, { id: id, extra: 1 }]) {
+    const r = rpc(args);
+    assert.equal(r.error?.code, -32602, JSON.stringify(args));
+  }
+  assert.ok(!rpc({ id }).error);
+  assert.equal(handle({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'update_diagram', arguments: { id, dbml: DBML, base_version: '3' } } }, agent).error?.code, -32602);
+});
+
+test('a failed call is audited without the content it carried', () => {
+  const id = mine(); give(id, 'edit');
+  const v = dg.getForUser(agent, id).version;
+  const r = call('update_diagram', { id, dbml: ['Table t {', '  id int', '}', 'Ref: t.id > secret_payroll_xyz.id'].join('\n'), base_version: v });
+  assert.equal(r.isError, true);
+  const row = db.prepare("select detail from audit_log where action = 'mcp.update_diagram' order by id desc limit 1").get();
+  assert.ok(!row.detail.includes('secret_payroll_xyz'), row.detail);
+});
+
+test('list_diagrams pages: limit and offset, with the next offset when there is more', () => {
+  for (let i = 0; i < 3; i++) give(mine(), 'view');
+  const all = JSON.parse(text(call('list_diagrams')).split('\n').slice(2, -1).join('\n'));
+  const page = text(call('list_diagrams', { limit: 2 }));
+  assert.match(page, /next_offset: 2/);
+  const rest = text(call('list_diagrams', { limit: 2, offset: all.length - 1 }));
+  assert.doesNotMatch(rest, /next_offset/);
 });

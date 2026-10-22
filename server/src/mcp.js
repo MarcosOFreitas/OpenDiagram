@@ -28,9 +28,16 @@ function levelOn(agent, id, min) {
 
 const TOOLS = [
   {
-    name: 'list_diagrams', title: 'List diagrams', description: 'The diagrams shared with this agent, with the access level it has on each.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true },
-    run: (agent) => { const l = dg.list(agent).filter((d) => d.role in LEVEL).map((d) => ({ id: d.id, title: d.title, access: d.role, owner: d.ownerName ?? null, updatedAt: d.updatedAt })); return { text: wrap('DIAGRAM_TITLES', JSON.stringify(l, null, 1)), detail: `${l.length} diagram(s)` }; },
+    name: 'list_diagrams', title: 'List diagrams', description: 'The diagrams shared with this agent, with the access level it has on each, most recently changed first. Pages of up to 100 (limit 1-500); when there are more, the answer ends with next_offset.',
+    inputSchema: { type: 'object', properties: { limit: { type: 'integer', description: '1 to 500, default 100' }, offset: { type: 'integer', description: 'from next_offset, default 0' } }, additionalProperties: false }, annotations: { readOnlyHint: true },
+    run: (agent, a) => {
+      const limit = a.limit ?? 100, offset = a.offset ?? 0;
+      if (limit < 1 || limit > 500 || offset < 0) throw new Error('limit must be 1 to 500 and offset 0 or more');
+      const all = dg.list(agent).filter((d) => d.role in LEVEL), l = all.slice(offset, offset + limit).map((d) => ({ id: d.id, title: d.title, access: d.role, owner: d.ownerName ?? null, updatedAt: d.updatedAt }));
+      const next = offset + limit < all.length ? `
+next_offset: ${offset + limit}` : '';
+      return { text: wrap('DIAGRAM_TITLES', JSON.stringify(l, null, 1)) + next, detail: `${l.length} of ${all.length} diagram(s)` };
+    },
   },
   {
     name: 'get_diagram', title: 'Read a diagram', description: 'The DBML of a diagram, its title, version and the access level of this agent. Needs view access.',
@@ -73,6 +80,18 @@ const PUBLIC = TOOLS.map(({ run, ...t }) => t);
 
 const rpcError = (id, code, message) => ({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
 
+// the arguments against the tool's inputSchema (flat objects of strings and integers): the reason they do not fit, or null
+const TYPES = { string: (v) => typeof v === 'string', integer: Number.isInteger };
+function badArgs(schema, a) {
+  for (const k of schema.required || []) if (!(k in a)) return `"${k}" is required`;
+  for (const [k, v] of Object.entries(a)) {
+    const p = Object.hasOwn(schema.properties, k) ? schema.properties[k] : null;
+    if (!p) return `unknown argument "${k}"`;
+    if (!TYPES[p.type](v)) return `"${k}" must be ${p.type === 'integer' ? 'an integer' : 'a string'}`;
+  }
+  return null;
+}
+
 // one JSON-RPC message -> its response, or null for a notification (the route answers 202)
 export function handle(msg, agent) {
   if (!msg || typeof msg !== 'object' || Array.isArray(msg) || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') return rpcError(msg?.id, -32600, 'invalid request: send one JSON-RPC 2.0 message');
@@ -87,12 +106,17 @@ export function handle(msg, agent) {
       const tool = TOOLS.find((t) => t.name === params?.name);
       if (!tool) return rpcError(id, -32602, `unknown tool: ${String(params?.name).slice(0, 60)}`);
       const args = params?.arguments && typeof params.arguments === 'object' && !Array.isArray(params.arguments) ? params.arguments : {};
+      const why = badArgs(tool.inputSchema, args);
+      if (why) {
+        audit.log(agent, `mcp.${tool.name}`, { target: agent.name, ok: false, detail: 'invalid arguments' });
+        return rpcError(id, -32602, `invalid arguments for ${tool.name}: ${why}`);
+      }
       try {
         const r = tool.run(agent, args);
         audit.log(agent, `mcp.${tool.name}`, { target: agent.name, diagramId: r.diagram ?? (typeof args.id === 'string' ? args.id : undefined), detail: r.detail });
         return ok(out(r.text));
       } catch (e) {
-        audit.log(agent, `mcp.${tool.name}`, { target: agent.name, diagramId: typeof args.id === 'string' ? args.id : undefined, ok: false, detail: e.message });
+        audit.log(agent, `mcp.${tool.name}`, { target: agent.name, diagramId: typeof args.id === 'string' ? args.id : undefined, ok: false, detail: e.message.split(':')[0].slice(0, 120) }); // the reason only: what follows a colon can quote the diagram (a parse error, a name)
         return ok(fail(e.message)); // a tool failure is reported to the model, not as a protocol error
       }
     }

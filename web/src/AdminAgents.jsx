@@ -4,7 +4,7 @@ import Loading from './Loading.jsx';
 import Empty from './Empty.jsx';
 
 const when = (t) => (t ? new Date(t * 1000).toLocaleString() : 'never');
-const EXPIRY = [['', 'Never expires'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']];
+const EXPIRY = [['90', '90 days'], ['30', '30 days'], ['365', '1 year'], ['never', 'Never expires']]; // the server's default is 90 days too
 
 // Administration → Agents: accounts for an AI client (the MCP connector). An agent can open nothing until the owner of a diagram shares it with it
 // (Share → person → its name), and it never sees a database connection or a credential. Its token works only on /mcp and is shown once.
@@ -25,7 +25,7 @@ export default function AdminAgents({ settings, act, setErr, notify }) {
   const newToken = (a, e) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    run(async () => { const r = await api(`admin/agents/${a.id}/tokens`, { name: String(f.get('tname') || '').trim() || 'token', ...(f.get('days') ? { expiresInDays: +f.get('days') } : {}) }); setFresh({ agent: a.name, token: r.token }); }, '')();
+    run(async () => { const r = await api(`admin/agents/${a.id}/tokens`, { name: String(f.get('tname') || '').trim() || 'token', ...(f.get('days') === 'never' ? { never: true } : { expiresInDays: +f.get('days') }) }); setFresh({ agent: a.name, token: r.token }); }, '')();
   };
 
   return (
