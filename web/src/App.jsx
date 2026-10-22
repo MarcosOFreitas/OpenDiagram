@@ -585,6 +585,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       });
       setLayoutTick((n) => n + 1);
     };
+    // a table's size does not depend on where it is: when every visible table is already measured (an open diagram), one pass with
+    // those sizes gives the same result as the two, and freezes the page once (two dagre runs took 2.9 s at 200 tables)
+    const hid = new Set(layoutRef.current['@hidden'] || []);
+    if (nodes.some((n) => n.type === 'table' && !hid.has(n.id)) && nodes.every((n) => n.type !== 'table' || hid.has(n.id) || n.measured?.width)) { pass(true); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 350); return; }
     pass(false); setTimeout(() => pass(true), 350); setTimeout(() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 700);
   };
   const onImported = (r, src, groups) => { // what a finished import changes in the diagram
