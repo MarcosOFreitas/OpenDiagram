@@ -1,6 +1,6 @@
 ---
 name: code-simplification
-description: Use when code works but is harder to read, maintain or extend than it should be, when a review flags complexity, or when consolidating duplication. Simplify without changing behavior, one verified step at a time. Gatilhos (pt): simplificar código, refatorar sem mudar o comportamento, reduzir complexidade, limpar código, remover duplicação.
+description: Use when code works but is harder to read, maintain or extend than it should be, when a review flags complexity, or when consolidating duplication. Simplify without changing behavior, one verified step at a time.
 ---
 
 # Code simplification
@@ -38,4 +38,4 @@ Tests edited to pass without a reason you can state. A "simplified" version that
 - [ ] No error handling or validation removed or weakened
 - [ ] Follows the project's conventions; no new dependency or layer
 
-<!-- Composed for this project from: addyosmani/agent-skills code-simplification (MIT, Addy Osmani; process and principles, language examples dropped), the safe-refactor skill of this user (preserve interfaces, failure behavior, ordering; no new dependency), and ponytail-audit (rank by lines removed). See THIRD_PARTY.md. -->
+<!-- Composed for this project from: addyosmani/agent-skills code-simplification (MIT, Addy Osmani; process and principles, language examples dropped), the author's own refactoring notes (preserve interfaces, failure behavior, ordering; no new dependency), and ponytail-audit (rank by lines removed). See THIRD_PARTY.md. -->

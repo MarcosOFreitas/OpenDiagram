@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# End-to-end checks in CI (and on a laptop): the stack, the e2e scripts, the UI audit and the behaviour fingerprint.
+# End-to-end checks in CI (and locally): the stack, the e2e scripts, the UI audit and the behaviour fingerprint.
 #   .github/ci-e2e.sh                      builds and starts its own throw-away stack (compose project "odci"), removes it at the end
-#   OD_REUSE=1 COMPOSE_PROJECT_NAME=rea_dbdiagram TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... .github/ci-e2e.sh
+#   OD_REUSE=1 COMPOSE_PROJECT_NAME=opendiagram TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... .github/ci-e2e.sh
 #                                          reuses a stack that is already running on :3000 (to try this script locally)
 #   UI_SHARD=2/4 .github/ci-e2e.sh         this run audits only every 4th screen (the UI audit is ~85% of the time: CI runs 4 shards in parallel, one
 #                                          runner each). Shard 1 also runs test-auth, test-guardrails and the behaviour fingerprint; unset = everything

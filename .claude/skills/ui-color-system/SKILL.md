@@ -1,6 +1,6 @@
 ---
 name: ui-color-system
-description: Use when choosing, reviewing or fixing colors in a UI: palette, theme tokens, dark mode, status colors, contrast, charts, user-chosen colors. Teaches color by role, not by hue. Gatilhos (pt): paleta de cores, cores do tema, modo escuro, contraste, cor de status, cor de destaque, escolher cores.
+description: Use when choosing, reviewing or fixing colors in a UI: palette, theme tokens, dark mode, status colors, contrast, charts, user-chosen colors. Teaches color by role, not by hue.
 ---
 
 # Color system
@@ -49,4 +49,4 @@ Categorical series: at most ~6 distinguishable hues, plus direct labels or patte
 
 1. List the tokens; delete near-duplicates. 2. Count accent uses on one screen. 3. Measure the 5 riskiest pairs in both themes. 4. Turn off color (grayscale): is every state still readable? 5. Search the code for raw hex, `#fff`, `#000`, `color:` outside the token layer.
 
-<!-- Original text written for this harness from general color-system practice (WCAG contrast thresholds, role-based tokens, dark-theme guidance); no third-party text copied. -->
+<!-- Original text written for this project from general color-system practice (WCAG contrast thresholds, role-based tokens, dark-theme guidance); no third-party text copied. -->

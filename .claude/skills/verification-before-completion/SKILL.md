@@ -1,6 +1,6 @@
 ---
 name: verification-before-completion
-description: Use before saying work is done, fixed, passing or ready, and before a commit, a pull request or a hand-off. Run the command that proves the claim, read its output, then state the result with that evidence. Gatilhos (pt): antes de dizer que terminou, que está pronto, corrigido ou passando, antes de commit, PR ou entrega, conferir se realmente funciona.
+description: Use before saying work is done, fixed, passing or ready, and before a commit, a pull request or a hand-off. Run the command that proves the claim, read its output, then state the result with that evidence.
 ---
 
 # Verification before completion
@@ -42,4 +42,4 @@ Use one of four outcomes, nothing vaguer: **pass**, **fail**, **unavailable** (t
 - If a check fails, fix the code. If the check itself is wrong, say so and fix it in the open (or ask); never weaken a test, a threshold or a security rule quietly to turn it green.
 - Applies to claims about the work: before saying it, before committing, before opening a pull request, before handing over. It does not govern ordinary conversation.
 
-<!-- Composed for this project from: obra/superpowers verification-before-completion (MIT, Jesse Vincent) and the verify-and-stop skill of this user (outcome vocabulary, reuse of current results). See THIRD_PARTY.md. -->
+<!-- Composed for this project from: obra/superpowers verification-before-completion (MIT, Jesse Vincent) and the author's own verification notes (outcome vocabulary, reuse of current results). See THIRD_PARTY.md. -->

@@ -1,6 +1,6 @@
 ---
 name: api-and-interface-design
-description: Use when designing or changing an HTTP API, a module boundary, an event or message contract, or any public interface, and when a state-changing endpoint, job or consumer can be retried or redelivered. Gatilhos (pt): desenhar API, contrato, endpoint, mudança que quebra clientes, idempotência, retry, reentrega.
+description: Use when designing or changing an HTTP API, a module boundary, an event or message contract, or any public interface, and when a state-changing endpoint, job or consumer can be retried or redelivered.
 ---
 
 # API and interface design

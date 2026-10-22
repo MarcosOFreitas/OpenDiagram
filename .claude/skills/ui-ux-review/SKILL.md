@@ -1,11 +1,11 @@
 ---
 name: ui-ux-review
-description: Use when asked to review, audit or improve an existing screen or flow for usability, visual quality and accessibility, or to check a UI change before merging. Produces a ranked list of concrete findings with fixes, anchored in the project's own UI standard. Gatilhos (pt): revisar interface, auditar UI, melhorar o front, revisar UX, a tela está confusa, feia, inconsistente, acessibilidade.
+description: Use when asked to review, audit or improve an existing screen or flow for usability, visual quality and accessibility, or to check a UI change before merging. Produces a ranked list of concrete findings with fixes, anchored in the project's own UI standard.
 ---
 
 # UI/UX review
 
-Review what exists. Building new UI is `frontend-design-pessoal`; the concepts used below live in `ui-color-system`, `ui-feedback-states` and `ui-layout-typography`.
+Review what exists. New UI follows the UI standard of `AGENTS.md`; the concepts used below live in `ui-color-system`, `ui-feedback-states` and `ui-layout-typography`.
 
 ## 1. Anchor first
 
@@ -40,4 +40,4 @@ Blocker = job cannot be done or an a11y floor is broken. Major = job done with c
 
 If asked to fix: smallest change that satisfies the standard, reuse existing tokens and components, then reload the screen at the same widths and show the before and after of each Blocker and Major. In a project with an audit script, its bar (for example "zero findings") also applies.
 
-<!-- Original text written for this harness from general UI practice (WCAG 2.2 thresholds, usability heuristics); no third-party text copied. -->
+<!-- Original text written for this project from general UI practice (WCAG 2.2 thresholds, usability heuristics); no third-party text copied. -->

@@ -1,6 +1,6 @@
 ---
 name: performance-optimization
-description: Use when something is slow, when a change may have caused a regression, when load or response times must improve, or before adding a cache, memoization or index to "make it faster". Measure, fix the one bottleneck the measurement shows, measure again, guard. Gatilhos (pt): está lento, otimizar, desempenho, gargalo, medir antes de otimizar, regressão de velocidade, cache para acelerar.
+description: Use when something is slow, when a change may have caused a regression, when load or response times must improve, or before adding a cache, memoization or index to "make it faster". Measure, fix the one bottleneck the measurement shows, measure again, guard.
 ---
 
 # Performance optimization

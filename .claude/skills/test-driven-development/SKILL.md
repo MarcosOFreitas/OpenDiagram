@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing a feature, fixing a bug, refactoring or changing behavior, and when adding or changing tests, mocks or test helpers. Write the failing test first, watch it fail for the right reason, then write the minimal code. Gatilhos (pt): escrever o teste primeiro, TDD, corrigir bug com teste, teste de regressão, adicionar ou mudar testes e mocks, implementar funcionalidade.
+description: Use when implementing a feature, fixing a bug, refactoring or changing behavior, and when adding or changing tests, mocks or test helpers. Write the failing test first, watch it fail for the right reason, then write the minimal code.
 ---
 
 # Test-driven development

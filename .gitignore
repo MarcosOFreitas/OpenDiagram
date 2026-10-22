@@ -33,7 +33,6 @@ Thumbs.db
 
 # local tooling state
 .claude/settings.local.json
-*.rea.backup
 
 # scratch
 tmp/

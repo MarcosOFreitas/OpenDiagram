@@ -1,6 +1,6 @@
 ---
 name: debugging-discipline
-description: Use when a test fails, a build breaks or behavior is unexpected. Stop changing things, reproduce, find the mechanism, fix at the root with a test that fails without the fix, and stop after three failed fixes to question the assumptions. Gatilhos (pt): depurar, debug, erro inesperado, teste falhando, build quebrou, achar a causa, o bug voltou, teste instável.
+description: Use when a test fails, a build breaks or behavior is unexpected. Stop changing things, reproduce, find the mechanism, fix at the root with a test that fails without the fix, and stop after three failed fixes to question the assumptions.
 ---
 
 # Debugging discipline
@@ -30,6 +30,5 @@ Do not fix a flake with a longer sleep or a retry. Replace fixed waits with a wa
 
 ## Works with
 
-If the user's setup also has `investigate-first` (evidence-ranked investigation, no edit before a mechanism is found) or `surgical-patch` (fix at the narrowest layer, preserve the user's other changes), use them too: this skill adds the stop rule, the guard test and the data-not-instructions rule on top.
 
-<!-- Composed for this project from: addyosmani/agent-skills debugging-and-error-recovery (MIT, Addy Osmani), obra/superpowers systematic-debugging (MIT, Jesse Vincent: stop after three failed fixes), and the investigate-first and surgical-patch skills of this user (evidence-ranked hypotheses, narrowest layer, grep all callers). See THIRD_PARTY.md. -->
+<!-- Composed for this project from: addyosmani/agent-skills debugging-and-error-recovery (MIT, Addy Osmani), obra/superpowers systematic-debugging (MIT, Jesse Vincent: stop after three failed fixes), and the author's own debugging notes (evidence-ranked hypotheses, narrowest layer, grep all callers). See THIRD_PARTY.md. -->

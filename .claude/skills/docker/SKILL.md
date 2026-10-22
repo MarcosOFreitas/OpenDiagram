@@ -1,6 +1,6 @@
 ---
 name: docker
-description: Use when writing, reviewing or debugging a Dockerfile or docker-compose file, reducing image size or build time, setting up multi-stage builds, healthchecks, volumes or networks, or auditing container security. Gatilhos (pt): Dockerfile, docker compose, imagem grande, build lento, container, volume do banco, segurança de container.
+description: Use when writing, reviewing or debugging a Dockerfile or docker-compose file, reducing image size or build time, setting up multi-stage builds, healthchecks, volumes or networks, or auditing container security.
 ---
 
 # Docker

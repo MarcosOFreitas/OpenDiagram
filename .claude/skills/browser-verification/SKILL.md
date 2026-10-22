@@ -1,6 +1,6 @@
 ---
 name: browser-verification
-description: Use when a change affects what runs in a browser and you need to see it work: verifying a UI change, reproducing a visual or interaction bug, reading console and network errors, comparing before and after. Gatilhos (pt): testar no navegador, verificar a tela, ver se funcionou, erro no console, screenshot antes e depois.
+description: Use when a change affects what runs in a browser and you need to see it work: verifying a UI change, reproducing a visual or interaction bug, reading console and network errors, comparing before and after.
 ---
 
 # Browser verification

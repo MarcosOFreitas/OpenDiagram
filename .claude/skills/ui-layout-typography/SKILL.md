@@ -1,6 +1,6 @@
 ---
 name: ui-layout-typography
-description: Use when structuring or reviewing a screen's layout, visual hierarchy, spacing, typography, responsive behavior or component consistency (grid, scale, density, breakpoints, tables, forms, navigation). Gatilhos (pt): layout, hierarquia visual, espaçamento, tipografia, responsivo, alinhamento, densidade, tabela, formulário, navegação, padronização de componentes.
+description: Use when structuring or reviewing a screen's layout, visual hierarchy, spacing, typography, responsive behavior or component consistency (grid, scale, density, breakpoints, tables, forms, navigation).
 ---
 
 # Layout, hierarchy and typography
@@ -41,4 +41,4 @@ Same job, same component, same wording, same place. Count variants: how many but
 
 Squint test (hierarchy). Remove one border, one shadow, one color: does it improve? Resize from 1440 to 320 slowly: where does it break first? Paste a 200-character name and an empty value. Tab through: does the order follow the visual order?
 
-<!-- Original text written for this harness from general layout and typography practice (spacing scales, type scale, responsive and component patterns); no third-party text copied. -->
+<!-- Original text written for this project from general layout and typography practice (spacing scales, type scale, responsive and component patterns); no third-party text copied. -->

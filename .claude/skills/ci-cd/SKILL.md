@@ -1,6 +1,6 @@
 ---
 name: ci-cd
-description: Use when creating or changing CI/CD pipelines, GitHub Actions workflows, quality gates, caching, test sharding, dependency audits or deployment automation, and when a CI run fails. Gatilhos (pt): pipeline, workflow do GitHub Actions, CI lento, CI quebrou, cache, shard de testes, gate de qualidade.
+description: Use when creating or changing CI/CD pipelines, GitHub Actions workflows, quality gates, caching, test sharding, dependency audits or deployment automation, and when a CI run fails.
 ---
 
 # CI/CD

@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Interview the user relentlessly about a plan or design until you reach a shared understanding, resolving each branch of the decision tree. Use when the user wants to stress-test a plan, says "grill me", or before a large or risky change. Gatilhos (pt): me questione, grill me, estressar o plano, desafiar o design, validar a ideia antes de uma mudança grande.
+description: Interview the user relentlessly about a plan or design until you reach a shared understanding, resolving each branch of the decision tree. Use when the user wants to stress-test a plan, says "grill me", or before a large or risky change.
 ---
 
 # Grill me

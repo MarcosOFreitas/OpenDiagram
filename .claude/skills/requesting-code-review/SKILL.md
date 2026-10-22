@@ -1,6 +1,6 @@
 ---
 name: requesting-code-review
-description: Use after finishing a feature or a risky fix, before merging, or when stuck and a fresh pair of eyes helps. Dispatches a reviewer subagent with the diff, the requirements and the project's rules, and tells you how to act on what comes back. Gatilhos (pt): revisar código, pedir revisão, code review, revisar antes do merge, receber e tratar feedback de revisão.
+description: Use after finishing a feature or a risky fix, before merging, or when stuck and a fresh pair of eyes helps. Dispatches a reviewer subagent with the diff, the requirements and the project's rules, and tells you how to act on what comes back.
 ---
 
 # Requesting and handling a code review
@@ -36,4 +36,4 @@ The full criteria are in [reviewer-prompt.md](reviewer-prompt.md); the points th
 
 Skip review because "it's simple". Ignore Critical items. Proceed with unfixed Important ones. Review code you did not read.
 
-<!-- Composed for this project from: obra/superpowers requesting-code-review, code-reviewer template and receiving-code-review (MIT, Jesse Vincent: SHA range, read-only reviewer, "Declined to judge", handling feedback); addyosmani/agent-skills code-review-and-quality (MIT, Addy Osmani: invert-a-condition check, change size); the ideas of the code-review skill of vercel-labs (certainty before flagging, exploit-path wording, no flattery: license not verified, reworded, no text kept); one-line Minor format from the cavecrew-reviewer of this user's setup. See THIRD_PARTY.md. -->
+<!-- Composed for this project from: obra/superpowers requesting-code-review, code-reviewer template and receiving-code-review (MIT, Jesse Vincent: SHA range, read-only reviewer, "Declined to judge", handling feedback); addyosmani/agent-skills code-review-and-quality (MIT, Addy Osmani: invert-a-condition check, change size); the ideas of the code-review skill of vercel-labs (certainty before flagging, exploit-path wording, no flattery: license not verified, reworded, no text kept); the one-line Minor format is the author's own. See THIRD_PARTY.md. -->

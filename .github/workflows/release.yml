@@ -48,7 +48,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # a draft GitHub release with notes generated from the commits since the previous tag; the author reviews and publishes it
+  # a draft GitHub release with notes generated from the commits since the previous tag; a maintainer reviews and publishes it
   notes:
     needs: image
     if: github.event_name == 'push'

@@ -1,6 +1,6 @@
 ---
 name: oracle-postgres-sql
-description: Use when writing, reading, porting or tuning SQL for Oracle (19c/23ai, including Autonomous Database) or PostgreSQL (15+), inspecting a schema through the catalog, reading an execution plan, writing driver code with bind variables, or loading data in batches. Gatilhos (pt): escrever query, otimizar query, plano de execução, Oracle vs Postgres, migrar SQL, carga em lote, consultar catálogo.
+description: Use when writing, reading, porting or tuning SQL for Oracle (19c/23ai, including Autonomous Database) or PostgreSQL (15+), inspecting a schema through the catalog, reading an execution plan, writing driver code with bind variables, or loading data in batches.
 ---
 
 # Oracle and PostgreSQL SQL

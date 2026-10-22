@@ -1,6 +1,6 @@
 ---
 name: ui-feedback-states
-description: Use when designing or reviewing how a UI answers the user: hover, focus, pressed and disabled states, loading, empty, error and success states, form validation, toasts, optimistic updates, motion and transitions. Gatilhos (pt): resposta visual, feedback ao usuário, estados da interface, loading, estado vazio, validação de formulário, animação, hover, toast, spinner.
+description: Use when designing or reviewing how a UI answers the user: hover, focus, pressed and disabled states, loading, empty, error and success states, form validation, toasts, optimistic updates, motion and transitions.
 ---
 
 # Visual feedback and states
@@ -48,4 +48,4 @@ Purpose only: show cause and effect, keep orientation (where did it go), draw at
 
 Press every control: does something change within 100 ms? Throttle the network: what does the user see at 3 s and at 30 s? Break the request: does the error say what to do? Submit twice quickly. Navigate away mid-save. Open it with no data and with 10,000 rows.
 
-<!-- Original text written for this harness from general interaction-design practice (response-time limits, state coverage, WCAG status messages); no third-party text copied. -->
+<!-- Original text written for this project from general interaction-design practice (response-time limits, state coverage, WCAG status messages); no third-party text copied. -->

@@ -1,6 +1,6 @@
 ---
 name: security-and-hardening
-description: Use when building or changing anything that accepts untrusted input, handles authentication or authorization, stores or returns sensitive data, fetches URLs on the server, runs destructive operations, or adds a dependency. Threat-model first, then apply the controls and check the project's own security rules. Gatilhos (pt): segurança, vulnerabilidade, proteger entrada de usuário, autenticação, autorização, SSRF, segredos, dependências vulneráveis.
+description: Use when building or changing anything that accepts untrusted input, handles authentication or authorization, stores or returns sensitive data, fetches URLs on the server, runs destructive operations, or adds a dependency. Threat-model first, then apply the controls and check the project's own security rules.
 ---
 
 # Security and hardening

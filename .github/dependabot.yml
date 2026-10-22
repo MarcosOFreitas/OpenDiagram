@@ -1,6 +1,5 @@
 # Dependency updates. Security updates are configured in the repository settings and are not limited by this file.
 # vite, vitest and the plugins around them move together: a major bump of one of them breaks `npm ci` on its own (peer dependencies), so majors are done by hand, in one change
-# (vite 7 + vitest 5 on 2026-10-16, which also closed the @vitest/mocker security alert).
 version: 2
 updates:
   - package-ecosystem: npm

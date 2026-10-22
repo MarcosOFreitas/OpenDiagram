@@ -1,6 +1,6 @@
 ---
 name: mcp-builder
-description: Use when building or reviewing an MCP (Model Context Protocol) server that exposes a service, API or database to an LLM agent through tools, in TypeScript or Python. Gatilhos (pt): criar servidor MCP, ferramenta MCP, expor API para agente, revisar tools do MCP.
+description: Use when building or reviewing an MCP (Model Context Protocol) server that exposes a service, API or database to an LLM agent through tools, in TypeScript or Python.
 ---
 
 # MCP server builder
