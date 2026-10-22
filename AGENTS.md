@@ -84,7 +84,7 @@ Every UI change follows [`.specs/11-ui-review.md`](.specs/11-ui-review.md). The 
 
 ## Gotchas
 
-- `@dbml/core`: `importer.import(sql, 'oracle')` returns empty; `json` import does not round-trip its own export. Do not re-add them as import options. Group members must be read through `t.schema?.name ?? t.schemaName`.
+- `@dbml/core` (10.x): `importer.import(sql, 'oracle')` reads tables, keys, indexes and comments and skips views, sequences and triggers, but fails on SQL*Plus lines (`connect`) and system-privilege grants (`web/src/formats.test.js`); `json` import still does not round-trip its own export: do not add it as an import option. Group members must be read through `t.schema?.name ?? t.schemaName`.
 - Oracle `ALL_TAB_COLUMNS` has no `HIDDEN_COLUMN` (use `ALL_TAB_COLS`); the `SESSION_ROLES` column is `ROLE`. node-pg cannot parse `name[]`: cast `attname::text` inside `array_agg`.
 - React Flow nodes stay `visibility: hidden` until measured; in a hidden browser pane they are never measured and edges do not render. Sizes measured inside the canvas depend on the zoom.
 - React Flow's own CSS sets `outline: none` on nodes with a higher specificity than a plain rule: the focus ring has its own selector.

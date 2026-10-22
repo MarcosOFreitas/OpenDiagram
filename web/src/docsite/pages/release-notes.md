@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Import Oracle SQL files
+
+- **Import** now reads Oracle SQL: tables, keys, indexes and comments. Views, sequences and triggers are skipped (the live import reads them).
+
 ## Display options next to the diagram
 
 - The display options moved from **More → View** to a **Display** tab in the side panel of the diagram, next to **Tables**: you see the effect while you change them, and the saved view above the tabs covers both.

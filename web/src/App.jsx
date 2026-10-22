@@ -929,7 +929,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <div className="dbody">
               <h4>Format</h4>
               <select value={sqlFmt} onChange={(e) => setSqlFmt(e.target.value)}>
-                <option value="postgres">PostgreSQL SQL</option><option value="mysql">MySQL SQL</option><option value="mssql">SQL Server SQL</option>
+                <option value="postgres">PostgreSQL SQL</option><option value="mysql">MySQL SQL</option><option value="mssql">SQL Server SQL</option><option value="oracle">Oracle SQL</option>
                 <option value="snowflake">Snowflake SQL</option><option value="dbml">DBML</option>
               </select>
               <label className={`drop ${drag ? 'over' : ''}`} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
@@ -940,7 +940,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               <h4>…or paste</h4>
               <textarea className="paste" placeholder="CREATE TABLE …" value={paste} onChange={(e) => setPaste(e.target.value)} />
               <button className="primary" disabled={!paste.trim()} onClick={() => importText(paste)}>Convert to diagram</button>
-              <small className="hint">Oracle SQL files are not supported by the parser — use Database → Oracle to import live.</small>
+              {sqlFmt === 'oracle' && <small className="hint">Reads tables, keys, indexes and comments; views, sequences and triggers are skipped (Database → Oracle imports them live). Remove SQL*Plus lines such as <code>connect</code> first.</small>}
             </div>
           )}
 

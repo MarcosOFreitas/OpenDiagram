@@ -16,7 +16,7 @@ Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming t
 - **Generated documentation** (dbdocs-style): a browsable, searchable *Docs* view with your own comments (stored only in the app), a changelog from the named versions, and export as one standalone `.html` or Markdown.
 - **Versions and history**: every change is kept, versions can be named, compared and restored; two people saving at once get an edit-conflict dialog instead of silent overwrites; avatars show who has the diagram open.
 - **Accounts, groups and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat groups; private diagrams; share with people, groups or links (view / comment / edit, optional link password). Administrators can **register a shared database connection** that members use without seeing its credential; every use is written to an **audit log** that can be filtered by person, target and type of operation.
-- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
+- **Import** SQL (PostgreSQL, MySQL, SQL Server, Oracle, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - Ships as **one Docker image with SQLite storage**; no external services.
 
 > Status: working and tested, pre-1.0. Read [Security](#security) before exposing it beyond your own machine or network. What is planned and what is deliberately not done is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md).
@@ -119,7 +119,7 @@ In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connec
 ## Known limitations
 
 - PostgreSQL and Oracle only for live import; functions and procedures are not imported. MySQL / SQL Server work as SQL file import and export targets.
-- Oracle SQL **files** cannot be imported (parser limitation): use the live Oracle import. JSON is export-only.
+- Oracle SQL **files** import tables, keys, indexes and comments only (views, sequences and triggers come with the live import). JSON is export-only.
 - Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
 - The scheduled refresh runs in the server process (one instance); it skips a diagram that someone is editing and pauses after 5 failures in a row.
 - Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.

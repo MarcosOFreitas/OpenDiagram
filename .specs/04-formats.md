@@ -11,7 +11,7 @@
 | MySQL SQL | ✅ | ✅ | |
 | SQL Server SQL | ✅ | ✅ | |
 | Snowflake SQL | ✅ | — | |
-| Oracle SQL | ❌ parser returns empty | ✅ | use live Oracle import |
+| Oracle SQL | ✅ tables, keys, indexes, comments (`@dbml/core` 10; views, sequences and triggers skipped; SQL*Plus lines fail) | ✅ | the live import also reads views, sequences and triggers |
 | JSON | ❌ does not round-trip | ✅ | `@dbml/core` json/jsonv2 import is unusable for its own export |
 | PNG / SVG | — | ✅ | background follows theme; file name = diagram title |
 | Documentation | — | ✅ `.html` standalone, `.md` | see [08](08-documentation.md) |

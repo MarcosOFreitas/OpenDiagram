@@ -14,7 +14,7 @@
 
 Syntax problems are reported in a message. Importing replaces the whole diagram text, for every format; **More → History** can bring the previous text back.
 
-> **Note** Oracle SQL files cannot be parsed. To bring an Oracle schema in, use [Import from a database](database-import) (live import), which reads the catalog directly.
+> **Note** Oracle SQL files bring tables, keys, indexes and comments; views, sequences and triggers are skipped, and SQL*Plus lines such as `connect` must be removed first. For the whole schema, views included, use [Import from a database](database-import) (live import), which reads the catalog directly.
 
 ## Export
 
