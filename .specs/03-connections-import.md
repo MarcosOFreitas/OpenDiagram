@@ -8,7 +8,7 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 
 | Field | Notes |
 |-------|-------|
-| `id`, `name`, `type` (`postgres`\|`oracle`), `host`, `port`, `database` (Oracle: service name), `user` | |
+| `id`, `name`, `type` (`postgres`\|`oracle`\|`mysql`), `host`, `port`, `database` (Oracle: service name; MySQL: optional, it only sets the session default: a MySQL database is a schema), `user` | |
 | `password`, `caPem` | **secrets**, AES-256-GCM with `APP_SECRET`. On save: empty/undefined keeps stored value, `null` clears. Never returned by the API (`hasCa` flag instead). |
 | `tls` | `off` \| `verify` (chain + host name; optional `caPem`) \| `noverify` (PG: no certificate check; Oracle: skips DN/host match, chain still validated). Legacy `ssl:true` ⇒ `noverify`. |
 | `serverDn` | Oracle `SSL_SERVER_CERT_DN` (optional, with `verify`). |
@@ -18,9 +18,10 @@ Stored per account in the SQLite `connections` table (`DATA_DIR/app.db`); other 
 
 ## Guardrails
 
-1. **Read-only session (always).** Postgres: startup options `default_transaction_read_only=on`, `statement_timeout=30s`, `idle_in_transaction_session_timeout=60s`, then `BEGIN READ ONLY` … `ROLLBACK`. Oracle: `SET TRANSACTION READ ONLY`, `callTimeout=30s`. Only catalog/dictionary views are queried — never user tables.
+1. **Read-only session (always).** MySQL 8.0+ (MariaDB 10.6+ best effort): `SET SESSION TRANSACTION READ ONLY`, `max_execution_time` 30 s, then `START TRANSACTION READ ONLY` … `ROLLBACK`; `connectTimeout` 8 s; the driver runs with `disableEval` and without the `LOCAL_FILES` capability (a rogue server, see [05](05-security.md)). Postgres: startup options `default_transaction_read_only=on`, `statement_timeout=30s`, `idle_in_transaction_session_timeout=60s`, then `BEGIN READ ONLY` … `ROLLBACK`. Oracle: `SET TRANSACTION READ ONLY`, `callTimeout=30s`. Only catalog/dictionary views are queried — never user tables.
 2. **Privilege check (Test and Import).** Returns warnings, never blocks unless `blockWritable`:
    - Postgres: superuser, createrole, createdb, bypassrls; `has_table_privilege(INSERT,UPDATE,DELETE,TRUNCATE)` on any table of the selected schemas; `CREATE` on those schemas.
+   - MySQL: an allowlist over `SHOW GRANTS FOR CURRENT_USER() USING` the active roles (`SHOW GRANTS` on MariaDB): anything but `USAGE`, `SELECT`, `SHOW VIEW`, `SHOW DATABASES` on `*.*`, a selected database (LIKE patterns included) or its tables, and `WITH GRANT OPTION`, is a warning naming the privileges and the scope (`EXECUTE` included).
    - Oracle: `DBA`/`RESOURCE` roles; system privileges beyond read (`… ANY`, `CREATE TABLE/VIEW/PROCEDURE/SEQUENCE/TRIGGER`, `UNLIMITED TABLESPACE`); `INSERT/UPDATE/DELETE` grants on selected schemas (`ALL_TAB_PRIVS_RECD`); user is the owner of a selected schema.
    - If the check itself fails ⇒ a warning `could not verify privileges (…)`.
 3. **Strict mode.** With `blockWritable`, `/api/import` answers `403 Blocked by guardrail: …` when warnings exist.
@@ -35,7 +36,9 @@ Also (A1), with the DBML representation in [04](04-formats.md#objects-without-a-
 - TableGroups from the picker: *Groups* tab (name, color from the editor palette or any color, each group has its own table chooser (search, select shown) independent of the import selection; a table belongs to one group, and adding it to another group moves it (the chooser marks tables already grouped)); groups start from the diagram's current TableGroups; on **Import** they are appended as `TableGroup` blocks (members not imported are dropped, tables put in a group are ticked for the import right away in the Tables tab, unless nothing is ticked, which already means all). A new Import also re-applies the diagram's current groups (before, only Refresh kept them).
 - Picker UI: a centered dialog (`TablePicker.jsx`) with search (plain text, `*`/`?` wildcards like `VW_*`, or `/regex/`), schema and tables/views filters, "selected only", select/clear shown; Esc or Cancel discards, "Use N tables" applies; nothing selected = all tables.
 
-**Not imported yet:** check constraints, partitions detail, functions/procedures, Oracle enums-by-check.
+**MySQL:** the schemas are the databases the account can see (without `mysql`, `sys`, `information_schema`, `performance_schema`); tables and views from `information_schema.TABLES` (a view's `TABLE_COMMENT` `VIEW` is not a comment), columns with the type as MySQL writes it (`int unsigned`), `AUTO_INCREMENT` -> `[increment]`, string defaults quoted, `DEFAULT_GENERATED` ones as expressions, each `enum(...)` column -> a DBML `Enum schema.table_column`, PK, FK with actions, indexes (expression indexes as `(expr)`), triggers in the table note (MySQL shows them only to an account with the `TRIGGER` privilege, so not to a read-only one), view lineage from `VIEW_TABLE_USAGE` (MySQL 8.0.13+) and from the view text read with backticks as double quotes.
+
+**Not imported yet:** check constraints, partitions detail (both planned as item 7b of [14](14-release-v1.md)), functions/procedures, Oracle enums-by-check.
 
 ## Refresh
 

@@ -32,6 +32,7 @@ export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] 
     for (const c of t.columns) {
       const s = [];
       if (c.name === single) s.push('pk');
+      if (c.increment) s.push('increment'); // MySQL AUTO_INCREMENT
       if (!c.nullable && c.name !== single) s.push('not null');
       if (c.default != null && String(c.default).trim() !== '') s.push(`default: ${expr(String(c.default).trim())}`);
       if (c.comment) s.push(`note: ${str(c.comment)}`);

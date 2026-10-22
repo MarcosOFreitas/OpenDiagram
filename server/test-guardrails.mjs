@@ -1,4 +1,4 @@
-// e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
+// e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls, demo-mysql up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
 import { execSync } from 'node:child_process';
 
 const BASE = process.env.BASE || 'http://localhost:3000';
@@ -136,6 +136,36 @@ const hist = await call('GET', `diagrams/${sd.id}/versions`);
 check('scheduled refresh ran with no page open', !!got?.refresh && got.refresh.lastError === null && /shop\.customers/.test(got.dbml), JSON.stringify(got?.refresh));
 check('  saved as "Refresh from database" by "Scheduled refresh"', hist[0]?.author === 'Scheduled refresh' && /^Refresh from database/.test(hist[0]?.summary), `${hist[0]?.author}: ${hist[0]?.summary}`);
 await call('DELETE', `diagrams/${sd.id}`); await call('DELETE', `connections/${sc.id}`);
+
+// 7. MySQL (demo-mysql, MySQL 8.4): the same guardrails as PostgreSQL (.specs/14-release-v1.md, item 7)
+const my = (user, password, extra = {}) => ({ type: 'mysql', host: 'demo-mysql', port: 3306, database: '', user, password, tls: 'off', ...extra });
+for (const [user, pass, expectWarn] of [['root', 'demo', true], ['writer', 'writer', true], ['reader', 'reader', false]]) {
+  const x = await post('schemas', my(user, pass));
+  check(`mysql privileges ${user}`, x.status === 200 && (x.warnings?.length > 0) === expectWarn && x.schemas?.includes('shop') && !x.schemas.some((s) => ['mysql', 'sys', 'information_schema', 'performance_schema'].includes(s)), JSON.stringify(x.warnings ?? x.error));
+}
+r = await post('import', { ...my('writer', 'writer', { blockWritable: true }), schemas: ['shop'] });
+check('mysql strict blocks writer', r.status === 403, r.error?.slice(0, 90));
+r = await post('import', { ...my('reader', 'reader', { blockWritable: true }), schemas: ['shop'] });
+check('mysql strict allows reader', r.status === 200 && r.tables >= 4, `${r.tables} tables`);
+check('mysql enum column -> DBML enum', /Enum shop\.orders_status \{\n {2}new\n {2}paid\n {2}shipped\n\}/.test(r.dbml ?? ''), (r.dbml ?? '').match(/Enum[^}]*}/)?.[0]);
+check('mysql auto increment, unsigned type, default and relationship', /id "int unsigned" \[pk, increment\]/.test(r.dbml ?? '') && /default: `'new'`/.test(r.dbml ?? '') && /Ref[^\n]*shop\.orders\.customer_id > shop\.customers\.id \[delete: cascade\]/.test(r.dbml ?? ''), (r.dbml ?? '').slice(0, 200));
+check('mysql view marked once in its note', /Table shop\.v_order_totals \[note: '''\nVIEW\n'''\]/.test(r.dbml ?? ''), (r.dbml ?? '').match(/Table shop\.v_order_totals[^}]*?'''\]/)?.[0]);
+check('mysql view column lineage', /lineage\(auto\): shop\.v_order_totals\.name <- shop\.customers\.name/.test(r.dbml ?? ''));
+const asRoot = await post('import', { ...my('root', 'demo'), schemas: ['shop'] }); // MySQL shows triggers only to an account with the TRIGGER privilege, so not to a read-only one
+check('mysql trigger in its table note (root)', /TRIGGERS\ntrg_orders_touch/.test(asRoot.dbml ?? ''), asRoot.error);
+r = await post('tables', { ...my('reader', 'reader'), schemas: ['shop'] });
+check('mysql list tables flags the view', r.status === 200 && r.tables?.length >= 4 && r.tables.filter((t) => t.view).map((t) => t.name).join() === 'v_order_totals', JSON.stringify(r.tables));
+r = await post('import', { ...my('reader', 'reader'), schemas: ['shop'], tables: ['shop.orders'] });
+check('mysql import only the picked table', r.status === 200 && r.tables === 1, `${r.tables} tables`);
+// the session statements the app sends make a write fail, for root too (straight against the server, as for PostgreSQL)
+const mysqlCli = (stmts) => execSync(`docker compose exec -T demo-mysql mysql -uroot -pdemo shop -e "${stmts}"`, { stdio: 'pipe' });
+try { mysqlCli("SET SESSION TRANSACTION READ ONLY; START TRANSACTION READ ONLY; INSERT INTO customers (name, email) VALUES ('x', 'x@example.com');"); check('mysql read-only session rejects INSERT as root', false, 'INSERT succeeded'); }
+catch (e) { check('mysql read-only session rejects INSERT as root', /READ ONLY transaction/i.test(String(e.stderr)), String(e.stderr).trim().split('\n').pop()); }
+// TLS: the server's auto-generated certificate (its name never matches the host)
+r = await post('schemas', my('reader', 'reader', { tls: 'noverify' }));
+check('mysql tls noverify connects', r.status === 200, r.error);
+r = await post('schemas', my('reader', 'reader', { tls: 'verify' }));
+check('mysql tls verify refuses the auto-generated certificate', r.status >= 400 && /certificate|self[- ]signed|altnames|hostname/i.test(r.error ?? ''), r.error);
 
 console.log(fail ? `\n${fail} FAILED` : '\nall passed');
 process.exit(fail ? 1 : 0);

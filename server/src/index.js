@@ -53,13 +53,15 @@ app.addHook('onSend', async (req, reply) => {
 });
 
 // saved connection (if `id`) overlaid with the draft fields from the form; empty values keep the stored ones
-const assertType = (t) => { if (!['postgres', 'oracle'].includes(t)) throw bad('type must be postgres or oracle'); };
+const assertType = (t) => { if (!['postgres', 'oracle', 'mysql'].includes(t)) throw bad('type must be postgres, oracle or mysql'); };
 // a connection as the form sends it, for a person's own and for an administrator's shared one; an empty port is the engine's default
 function validConn(b) {
   assertType(b.type);
-  if (!['name', 'host', 'database', 'user'].every((k) => typeof b[k] === 'string' && b[k].trim())) throw bad('name, host, database and user are required');
+  const needed = b.type === 'mysql' ? ['name', 'host', 'user'] : ['name', 'host', 'database', 'user']; // a MySQL database is a schema: the field only sets the session default
+  if (!needed.every((k) => typeof b[k] === 'string' && b[k].trim())) throw bad(`${needed.join(', ')} are required`);
+  if (b.database != null && typeof b.database !== 'string') throw bad('database must be text');
   if (b.name.length > 80) throw bad('the connection name can have 80 characters at most');
-  const port = b.port === '' || b.port == null ? (b.type === 'oracle' ? 1521 : 5432) : Number(b.port);
+  const port = b.port === '' || b.port == null ? { oracle: 1521, mysql: 3306 }[b.type] ?? 5432 : Number(b.port);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw bad('port must be a number from 1 to 65535');
   return { ...b, port };
 }
@@ -70,7 +72,7 @@ async function resolve(b, user) {
   const draft = saved.shared ? {} : Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== '')); // a shared connection is used exactly as registered: a request can never point its credentials somewhere else
   const c = { ...saved, ...draft };
   assertType(c.type);
-  if (!c.host || !c.database || !c.user) throw bad('host, database and user are required');
+  if (!c.host || (!c.database && c.type !== 'mysql') || !c.user) throw bad(c.type === 'mysql' ? 'host and user are required' : 'host, database and user are required');
   c.tls = ['off', 'verify', 'noverify'].includes(c.tls) ? c.tls : 'off';
   await assertHostAllowed(c.host);
   return c;

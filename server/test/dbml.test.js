@@ -89,3 +89,9 @@ test('a sequence used by a table goes into the note of that table (columns named
   assert.ok(!out.includes('Note "shop.ticket_seq"'));
   assert.ok(out.includes('Note "shop.loose_seq" {') && out.includes('Note "shop.gone_seq" {'));
 });
+
+test('an auto-increment column (MySQL AUTO_INCREMENT) is written with increment, after pk', () => {
+  const out = toDbml({ tables: [{ schema: 'shop', name: 'orders', columns: [{ name: 'id', type: 'int unsigned', nullable: false, increment: true }, { name: 'n', type: 'int', nullable: true }], pk: ['id'], indexes: [], triggers: [] }], refs: [] });
+  assert.match(out, /id "int unsigned" \[pk, increment\]/);
+  assert.doesNotMatch(out, /n int \[[^\]]*increment/);
+});

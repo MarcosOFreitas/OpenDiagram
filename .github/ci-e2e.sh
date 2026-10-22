@@ -47,10 +47,12 @@ trap cleanup EXIT
 
 if [ -z "${OD_REUSE:-}" ]; then
   export APP_SECRET=${APP_SECRET:-$(openssl rand -hex 24)}
-  docker compose up -d --build app demo-pg demo-pg-tls || exit 1
+  docker compose up -d --build app demo-pg demo-pg-tls demo-mysql || exit 1
   export TEST_ADMIN_EMAIL=ci-admin@example.com TEST_ADMIN_PASSWORD='ci-test-password-1'
   wait_health http://localhost:3000/api/health || exit 1
   docker compose exec -T app node src/cli.js create-admin "$TEST_ADMIN_EMAIL" "$TEST_ADMIN_PASSWORD" >/dev/null || exit 1
+  # demo-mysql runs demo/mysql.sql on its first start (about 20 s): wait until the read-only user sees the shop tables
+  for _ in $(seq 1 60); do docker compose exec -T demo-mysql mysql -ureader -preader -e 'select 1 from shop.orders limit 1' >/dev/null 2>&1 && break; sleep 2; done
 fi
 : "${TEST_ADMIN_EMAIL:?}" "${TEST_ADMIN_PASSWORD:?}"
 wait_health http://localhost:3000/api/health || exit 1

@@ -17,6 +17,13 @@ services:
     volumes: ["./demo/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro", "./demo/tls-entrypoint.sh:/tls-entrypoint.sh:ro"]
     entrypoint: ["bash", "/tls-entrypoint.sh"]
 
+  # MySQL 8.4 with the shop database and the root / writer / reader users of demo/mysql.sql (the server makes its own TLS certificate)
+  demo-mysql:
+    image: mysql:8.4
+    environment: { MYSQL_ROOT_PASSWORD: demo }
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["./demo/mysql.sql:/docker-entrypoint-initdb.d/mysql.sql:ro"]
+
   # TCPS in front of demo-oracle (a socat TLS proxy with a self-signed certificate, CN oracle.demo.test, see demo/oracle-tls): test the Oracle TLS modes.
   #   host oracle.demo.test (alias of this proxy) + "verify" works; host demo-oracle-tls + "verify" fails (name mismatch) unless the expected DN CN=oracle.demo.test is given; "noverify" skips the name check.
   demo-oracle-tls:

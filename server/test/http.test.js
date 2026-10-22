@@ -90,3 +90,11 @@ test('every answer carries its request id, the one in the server log', async () 
   assert.equal(typeof r.headers['x-request-id'], 'string');
   assert.ok(r.headers['x-request-id'].length > 0);
 });
+
+test('a MySQL connection is accepted with an empty Database (it only sets the session default); other engines still need one', async () => {
+  const base = { name: 'my', host: 'db.example.com', port: '', user: 'u' };
+  const my = await call('POST', '/api/connections', { ...base, type: 'mysql', database: '' });
+  assert.equal(my.statusCode, 200, my.body);
+  assert.equal((await call('POST', '/api/connections', { ...base, type: 'postgres', database: '' })).statusCode, 400);
+  assert.equal((await call('POST', '/api/connections', { ...base, type: 'sqlserver', database: 'd' })).statusCode, 400);
+});

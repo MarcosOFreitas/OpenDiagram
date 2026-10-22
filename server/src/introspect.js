@@ -1,5 +1,6 @@
 import pg from 'pg';
 import oracledb from 'oracledb';
+import mysql from 'mysql2/promise';
 import { ACTION } from './dbml.js';
 import { viewColumnLineage } from './lineage.js';
 
@@ -9,7 +10,8 @@ const key = (s, n) => `${s}.${n}`;
 // `seqUse` = [{ seq: {schema, name}, table: {schema, name}, column? }]: which table (and column) uses a sequence (a column default, or a trigger); only tables of this import count.
 export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = [], seqUse = []) {
   const tables = new Map();
-  for (const r of tableRows) tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] });
+  const sqlOf = new Map(); // the SQL the lineage parser reads: a driver may give a standard-SQL copy of the view text (MySQL backticks)
+  for (const r of tableRows) { tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] }); if (r.lineageSql) sqlOf.set(key(r.schema, r.name), r.lineageSql); }
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
   for (const r of pkRows) tables.get(key(r.schema, r.table))?.pk.push(...r.cols);
   for (const r of idxRows) {
@@ -29,7 +31,7 @@ export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows =
     lin.get(tk).sources.push({ ...r.source, columns: r.columns ?? [] });
   }
   // which source column each output column of a view comes from (parsing the view's SQL); added to the table-level entries
-  for (const c of viewColumnLineage([...tables.values()].map((t) => ({ schema: t.schema, name: t.name, columns: t.columns.map((x) => x.name), view: t.view })))) {
+  for (const c of viewColumnLineage([...tables.values()].map((t) => ({ schema: t.schema, name: t.name, columns: t.columns.map((x) => x.name), view: sqlOf.get(key(t.schema, t.name)) ?? t.view })))) {
     const k = key(c.target.schema, c.target.name);
     if (!lin.has(k)) lin.set(k, { target: c.target, sources: [] });
     lin.get(k).columns = c.columns;
@@ -280,7 +282,144 @@ async function oraPrivileges(c, schemas) {
   });
 }
 
-const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgImport, privileges: pgPrivileges }, oracle: { schemas: oraSchemas, tables: oraTables, import: oraImport, privileges: oraPrivileges } };
+// ---------- MySQL 8.0+ (MariaDB 10.6+ best effort) ----------
+// A database is a schema: the Database field only sets the session default. The server may be one a user controls (any host the
+// policy allows), so the driver never runs code built from what it sends (disableEval) and never offers to read local files.
+export const myConfig = (c) => ({
+  host: c.host, port: +c.port || 3306, user: c.user, password: c.password, database: c.database || undefined,
+  ssl: c.tls === 'verify' ? { rejectUnauthorized: true, ...(c.caPem ? { ca: c.caPem } : {}) } : c.tls === 'noverify' ? { rejectUnauthorized: false } : undefined,
+  connectTimeout: 8000, disableEval: true, flags: ['-LOCAL_FILES'], multipleStatements: false, dateStrings: true, supportBigNumbers: true, bigNumberStrings: true,
+});
+
+// guardrail 1: the session default and every use are read-only transactions; each query stops after 30 s
+export async function myWith(c, fn, connect = (o) => mysql.createConnection(o)) {
+  const cn = await connect(myConfig(c));
+  try {
+    await cn.query('SET SESSION TRANSACTION READ ONLY');
+    await cn.query('SET SESSION max_execution_time = 30000');
+    await cn.query('START TRANSACTION READ ONLY');
+    return await fn(cn);
+  } finally {
+    try { await cn.query('ROLLBACK'); } catch { /* connection already gone */ }
+    try { await cn.end(); } catch { /* already closed */ }
+  }
+}
+
+// guardrail 2: SHOW GRANTS lines -> warnings. An allowlist, so a privilege a later version adds is reported, never assumed harmless.
+const MY_ALLOWED = new Set(['USAGE', 'SELECT', 'SHOW VIEW', 'SHOW DATABASES']);
+const myUnquote = (s) => s.replace(/^`|`$/g, '').replace(/``/g, '`');
+// a database name in GRANT ... ON `db\_%`.* is a LIKE pattern: % any text, _ one character, a backslash makes the next one literal
+function myLike(pattern) {
+  let re = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\' && i + 1 < pattern.length) re += pattern[++i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    else re += ch === '%' ? '.*' : ch === '_' ? '.' : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`);
+}
+export function myGrantWarnings(lines, schemas) {
+  const out = [];
+  for (const line of lines) {
+    const m = /^GRANT (.+?) ON (.+?) TO .+?( WITH GRANT OPTION)?$/.exec(line.trim());
+    if (!m) continue; // a role granted to the user: its privileges come through SHOW GRANTS ... USING
+    const on = m[2].trim();
+    let scope;
+    if (on === '*.*') scope = '*.*';
+    else {
+      const t = /^(`(?:[^`]|``)*`|[^.]+)\.(\*|`(?:[^`]|``)*`|\S+)$/.exec(on);
+      if (!t) { scope = on; } else {
+        const db = myUnquote(t[1]);
+        if (!schemas.some((s) => s === db || myLike(t[1].replace(/^`|`$/g, '')).test(s))) continue; // not one of the imported databases
+        scope = `${db}.${t[2] === '*' ? '*' : myUnquote(t[2])}`;
+      }
+    }
+    const privs = m[1].replace(/\([^)]*\)/g, '').split(',').map((p) => p.trim().toUpperCase()).filter(Boolean); // column lists (`col`) dropped
+    const risky = [...new Set(privs.filter((p) => !MY_ALLOWED.has(p)))];
+    if (risky.length) out.push(`has ${risky.length > 8 ? `${risky.slice(0, 8).join(', ')} and ${risky.length - 8} more` : risky.join(', ')} on ${scope}`);
+    if (m[3]) out.push(`can grant its privileges to others (WITH GRANT OPTION) on ${scope}`);
+  }
+  return [...new Set(out)];
+}
+
+// one information_schema.COLUMNS row -> the neutral column; an enum column also gives a DBML enum named after its table and column
+const MY_TEXT = /char|text|enum|set|date|time|year|blob|binary|json/;
+export function myColumn(r) {
+  let type = r.COLUMN_TYPE, en = null;
+  if (r.DATA_TYPE === 'enum') {
+    const values = [...r.COLUMN_TYPE.slice(5, -1).matchAll(/'((?:[^']|'')*)'/g)].map((x) => x[1].replace(/''/g, "'"));
+    en = { schema: r.TABLE_SCHEMA, name: `${r.TABLE_NAME}_${r.COLUMN_NAME}`, values };
+    type = `${en.schema}.${en.name}`;
+  }
+  const d = r.COLUMN_DEFAULT;
+  const def = d == null ? undefined : /DEFAULT_GENERATED/i.test(r.EXTRA || '') ? d : MY_TEXT.test(r.DATA_TYPE) ? `'${String(d).replace(/'/g, "''")}'` : String(d);
+  const col = { name: r.COLUMN_NAME, type, nullable: r.IS_NULLABLE === 'YES', default: def, comment: r.COLUMN_COMMENT || undefined };
+  if (/auto_increment/i.test(r.EXTRA || '')) col.increment = true;
+  return { schema: r.TABLE_SCHEMA, table: r.TABLE_NAME, col, enum: en };
+}
+
+const MY_SYSTEM = ['mysql', 'sys', 'information_schema', 'performance_schema'];
+// one information_schema.TABLES row (s, n, t = TABLE_TYPE, cm = TABLE_COMMENT) -> the neutral table; MySQL writes "VIEW" as the comment of every view.
+// The lineage parser reads standard SQL, so it gets a copy of the view text with backticks as double quotes; the DDL keeps MySQL's own text.
+export const myTableRow = (r, view) => {
+  const isView = r.t === 'VIEW';
+  return { schema: r.s, name: r.n, comment: (isView && r.cm === 'VIEW') || !r.cm ? undefined : r.cm, view: isView ? view ?? '' : null, viewKind: isView ? 'VIEW' : null, lineageSql: isView ? (view ?? '').replace(/`/g, '"') : undefined };
+};
+const myRows = async (cn, sql, params = []) => (await cn.query(sql, params))[0];
+
+const mySchemas = (c) => myWith(c, async (cn) =>
+  (await myRows(cn, 'SELECT SCHEMA_NAME AS s FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN (?) ORDER BY 1', [MY_SYSTEM])).map((r) => r.s));
+
+const myTables = (c, schemas) => myWith(c, async (cn) =>
+  (await myRows(cn, `SELECT TABLE_SCHEMA AS s, TABLE_NAME AS n, TABLE_TYPE = 'VIEW' AS v FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?) ORDER BY 1, 2`, [schemas]))
+    .map((r) => ({ schema: r.s, name: r.n, view: !!r.v })));
+
+const myImport = (c, schemas) => myWith(c, async (cn) => {
+  const q = (sql) => myRows(cn, sql, [schemas]);
+  const views = new Map((await q('SELECT TABLE_SCHEMA AS s, TABLE_NAME AS n, VIEW_DEFINITION AS d FROM information_schema.VIEWS WHERE TABLE_SCHEMA IN (?)')).map((r) => [key(r.s, r.n), r.d ?? '']));
+  const tableRows = (await q('SELECT TABLE_SCHEMA AS s, TABLE_NAME AS n, TABLE_TYPE AS t, TABLE_COMMENT AS cm FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?) ORDER BY 1, 2'))
+    .map((r) => myTableRow(r, r.t === 'VIEW' ? views.get(key(r.s, r.n)) ?? '' : undefined));
+  const enums = [], colRows = [];
+  for (const r of await q('SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?) ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION')) {
+    const m = myColumn(r);
+    colRows.push({ schema: m.schema, table: m.table, col: m.col });
+    if (m.enum) enums.push(m.enum);
+  }
+  const keys = await q(`SELECT k.TABLE_SCHEMA AS s, k.TABLE_NAME AS t, k.CONSTRAINT_NAME AS c, k.COLUMN_NAME AS col, k.REFERENCED_TABLE_SCHEMA AS rs, k.REFERENCED_TABLE_NAME AS rt, k.REFERENCED_COLUMN_NAME AS rc, r.UPDATE_RULE AS up, r.DELETE_RULE AS del
+    FROM information_schema.KEY_COLUMN_USAGE k LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
+    WHERE k.TABLE_SCHEMA IN (?) AND (k.CONSTRAINT_NAME = 'PRIMARY' OR k.REFERENCED_TABLE_NAME IS NOT NULL) ORDER BY k.TABLE_SCHEMA, k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION`);
+  const group = (rows) => { const g = new Map(); for (const r of rows) { const k = `${r.s}.${r.t}.${r.c}`; if (!g.has(k)) g.set(k, []); g.get(k).push(r); } return [...g.values()]; };
+  const pkRows = group(keys.filter((r) => r.c === 'PRIMARY')).map((g) => ({ schema: g[0].s, table: g[0].t, cols: g.map((r) => r.col) }));
+  const fkRows = group(keys.filter((r) => r.c !== 'PRIMARY')).map((g) => ({
+    name: g[0].c, from: { schema: g[0].s, name: g[0].t, columns: g.map((r) => r.col) }, to: { schema: g[0].rs, name: g[0].rt, columns: g.map((r) => r.rc) },
+    onDelete: g[0].del?.toLowerCase(), onUpdate: g[0].up?.toLowerCase(),
+  }));
+  const idx = await q(`SELECT TABLE_SCHEMA AS s, TABLE_NAME AS t, INDEX_NAME AS c, NON_UNIQUE AS nu, INDEX_TYPE AS ty, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) AS col
+    FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND INDEX_NAME <> 'PRIMARY' ORDER BY 1, 2, 3, SEQ_IN_INDEX`);
+  const idxRows = group(idx).map((g) => ({ schema: g[0].s, table: g[0].t, name: g[0].c, unique: Number(g[0].nu) === 0, type: String(g[0].ty).toLowerCase(), columns: g.map((r) => r.col) }));
+  const trigRows = (await q('SELECT EVENT_OBJECT_SCHEMA AS s, EVENT_OBJECT_TABLE AS t, TRIGGER_NAME AS n, ACTION_TIMING AS ti, EVENT_MANIPULATION AS ev, ACTION_STATEMENT AS st FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA IN (?) ORDER BY 1, 2, 3'))
+    .map((r) => ({ schema: r.s, table: r.t, name: r.n, def: `${r.ti} ${r.ev} FOR EACH ROW ${r.st}` })); // shown only to an account with the TRIGGER privilege
+  let lineage = [];
+  try { // VIEW_TABLE_USAGE: MySQL 8.0.13+; MariaDB has none (then only the columns parsed from the view text)
+    lineage = (await q('SELECT VIEW_SCHEMA AS vs, VIEW_NAME AS vn, TABLE_SCHEMA AS ts, TABLE_NAME AS tn FROM information_schema.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA IN (?)'))
+      .map((r) => ({ target: { schema: r.vs, name: r.vn }, source: { schema: r.ts, name: r.tn }, columns: [] }));
+  } catch { /* not available */ }
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, [], lineage, []);
+});
+
+async function myPrivileges(c, schemas) {
+  return myWith(c, async (cn) => {
+    let lines;
+    try {
+      const role = Object.values((await myRows(cn, 'SELECT CURRENT_ROLE() AS r'))[0] ?? {})[0];
+      lines = await myRows(cn, `SHOW GRANTS FOR CURRENT_USER()${role && role !== 'NONE' ? ` USING ${role}` : ''}`); // the privileges of the active roles too
+    } catch { lines = await myRows(cn, 'SHOW GRANTS'); } // MariaDB
+    return myGrantWarnings(lines.map((r) => String(Object.values(r)[0])), schemas);
+  });
+}
+
+const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgImport, privileges: pgPrivileges }, oracle: { schemas: oraSchemas, tables: oraTables, import: oraImport, privileges: oraPrivileges },
+  mysql: { schemas: mySchemas, tables: myTables, import: myImport, privileges: myPrivileges } };
 export const listSchemas = (c) => drivers[c.type].schemas(c);
 export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas);
 export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas);
