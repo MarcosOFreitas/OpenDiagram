@@ -83,6 +83,8 @@ test('request logs never carry a share-link token', async () => {
   assert.equal(maskUrl('/s/AbC123_-xyz'), '/s/***');
   assert.equal(maskUrl('/api/shared/AbC123_-xyz/comments/7?x=1'), '/api/shared/***/comments/7?x=1');
   assert.equal(maskUrl('/api/diagrams/42'), '/api/diagrams/42');
+  assert.equal(maskUrl('/%61pi/%73hared/AbC123_-xyz'), '/api/shared/***'); // the router decodes this to the same route
+  assert.equal(maskUrl('/api/shared/AbC%zz'), '/api/shared/***'); // a malformed escape is masked too
 });
 
 test('every answer carries its request id, the one in the server log', async () => {
@@ -129,6 +131,8 @@ test('connection fields of the wrong type are a 400, not a crash in the encrypti
     assert.match(r.json().error, new RegExp(k === 'tls' ? 'tls must be' : `${k} must be text`));
   }
   assert.equal((await call('POST', '/api/schemas', { ...conn, password: 5 })).statusCode, 400);
+  const big = await call('POST', '/api/connections', { ...conn, caPem: `-----BEGIN CERTIFICATE-----\n${'A'.repeat(70_000)}\n-----END CERTIFICATE-----` }); // a CA chain is a few KB: not megabytes stored per connection
+  assert.deepEqual([big.statusCode, /caPem is too long/.test(big.json().error)], [400, true]);
 });
 
 test('a connection whose secrets were saved under another APP_SECRET: listed with secretLost, using it asks for the password, a new one is used (.specs/15, M2)', async () => {
@@ -229,4 +233,32 @@ test('the structural summary of a refresh save is parsed only when its entry is 
     summaries.push((await eve('GET', `/api/diagrams/${d}/versions`)).json()[0].summary);
   }
   assert.deepEqual(summaries, [...Array(6).fill('Refresh from database: 1 table added'), 'Refresh from database: added t7; +1 / -0 lines']);
+});
+
+test('the database host policy is enforced by the routes, not only by its functions (DB_HOST_POLICY)', async () => {
+  const conn = { type: 'postgres', port: 5432, database: 'd', user: 'u', password: 'p' };
+  try {
+    process.env.DB_HOST_POLICY = 'public-only';
+    for (const host of ['127.0.0.1', '10.1.2.3', '169.254.169.254', '::1', 'localhost']) {
+      const r = await call('POST', '/api/schemas', { ...conn, host });
+      assert.deepEqual([r.statusCode, /public database hosts/.test(r.json().error)], [403, true], host);
+    }
+    assert.equal((await call('POST', '/api/connections', { ...conn, name: 'internal', host: '192.168.0.10' })).statusCode, 403); // nor can it be saved
+    await createUser({ email: 'root@example.com', password: 'long-enough-pass', name: 'Root', role: 'admin' });
+    const rc = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'root@example.com', password: 'long-enough-pass' } })).headers['set-cookie'].split(';')[0];
+    assert.equal((await app.inject({ method: 'POST', url: '/api/admin/connections', payload: { ...conn, name: 'shared', host: '172.16.0.5' }, headers: { cookie: rc } })).statusCode, 403); // nor shared by an administrator
+    process.env.DB_HOST_POLICY = 'allowlist'; process.env.DB_HOST_ALLOWLIST = 'db.example.com';
+    const r = await call('POST', '/api/schemas', { ...conn, host: 'other.example.com' });
+    assert.deepEqual([r.statusCode, /allowlist/.test(r.json().error)], [403, true]);
+  } finally { delete process.env.DB_HOST_POLICY; delete process.env.DB_HOST_ALLOWLIST; }
+});
+
+test('a percent-encoded /api prefix does not get around the login, Origin and password-change checks (release audit)', async () => {
+  for (const url of ['/%61pi/diagrams', '/%61pi/directory/groups', '/a%70i/directory/users?q=an', '/%61%70%69/diagrams']) {
+    const r = await app.inject({ method: 'GET', url });
+    assert.equal(r.statusCode, 401, `${url}: ${r.body}`);
+  }
+  const cross = await app.inject({ method: 'POST', url: '/%61pi/schemas', payload: { type: 'postgres', host: '127.0.0.1', port: 9, database: 'd', user: 'u' }, headers: { origin: 'https://evil.example', host: 'localhost' } });
+  assert.equal(cross.statusCode, 403, cross.body); // the Origin guard, before any outbound connection
+  assert.equal((await app.inject({ method: 'GET', url: '/%61pi/health' })).statusCode, 200); // what is open stays open
 });

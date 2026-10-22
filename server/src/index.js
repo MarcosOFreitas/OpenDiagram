@@ -19,7 +19,11 @@ import { backupDir, dailyBackup } from './backup.js';
 
 const TEST = process.env.OD_NO_LISTEN === '1'; // server/test/http.test.js: routes through app.inject, no port, no timers
 // a share-link token is a bearer secret: it never reaches the request log
-export const maskUrl = (url) => String(url).replace(/^\/(s|api\/shared)\/[^/?#]+/, '/$1/***');
+export const maskUrl = (url) => { // decoded first: the router also reaches /api/shared/ from /%61pi/%73hared/
+  let u = String(url);
+  try { u = decodeURI(u); } catch { /* a malformed escape: masked as it is */ }
+  return u.replace(/^\/(s|api\/shared)\/[^/?#]+/, '/$1/***');
+};
 export const app = Fastify({
   logger: !TEST && { serializers: { req: (r) => ({ method: r.method, url: maskUrl(r.url), host: r.host, remoteAddress: r.ip, remotePort: r.socket?.remotePort }) } },
   bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1',
@@ -37,11 +41,14 @@ app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body,
 // so a proxy that rewrites Host (nginx's default proxy_pass sends the upstream name) still works when it says where the request went
 const sameOrigin = (req) => { if (!req.headers.origin) return true; try { return new URL(req.headers.origin).host === req.host; } catch { return false; } };
 const blocked = (req) => { req.log.warn({ origin: req.headers.origin, host: req.host }, 'cross-origin request blocked'); return bad('cross-origin request blocked (behind a reverse proxy: keep the Host header, or send X-Forwarded-Host and set TRUST_PROXY=1)', 403); };
+// the path of the ROUTE that matched (`/api/diagrams/:id`), not the raw URL: the router decodes `/%61pi/...` to `/api/...`, so a check on the
+// raw URL let such a request reach the API without a session, the Origin guard or the forced password change
+const routePath = (req) => (req.routeOptions?.url ?? req.url).split('?')[0];
 app.addHook('onRequest', async (req) => {
-  if (!req.url.startsWith('/api/')) return;
+  const path = routePath(req);
+  if (!path.startsWith('/api/')) return;
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !sameOrigin(req)) throw blocked(req);
   req.user = auth.userFromRequest(req);
-  const path = req.url.split('?')[0];
   const open = path === '/api/health' || path.startsWith('/api/auth/') || path.startsWith('/api/shared/');
   if (!open && !req.user) throw bad('login required', 401);
   // accounts created/reset by an admin must pick their own password before doing anything else
@@ -59,6 +66,7 @@ const assertType = (t) => { if (!['postgres', 'oracle', 'mysql'].includes(t)) th
 const assertText = (b) => {
   for (const k of ['database', 'user', 'password', 'caPem', 'serverDn', 'tls']) if (b[k] != null && typeof b[k] !== 'string') throw bad(`${k} must be text`);
   if (b.tls && !['off', 'verify', 'noverify'].includes(b.tls)) throw bad('tls must be off, verify or noverify');
+  if (b.caPem?.length > 65_536) throw bad('caPem is too long (64 KB at most: a CA chain is a few KB)'); // stored encrypted per connection
 };
 // a connection as the form sends it, for a person's own and for an administrator's shared one; an empty port is the engine's default
 function validConn(b) {
@@ -204,7 +212,7 @@ app.put('/api/admin/groups/:id/members/:uid', (req) => { adminOnly(req); admin.a
 app.delete('/api/admin/groups/:id/members/:uid', (req) => { adminOnly(req); admin.removeMember(uid(req), Number(req.params.uid)); return { ok: true }; });
 // every administrator action that changes something is audited (route and ids only: never the request body, which may hold passwords)
 app.addHook('onResponse', async (req, reply) => {
-  if (req.method === 'GET' || !req.user || !req.url.startsWith('/api/admin/')) return;
+  if (req.method === 'GET' || !req.user || !routePath(req).startsWith('/api/admin/')) return;
   const target = String(req.routeOptions?.url || req.url).replace('/api/admin', '');
   audit.log(req.user, `admin.${req.method.toLowerCase()}`, { target, connectionId: target.startsWith('/connections') ? req.params?.id : undefined, ok: reply.statusCode < 400, detail: JSON.stringify(req.params ?? {}) });
 });

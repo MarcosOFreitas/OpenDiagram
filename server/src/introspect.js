@@ -80,8 +80,9 @@ export const pgConfig = (c) => {
 };
 
 // guardrail 1: every session is read-only (server-side), whatever privileges the credential has
-async function pgWith(c, fn) {
+export async function pgWith(c, fn) {
   const cl = new pg.Client(pgConfig(c));
+  cl.on('error', () => {}); // a server that hangs up also emits 'error': with no listener that would end the whole process. The query in flight still rejects
   await cl.connect();
   try {
     await cl.query('BEGIN READ ONLY');
@@ -183,7 +184,7 @@ export function oraConnectString(c) {
 }
 
 // guardrail 1: SET TRANSACTION READ ONLY — the session cannot change data even if the user could
-async function oraWith(c, fn) {
+export async function oraWith(c, fn) {
   // Oracle is reached through a connection string only (TCPS with the server certificate checked against the system trust store, plus the optional DN):
   // no wallets. A private CA is trusted by the server process itself (NODE_EXTRA_CA_CERTS), not per connection.
   const cfg = { user: c.user, password: c.password, connectString: oraConnectString(c), connectTimeout: 8 };
@@ -353,6 +354,7 @@ export const myConfig = (c) => ({
 // guardrail 1: the session default and every use are read-only transactions; each query stops after 30 s
 export async function myWith(c, fn, connect = (o) => mysql.createConnection(o)) {
   const cn = await connect(myConfig(c));
+  cn.on?.('error', () => {}); // as for pg: a connection lost between two queries must not end the process
   try {
     await cn.query('SET SESSION TRANSACTION READ ONLY');
     try { await cn.query('SET SESSION max_execution_time = 30000'); } catch { await cn.query('SET SESSION max_statement_time = 30'); } // MariaDB: max_statement_time, in seconds

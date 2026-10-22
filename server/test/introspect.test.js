@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assemble, oraNotNull, explainDbError, pgColumn, oraColumn, pgConfig, myConfig, oraConnectString } from '../src/introspect.js';
+import net from 'node:net';
+import { assemble, oraNotNull, explainDbError, pgColumn, oraColumn, pgConfig, myConfig, oraConnectString, pgWith } from '../src/introspect.js';
 
 const t = (schema, name, extra = {}) => ({ schema, name, comment: null, ...extra });
 const c = (schema, table, name) => ({ schema, table, col: { name, type: 'int', nullable: true } });
@@ -185,4 +186,17 @@ test('MySQL wraps a rejected certificate as HANDSHAKE_SSL_ERROR (seen in the e2e
   assert.match(explainDbError(e, { type: 'mysql', host: 'db', port: '' }).message, /^The server's certificate was not accepted.*\(self-signed certificate in certificate chain\)$/);
   const other = Object.assign(new Error('wrong version number'), { code: 'HANDSHAKE_SSL_ERROR' });
   assert.equal(explainDbError(other, { type: 'mysql', host: 'db' }).message, 'wrong version number'); // another handshake failure is not a certificate problem
+});
+
+test('a PostgreSQL server that hangs up in the middle of a query fails that request, it does not crash the app (release audit)', async () => {
+  const srv = net.createServer((s) => s.once('data', () => { // the startup message: accepted with no password
+    s.write(Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0])); // AuthenticationOk
+    s.write(Buffer.from([0x5a, 0, 0, 0, 5, 0x49])); // ReadyForQuery
+    s.once('data', () => s.destroy()); // the first query: the connection is cut
+  }));
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  try {
+    await assert.rejects(pgWith({ host: '127.0.0.1', port: srv.address().port, database: 'd', user: 'u', password: 'p' }, (cl) => cl.query('select 1')), /terminated|closed|ECONNRESET/i);
+    await new Promise((r) => setTimeout(r, 100)); // a late 'error' event of the client would crash the process here
+  } finally { srv.close(); }
 });

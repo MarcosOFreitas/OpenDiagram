@@ -40,3 +40,11 @@ test('public-only returns the address it checked (the drivers connect to it, so 
   assert.equal(await assertHostAllowed('8.8.8.8', env), '8.8.8.8');
   assert.equal(await assertHostAllowed('db.example.com', { DB_HOST_POLICY: 'allowlist', DB_HOST_ALLOWLIST: 'db.example.com' }), undefined); // listed names: connected by name
 });
+
+test('public-only: a private IPv6 address is refused in any spelling, also an IPv4 one written in hex inside IPv6 (release audit)', async () => {
+  for (const ip of ['0::1', '0:0:0:0:0:0:0:1', '::ffff:7f00:1', '::FFFF:7F00:0001', '::ffff:a00:1', '::ffff:c0a8:101', 'FE80::1', 'fec0::1', 'ff02::1', '0:0:0:0:0:ffff:127.0.0.1']) {
+    assert.equal(isPrivateIp(ip), true, ip);
+    await assert.rejects(assertHostAllowed(ip, { DB_HOST_POLICY: 'public-only' }), /public database hosts/, ip);
+  }
+  for (const ip of ['2001:4860:4860::8888', '::ffff:808:808']) assert.equal(isPrivateIp(ip), false, ip); // Google DNS, plain and mapped
+});

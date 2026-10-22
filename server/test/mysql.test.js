@@ -132,3 +132,9 @@ test('generated columns: the expression goes to the note (plain SQL), no default
   assert.equal(myColumn(row({ EXTRA: 'VIRTUAL GENERATED', GENERATION_EXPRESSION: '`price` * 2' })).col.comment, 'GENERATED ALWAYS AS (price * 2) VIRTUAL');
   assert.equal(myColumn(row({ EXTRA: 'DEFAULT_GENERATED', COLUMN_DEFAULT: 'CURRENT_TIMESTAMP', DATA_TYPE: 'timestamp', COLUMN_TYPE: 'timestamp' })).col.comment, undefined); // a default expression is not a generated column
 });
+
+test('a MySQL connection that dies while the import works on its rows fails that request, it does not crash the app (release audit)', async () => {
+  const { EventEmitter } = await import('node:events');
+  const cn = Object.assign(new EventEmitter(), { query: async () => [[]], end: async () => {} });
+  await myWith(conn, async () => { await new Promise((r) => setTimeout(() => { cn.emit('error', new Error('Connection lost: The server closed the connection.')); r(); }, 5)); }, async () => cn);
+});
