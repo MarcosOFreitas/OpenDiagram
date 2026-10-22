@@ -337,7 +337,7 @@ async function oraPrivileges(c, schemas) {
 // policy allows), so the driver never runs code built from what it sends (disableEval) and never offers to read local files.
 export const myConfig = (c) => ({
   host: c.host, port: +c.port || 3306, user: c.user, password: c.password, database: c.database || undefined,
-  ssl: c.tls === 'verify' ? { rejectUnauthorized: true, ...(c.caPem ? { ca: c.caPem } : {}) } : c.tls === 'noverify' ? { rejectUnauthorized: false } : undefined,
+  ssl: c.tls === 'verify' ? { rejectUnauthorized: true, verifyIdentity: true, ...(c.caPem ? { ca: c.caPem } : {}) } : c.tls === 'noverify' ? { rejectUnauthorized: false } : undefined, // mysql2 checks the host name only with verifyIdentity
   connectTimeout: 8000, disableEval: true, flags: ['-LOCAL_FILES'], multipleStatements: false, dateStrings: true, supportBigNumbers: true, bigNumberStrings: true,
 });
 

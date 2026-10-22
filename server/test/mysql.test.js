@@ -21,8 +21,9 @@ test('connection options: no generated code, no local files, no multiple stateme
 test('TLS modes: off, noverify (encrypted, not checked), verify (chain and host name, optional CA)', () => {
   assert.equal(myConfig(conn).ssl, undefined);
   assert.deepEqual(myConfig({ ...conn, tls: 'noverify' }).ssl, { rejectUnauthorized: false });
-  assert.deepEqual(myConfig({ ...conn, tls: 'verify' }).ssl, { rejectUnauthorized: true });
-  assert.deepEqual(myConfig({ ...conn, tls: 'verify', caPem: 'PEM' }).ssl, { rejectUnauthorized: true, ca: 'PEM' });
+  // mysql2 checks the host name only with verifyIdentity (found in the audit: verify checked the chain alone)
+  assert.deepEqual(myConfig({ ...conn, tls: 'verify' }).ssl, { rejectUnauthorized: true, verifyIdentity: true });
+  assert.deepEqual(myConfig({ ...conn, tls: 'verify', caPem: 'PEM' }).ssl, { rejectUnauthorized: true, verifyIdentity: true, ca: 'PEM' });
 });
 
 test('the session is read-only before anything runs, and always rolled back and closed, also when the work fails', async () => {

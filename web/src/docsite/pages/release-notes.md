@@ -12,6 +12,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 
 ## Fixes
 
+- MySQL with TLS *verify certificate* now also checks that the certificate names the host, as the documentation says; before, only the chain was checked.
 - The editor's find bar (`Ctrl+F`) is one row in the app's style: a match count ("2 of 12"), `Enter` / `Shift+Enter` for the next and previous match, and Replace on demand.
 - An account without diagrams (a new one, or after deleting the last) shows **No diagrams yet** with a blank diagram and the templates; the sample is no longer created on its own.
 - A second import into a diagram (or new tables found by a refresh) no longer puts the new tables on top of the ones already placed: they go below them. A view's mark (**· Mat. view**) no longer cuts off the table name.
