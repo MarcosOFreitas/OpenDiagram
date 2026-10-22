@@ -36,7 +36,7 @@ Lines that the import generates start with `// lineage(auto):`. A **refresh rewr
 
 ## Reading and focusing
 
-- The **lineage button** in the dock (next to the relationship highlight) shows or hides all the arrows. The dock button only appears when the diagram has lineage; **More → View → Show data lineage (dashed arrows)** is always there.
+- The **lineage button** in the dock (next to the relationship highlight) shows or hides all the arrows. The dock button only appears when the diagram has lineage; the **Display** tab of the side panel → **Data lineage (dashed arrows)** is always there.
 - Click a **table**: the tables it is built from, directly or through other tables, get a **violet** outline and their arrows turn violet; the tables built from it get a **teal** outline and teal arrows. The other lineage arrows fade.
 - Click an **arrow** to focus it and its two tables; its label shows the columns involved.
 - Drag the label of an arrow to bend it, like a relationship line. Double-click puts it back.

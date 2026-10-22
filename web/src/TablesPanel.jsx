@@ -7,9 +7,10 @@ const Eye = ({ off }) => <Ic n={off ? 'eyeOff' : 'eye'} s={15} />;
 const Chev = ({ open }) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s' }} aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>;
 
 
-// Right-hand panel of the diagram: search, group by schema / TableGroup, show or hide tables on the canvas, jump to a table.
-// hidden: Set of table ids; onHide(ids, hide); onOnly(ids) = show only these; onFocus(id) = select + center.
-export default function TablesPanel({ right = 0, lineage = [], onLineage, views = [], activeView = '', onView, onCreateView, onDeleteView, onRenameView, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
+// Right-hand panel of the diagram. The saved view on top applies to both tabs: Tables (search, group by schema / TableGroup, show or
+// hide tables on the canvas, jump to a table) and Display (`display`: how the canvas draws them, built by the caller).
+// hidden: Set of table ids; onHide(ids, hide); onOnly(ids) = show only these; onFocus(id) = select + center; tab / onTab: 'tables' | 'display'.
+export default function TablesPanel({ right = 0, tab = 'tables', onTab, display, lineage = [], onLineage, views = [], activeView = '', onView, onCreateView, onDeleteView, onRenameView, tables, groups, refs, hidden, onHide, onOnly, onFocus, activeId, search, setSearch, searchRef, onClose }) {
   const [by, setBy] = useState(groups.length ? 'group' : 'schema'); // schema | group
   const [open, setOpen] = useState(() => new Set());
   const [fOpen, setFOpen] = useState(false);
@@ -55,7 +56,13 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
 
   return (
     <aside className="tpn" aria-label="Tables panel" style={{ right }}>
-      <div className="tpn-head"><b>Tables</b><small>{tables.length - hidden.size}/{tables.length} visible</small><button className="tpn-x" onClick={onClose} title="Close" aria-label="Close">✕</button></div>
+      <div className="tpn-head">
+        <div className="seg tpn-tabs" role="tablist" aria-label="Diagram panel">
+          <button role="tab" id="tpn-tab-tables" aria-controls="tpn-tables" aria-selected={tab === 'tables'} className={tab === 'tables' ? 'on' : ''} onClick={() => onTab('tables')}>Tables <small>{tables.length - hidden.size}/{tables.length}</small></button>
+          <button role="tab" id="tpn-tab-display" aria-controls="tpn-display" aria-selected={tab === 'display'} className={tab === 'display' ? 'on' : ''} onClick={() => onTab('display')}>Display</button>
+        </div>
+        <button className="tpn-x" onClick={onClose} title="Close the panel" aria-label="Close the panel">✕</button>
+      </div>
       <div className="tpn-bar tpn-views">
         <select value={activeView} onChange={(e) => onView(e.target.value)} aria-label="Diagram view" title="Saved views: which tables are visible and where, detail level, highlights">
           <option value="">Main view</option>
@@ -71,6 +78,7 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
           <button className="tpn-chip" onClick={() => { if (newName.trim()) { onCreateView(newName); setNewName(''); setNaming(false); } }}>Save</button>
         </div>
       )}
+      {tab === 'display' ? <div className="dbody tpn-display" id="tpn-display" role="tabpanel" aria-labelledby="tpn-tab-display">{display}</div> : <div className="tpn-tabpanel" id="tpn-tables" role="tabpanel" aria-labelledby="tpn-tab-tables">
       <div className="tpn-bar">
         <input ref={searchRef} placeholder="Search table, schema, column or group…" title="Plain text, VW_* wildcards or /regex/ (Ctrl+K)" value={search} onChange={(e) => setSearch(e.target.value)} />
         <button className={`tpn-ic ${filtered ? 'on' : ''}`} onClick={() => setFOpen((o) => !o)} title="Filters"><Ic n="funnel" s={15} /></button>
@@ -115,6 +123,7 @@ export default function TablesPanel({ right = 0, lineage = [], onLineage, views 
       <div className="tpn-foot">
         <button className={`tpn-chip ${hidden.size ? '' : 'idle'}`} onClick={() => onHide(tables.map((t) => t.id), false)} disabled={!hidden.size}><Eye /> {hidden.size ? `Show all (${hidden.size} hidden)` : 'All visible'}</button>
       </div>
+      </div>}
     </aside>
   );
 }

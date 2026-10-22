@@ -41,7 +41,7 @@ The two tables appear with a line between them. Click a table to highlight its r
 | Syntax errors | underlined in the code; the first message is in the status bar |
 | Colors | after a `headercolor:` or `color:` value a small square opens a color picker; typing `color: ` offers presets |
 | Find and replace | `Ctrl+F` (`⌘+F` on macOS) opens the find and replace bar |
-| Wrap long lines | **More → View → Wrap long lines** |
+| Wrap long lines | the button at the right of the editor's status bar (under the code) |
 | Resize the editor | drag the edge between the editor and the diagram (double-click resets) |
 
 > **Tip** Collapse the editor with the **‹** button on its edge when you only want to look at the diagram. It is hidden automatically in the **Docs** view.

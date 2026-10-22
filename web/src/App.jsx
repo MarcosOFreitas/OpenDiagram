@@ -262,6 +262,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [panelOpen, setPanelOpen] = useState(() => store('tablesPanel') === '1'); // right-hand Tables panel
   const panelSearch = useRef(null);
   useEffect(() => { store('tablesPanel', panelOpen ? '1' : '0'); }, [panelOpen]);
+  const [panelTab, setPanelTab] = useState(() => (store('panelTab') === 'display' ? 'display' : 'tables')); // Tables | Display tab of that panel
+  useEffect(() => { store('panelTab', panelTab); }, [panelTab]);
   const [sqlFmt, setSqlFmt] = useState('postgres');
   const [paste, setPaste] = useState('');
   const [view, setView] = useState(() => { try { return { ...VIEW0, ...JSON.parse(store('view') || '{}') }; } catch { return VIEW0; } });
@@ -429,7 +431,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') setDrawer(null);
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPanelOpen(true); setTimeout(() => panelSearch.current?.focus(), 80); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPanelOpen(true); setPanelTab('tables'); setTimeout(() => panelSearch.current?.focus(), 80); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -646,12 +648,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const copyDbml = () => copyText(dbml, 'DBML copied', notify);
 
   const tabs = shared
-    ? [...(canEdit ? [['import', 'Import']] : []), ['view', 'View']]
+    ? [...(canEdit ? [['import', 'Import']] : [])]
     : owner
-      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['history', 'History'], ['view', 'View'], ['share', 'Share']]
-      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import'], ['history', 'History']] : []), ['view', 'View'], ...(manage ? [['share', 'Share']] : [])];
+      ? [['diagrams', 'Diagrams'], ['connect', 'Database'], ['import', 'Import'], ['history', 'History'], ['share', 'Share']]
+      : [['diagrams', 'Diagrams'], ...(canEdit ? [['import', 'Import'], ['history', 'History']] : []), ...(manage ? [['share', 'Share']] : [])];
   const tabName = Object.fromEntries(tabs);
-  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', view: 'View', history: 'History', share: 'Share', account: 'Account' };
+  const TITLES = { diagrams: 'Diagrams', connect: 'Database', import: 'Import', export: 'Export', history: 'History', share: 'Share', account: 'Account' };
   const LABEL = { view: 'view only', comment: 'can comment', edit: 'can edit', admin: 'administrator access' };
   const open = (t) => setDrawer(drawer === t ? null : t);
   useEffect(() => { store('editorW', String(editorW)); }, [editorW]);
@@ -665,6 +667,35 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   };
+  // the Display tab of the side panel: how the canvas draws the tables (the theme is in the top bar, line wrapping in the editor's status bar)
+  const toggleTheme = () => setView({ ...view, theme: view.theme === 'dark' ? 'light' : 'dark' });
+  const displayOptions = (
+    <>
+      <h4>Relationship lines</h4>
+      <div className="seg" role="group" aria-label="Line style">
+        {[['default', 'Curved'], ['smoothstep', 'Rounded'], ['step', 'Step'], ['straight', 'Straight']].map(([v, l]) => (
+          <button key={v} className={view.edgeType === v ? 'on' : ''} aria-pressed={view.edgeType === v} onClick={() => setView({ ...view, edgeType: v })}>{l}</button>
+        ))}
+      </div>
+      <label className="chk"><input type="checkbox" checked={view.hiRefs} disabled={!!view.hideRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
+      <label className="chk"><input type="checkbox" checked={!!view.hideRefs} onChange={(e) => setView({ ...view, hideRefs: e.target.checked })} /> Hide relationship lines</label>
+      <h4>Table detail</h4>
+      <div className="seg" role="group" aria-label="Detail level">
+        {[['full', 'Full'], ['names', 'Names'], ['keys', 'Keys'], ['tables', 'Tables']].map(([v, l]) => (
+          <button key={v} className={(view.detail || 'full') === v ? 'on' : ''} aria-pressed={(view.detail || 'full') === v} onClick={() => setView({ ...view, detail: v })} title={{ full: 'All columns, types and indexes', names: 'All columns, without types and indexes', keys: 'Only primary and foreign key columns', tables: 'Only table names' }[v]}>{l}</button>
+        ))}
+      </div>
+      <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
+      <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>
+      <h4>Layers</h4>
+      <label className="chk"><input type="checkbox" checked={lineageOn} onChange={(e) => setView({ ...view, lineage: e.target.checked })} /> Data lineage (dashed arrows)</label>
+      <label className="chk"><input type="checkbox" checked={notesOn} onChange={(e) => setView({ ...view, notes: e.target.checked })} /> Sticky notes</label>
+      <h4>Canvas</h4>
+      <label className="chk"><input type="checkbox" checked={view.grid} onChange={(e) => setView({ ...view, grid: e.target.checked })} /> Background grid</label>
+      <label className="chk"><input type="checkbox" checked={view.snap} onChange={(e) => setView({ ...view, snap: e.target.checked })} /> Snap to grid</label>
+      <small className="hint">Click a table to highlight its relationships. Header color: <code>Table t [headercolor: #3498DB]</code>.</small>
+    </>
+  );
   const stat = parsed.error ? 'syntax error' : `${parsed.tables.length} tables · ${parsed.refs.length} refs`;
 
   if (needPass !== null) return (
@@ -706,9 +737,11 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         <Menu trigger="Export" title="Download the diagram or its documentation"
           items={[...['Image', 'SQL', 'Other'].flatMap((g) => [{ header: g }, ...EXPORTS.filter((e) => e[3] === g).map(([k, l, ext]) => ({ key: k, label: l, hint: ext, onClick: () => exportAs(k) }))]),
             { sep: true }, { key: 'copy', label: 'Copy DBML to clipboard', onClick: copyDbml }]} />
-        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'history', 'view'].includes(drawer)} title="Diagrams, Database, Import, History, View, Documentation"
-          items={[...['diagrams', 'connect', 'import', 'history', 'view'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
+        <Menu trigger="More" active={['diagrams', 'connect', 'import', 'history'].includes(drawer)} title="Diagrams, Database, Import, History, Documentation"
+          items={[...['diagrams', 'connect', 'import', 'history'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
+            ...(window.innerWidth <= 720 ? [{ sep: true }, { key: 'theme', label: view.theme === 'dark' ? 'Light theme' : 'Dark theme', onClick: toggleTheme }] : []), // phones: no room for the top-bar button
             { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
+        <button className="tbtn ic theme-btn" onClick={toggleTheme} aria-label={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} title={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}><Ic n={view.theme === 'dark' ? 'sun' : 'moon'} /></button>
         {user
           ? <Menu title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
             items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
@@ -725,9 +758,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </div>
       )}
       <div className="body">
-        <section aria-label="DBML editor" className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? edW : 0 }}>
+        <section aria-label="DBML editor" inert={editorShown ? undefined : ''} className={`editor-pane ${editorShown ? '' : 'closed'} ${resizing ? 'resizing' : ''}`} style={{ width: editorShown ? edW : 0 }}>
           <Editor value={dbml} onChange={setDbml} diags={editorDiags} info={editorInfo} readOnly={readOnly} wrap={view.wrap} />
-          <div className={`status ${error ? 'bad' : ''}`}>{error || stat}</div>
+          <div className={`status ${error ? 'bad' : ''}`}>
+            <span className="status-text">{error || stat}</span>
+            <button className="status-btn" aria-pressed={!!view.wrap} onClick={() => setView({ ...view, wrap: !view.wrap })} aria-label="Wrap long lines" title={view.wrap ? 'Long lines wrap (click to scroll sideways instead)' : 'Wrap long lines'}><Ic n="wrap" s={15} /></button>
+          </div>
         </section>
         {editorShown && <div className={`resizer ${resizing ? 'active' : ''}`} style={{ left: edW }} title="Drag to resize the editor (double-click to reset)" onMouseDown={startResize} onDoubleClick={() => setEditorW(380)} />}
         {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} aria-expanded={editorOpen} title="Toggle editor" aria-label="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
@@ -760,8 +796,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <MiniMap pannable zoomable className="mini" style={{ right: (drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0) }} nodeColor={view.theme === 'dark' ? '#4f8cff' : '#1e3a5f'} maskColor={view.theme === 'dark' ? 'rgba(14,20,32,.72)' : 'rgba(244,245,247,.7)'} />
           </ReactFlow>
           {mode === 'diagram' && (<>
-            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} aria-expanded={panelOpen} title={`Tables panel (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables panel">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
-            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} lineage={parsed.lineage || []} onLineage={focusLineage} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
+            <button className="tpn-toggle" style={{ right: (drawer ? 350 : 0) + (panelOpen ? 320 : 0) }} onClick={() => setPanelOpen(!panelOpen)} aria-expanded={panelOpen} title={`Tables and display options (Ctrl+K)${hidden.size ? ` · ${hidden.size} hidden` : ''}`} aria-label="Tables and display options">{panelOpen ? '›' : '‹'}{!panelOpen && hidden.size > 0 && <i className="tpn-badge">{hidden.size}</i>}</button>
+            {panelOpen && !parsed.error && <TablesPanel right={drawer ? 350 : 0} tab={panelTab} onTab={setPanelTab} display={displayOptions} tables={parsed.tables} groups={parsed.groups || []} refs={parsed.refs} lineage={parsed.lineage || []} onLineage={focusLineage} hidden={hidden} onHide={setHidden} onOnly={showOnly} onFocus={focusTable} views={viewNames} activeView={activeView} onView={switchView} onCreateView={createView} onDeleteView={deleteView} onRenameView={renameView} activeId={activeId} search={search} setSearch={setSearch} searchRef={panelSearch} onClose={() => setPanelOpen(false)} />}
           </>)}
           {!parsed.error && !parsed.tables.length && <div className="empty">No tables yet — write DBML on the left, or open <b>Database</b> / <b>Import</b>.</div>}
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
@@ -908,41 +944,6 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             </div>
           )}
 
-          {drawer === 'view' && (
-            <div className="dbody">
-              <h4>Theme</h4>
-              <div className="seg">
-                {[['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => (
-                  <button key={v} className={view.theme === v ? 'on' : ''} onClick={() => setView({ ...view, theme: v })}>{l}</button>
-                ))}
-              </div>
-              <label className="chk"><input type="checkbox" checked={view.grid} onChange={(e) => setView({ ...view, grid: e.target.checked })} /> Show background grid</label>
-              <h4>Editor</h4>
-              <label className="chk"><input type="checkbox" checked={!!view.wrap} onChange={(e) => setView({ ...view, wrap: e.target.checked })} /> Wrap long lines (no horizontal scroll)</label>
-              <small className="hint">Drag the edge between the editor and the diagram to resize it; double-click the edge to reset.</small>
-              <h4>Relationship lines</h4>
-              <div className="seg">
-                {[['default', 'Curved'], ['smoothstep', 'Rounded'], ['step', 'Step'], ['straight', 'Straight']].map(([v, l]) => (
-                  <button key={v} className={view.edgeType === v ? 'on' : ''} onClick={() => setView({ ...view, edgeType: v })}>{l}</button>
-                ))}
-              </div>
-              <h4>Detail level</h4>
-              <div className="seg">
-                {[['full', 'Full'], ['names', 'Names'], ['keys', 'Keys'], ['tables', 'Tables']].map(([v, l]) => (
-                  <button key={v} className={(view.detail || 'full') === v ? 'on' : ''} onClick={() => setView({ ...view, detail: v })} title={{ full: 'All columns, types and indexes', names: 'All columns, without types and indexes', keys: 'Only primary and foreign key columns', tables: 'Only table names' }[v]}>{l}</button>
-                ))}
-              </div>
-              <h4>Tables</h4>
-              <label className="chk"><input type="checkbox" checked={view.hideTypes} onChange={(e) => setView({ ...view, hideTypes: e.target.checked })} /> Hide column types</label>
-              <label className="chk"><input type="checkbox" checked={!!view.hideRefs} onChange={(e) => setView({ ...view, hideRefs: e.target.checked })} /> Hide relationship lines</label>
-              <label className="chk"><input type="checkbox" checked={view.hiRefs} disabled={!!view.hideRefs} onChange={(e) => setView({ ...view, hiRefs: e.target.checked })} /> Highlight relationships (show names)</label>
-              <label className="chk"><input type="checkbox" checked={lineageOn} onChange={(e) => setView({ ...view, lineage: e.target.checked })} /> Show data lineage (dashed arrows)</label>
-              <label className="chk"><input type="checkbox" checked={notesOn} onChange={(e) => setView({ ...view, notes: e.target.checked })} /> Show sticky notes</label>
-              <label className="chk"><input type="checkbox" checked={view.hideIndexes} onChange={(e) => setView({ ...view, hideIndexes: e.target.checked })} /> Hide indexes</label>
-              <label className="chk"><input type="checkbox" checked={view.snap} onChange={(e) => setView({ ...view, snap: e.target.checked })} /> Snap to grid</label>
-              <small className="hint">Click a table to highlight its relationships. Header color: <code>Table t [headercolor: #3498DB]</code>.</small>
-            </div>
-          )}
         </aside>
       </div>
 

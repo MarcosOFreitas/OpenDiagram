@@ -2,7 +2,7 @@
 //
 // It builds its own fixtures (accounts, a sample diagram, a shared connection, versions, presence), so run it against a
 // THROW-AWAY instance, never against one that holds real diagrams or accounts (the pictures must not show anyone's data):
-//   docker run -d --name shots-app --network rea_dbdiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) rea_dbdiagram-app
+//   docker build -t opendiagram-shots . && docker run -d --name shots-app --network opendiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) opendiagram-shots
 //   docker exec shots-app node src/cli.js create-admin docs@example.com 'docs-shots-password-1'
 //   BASE=http://localhost:3100 SHOTS_EMAIL=docs@example.com SHOTS_PASSWORD=docs-shots-password-1 node web/docshots.mjs [only-name ...]
 // The demo PostgreSQL (`demo-pg`, docker compose up -d) must be reachable from the app container.
@@ -82,7 +82,7 @@ try {
     await ev(`(async () => { const i = document.querySelector('.tpn input[placeholder^="Search"]'); H.set(i, 'order'); await H.w(500); })()`);
     await shot('tables-panel');
   }
-  if (want('detail-levels')) { await go('/', dg); await ev(`(async () => { await H.more('View'); const b = H.btn('Keys', document.querySelector('.drawer')); b && b.click(); await H.w(500); })()`); await shot('detail-levels'); }
+  if (want('detail-levels')) { await go('/', { ...dg, tablesPanel: '1', panelTab: 'display' }); await ev(`(async () => { const b = H.btn('Keys', document.querySelector('.tpn-display')); b && b.click(); await H.w(500); })()`); await shot('detail-levels'); }
   if (want('docs-view')) { await go('/', dg); await ev(`H.click('Docs', document.querySelector('.mode'))`); await sleep(1000); await shot('docs-view'); }
   if (want('docs-changelog')) {
     await go('/', dg); await ev(`H.click('Docs', document.querySelector('.mode'))`); await sleep(800);

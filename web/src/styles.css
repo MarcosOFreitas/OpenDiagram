@@ -19,13 +19,18 @@ header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex
 .tbtn { background: transparent; border: 1px solid #2a3750; color: #d6deeb; padding: 5px 12px; border-radius: 6px; }
 .tbtn:hover { background: var(--top-2); }
 .tbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tbtn.ic { display: inline-grid; place-items: center; padding: 0; width: 30px; height: 30px; } /* square, as tall as the text buttons beside it */
 .grow { flex: 1; min-width: 0; }
 
 .body { position: relative; flex: 1; display: flex; min-height: 0; overflow: hidden; }
 .editor-pane { flex: none; display: flex; flex-direction: column; background: var(--ed); transition: width .18s; overflow: hidden; }
 .editor-pane.closed { width: 0; }
 .editor { flex: 1; min-height: 0; overflow: hidden; }
-.status { flex: none; padding: 6px 12px; font-size: 12px; color: #8b9ab5; background: #0b111c; border-top: 1px solid #1d283b; white-space: pre-wrap; max-height: 90px; overflow: auto; }
+.status { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 4px 6px 4px 12px; font-size: 12px; color: #8b9ab5; background: #0b111c; border-top: 1px solid #1d283b; }
+.status-text { flex: 1; min-width: 0; padding-top: 3px; white-space: pre-wrap; max-height: 82px; overflow: auto; }
+.status-btn { flex: none; display: inline-grid; place-items: center; width: 26px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: #8b9ab5; }
+.status-btn:hover { background: #1a2438; color: #dbe3f1; }
+.status-btn[aria-pressed="true"] { background: #1a2438; border-color: #2a3750; color: #9fc0ff; }
 .status.bad { color: #ff8f8f; }
 .edge-toggle { position: absolute; z-index: 6; top: 12px; left: 0; width: 24px; height: 40px; border: 0; border-radius: 0 6px 6px 0; background: var(--ed); color: #8b9ab5; padding: 0; }
 .editor-pane:not(.closed) ~ .edge-toggle { background: #1d283b; }
@@ -289,7 +294,10 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
   position: absolute; z-index: 12; top: 0; bottom: 0; width: 320px; display: flex; flex-direction: column; background: var(--p-bg); color: var(--p-fg); border-left: 1px solid var(--p-line); box-shadow: -8px 0 24px rgba(15, 23, 42, .08); }
 .shell[data-theme="dark"] .tpn { --p-bg: #111826; --p-fg: #dbe3f1; --p-line: #263248; --p-muted: #8b9ab5; --p-hover: #1b2640; --p-input: #0b111c; --p-sel: rgba(79, 140, 255, .16); box-shadow: -8px 0 24px rgba(0, 0, 0, .35); }
 .tpn input, .tpn select { background: var(--p-input); color: var(--p-fg); border: 1px solid var(--p-line); border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%; min-width: 0; }
-.tpn-head { display: flex; align-items: baseline; gap: 8px; padding: 14px 14px 8px; }
+.tpn-head { display: flex; align-items: center; gap: 8px; padding: 14px 14px 8px; }
+.tpn-tabs { flex: 1; } .tpn .seg button:not(.on) { color: var(--p-fg); } .tpn-tabs button { min-height: var(--ctl-sm); } .tpn-tabs button small { color: inherit; opacity: .8; font-variant-numeric: tabular-nums; }
+.tpn-tabpanel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tpn-display { flex: 1; min-height: 0; margin-top: 6px; padding: 4px 14px 14px; border-top: 1px solid var(--p-line); font-size: 13px; }
 .tpn-head b { font-size: 14px; } .tpn-head small { color: var(--p-muted); flex: 1; }
 .tpn-x { border: 0; background: transparent; color: var(--p-muted); font-size: 14px; padding: 2px 6px; border-radius: 6px; }
 .tpn-x:hover { background: var(--p-hover); }
@@ -297,7 +305,7 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .tpn-filters { margin: 2px 14px 6px; padding: 10px; border: 1px solid var(--p-line); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
 .tpn-filters label { display: flex; align-items: center; gap: 8px; color: var(--p-muted); }
 .tpn-filters label select { flex: 1; }
-.tpn-filters .chk input { width: auto; }
+.tpn .chk input { width: auto; height: auto; padding: 0; } /* the panel's text-field rule must not stretch checkboxes */
 .tpn-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--p-line); background: var(--p-input); color: var(--p-muted); border-radius: 8px; padding: 0; }
 .tpn-ic:hover:not(:disabled) { color: var(--p-fg); background: var(--p-hover); }
 .tpn-ic.on { color: var(--accent); border-color: var(--accent); }
@@ -467,6 +475,7 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .auth-card .logo { color: var(--accent); }
 
 /* phones (<= 720px): compact top bar, side panels never wider than the screen, scrollable dock */
+@media (max-width: 720px) { .tbtn.theme-btn { display: none; } } /* the More menu has the theme switch there */
 @media (max-width: 720px) {
   header.top { gap: 4px; padding: 0 8px; }
   .top .brand { font-size: 0; gap: 0; } /* logo only */

@@ -2,7 +2,7 @@
 // .specs/11-ui-review.md: control without an accessible name, pointer target < 24px, field without a label, text contrast < 4.5:1,
 // horizontal overflow, a control named only by a symbol, a click target the keyboard cannot reach, dialog without role/focus handling, keyboard focus that is invisible or lost. Light and dark theme,
 // desktop / tablet / phone. Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
-//   docker run -d --name audit-app --network rea_dbdiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) rea_dbdiagram-app
+//   docker build -t opendiagram-audit . && docker run -d --name audit-app --network opendiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) opendiagram-audit
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
 //   AUDIT_SHARD=i/n audits only every n-th screen (CI runs 4 in parallel, each on its own instance)
 //   (AUDIT_CONTAINER=<name> if the container is not called audit-app: the audit writes one row of scheduler state into its database)
@@ -189,7 +189,7 @@ await run('account-recovery-key', async () => { await go('/', { local: D }); awa
 await run('account-delete-form', async () => { await go('/', { local: D }); await ev(`(async () => { await H.account('Account'); await H.click('Delete my account', H.q('.drawer')); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('account-password-form', async () => { await go('/', { local: D }); await ev(`H.account('Account')`); }, { vps: ['desktop', 'phone'], kb: true });
 // 3. drawers
-for (const d of ['Diagrams', 'Import', 'History', 'View']) await run(`drawer-${d.toLowerCase()}`, async () => { await go('/', { local: D }); await ev(`H.more(${JSON.stringify(d)})`); }, { vps: ['desktop', 'phone'], kb: d === 'View' });
+for (const d of ['Diagrams', 'Import', 'History']) await run(`drawer-${d.toLowerCase()}`, async () => { await go('/', { local: D }); await ev(`H.more(${JSON.stringify(d)})`); }, { vps: ['desktop', 'phone'], kb: false });
 await run('drawer-import-pasted', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('Import'); const s = H.q('.drawer select'); s && H.set(s, s.options[1]?.value ?? s.value); H.set(H.q('.drawer textarea'), 'CREATE TABLE t (id int);'); await H.w(300); })()`); }, { vps: ['desktop'] });
 await run('drawer-history-compare', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('History'); await H.click('Compare', H.q('.drawer')); await H.w(700); })()`); }, { vps: ['desktop', 'phone'], dialog: '.admin-card', kb: false });
 await run('drawer-database', () => go('/', { local: D }).then(() => fillConn()), { vps: ['desktop', 'phone'], kb: true });
@@ -212,6 +212,7 @@ await run('shared-link-logged-in', () => go(`/s/${open.token}`), { vps: ['deskto
 await run('shared-link-password-prompt', () => go(`/s/${locked.token}`, { as: null }), { vps: ['desktop', 'phone'], kb: true });
 // 5. canvas
 await run('tables-panel', () => go('/', { local: { ...D, tablesPanel: '1' } }), { vps: ['desktop', 'phone'], kb: false });
+await run('panel-display', () => go('/', { local: { ...D, tablesPanel: '1', panelTab: 'display' } }), { vps: ['desktop', 'phone'], kb: true }); // the display options (formerly the View drawer)
 await run('tables-panel-filters', async () => { await go('/', { local: { ...D, tablesPanel: '1' } }); await ev(`(async () => { const b = H.q('.tpn .tpn-bar .tpn-ic:nth-of-type(1), .tpn .tpn-ic'); [...document.querySelectorAll('.tpn .tpn-ic')].find((x) => /filter/i.test(x.title || x.getAttribute('aria-label') || ''))?.click(); await H.w(400); })()`); }, { vps: ['desktop'] });
 await run('arrange-popover', async () => { await go('/', { local: D }); await ev(`H.q('.algo-toggle').click(); H.w(300)`); }, { vps: ['desktop', 'phone'], kb: false });
 await run('canvas-lineage', () => go('/', { local: { lastDiagram: lin, tablesPanel: '0' } }), { vps: ['desktop'] });

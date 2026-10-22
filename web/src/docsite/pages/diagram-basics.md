@@ -37,7 +37,7 @@ Sticky notes are free text on the canvas, kept in the DBML as top-level `Note` b
 - **Add** one with the **Add a sticky note** button in the dock (people who can edit). It appears in the middle of the screen, ready to type.
 - **Edit** by double-clicking it. The text is written back into the DBML when you click outside; Esc cancels.
 - **Move** it by dragging its top; **resize** it with the corner handles when it is selected; **delete** it with the ✕ in its corner. Its place and size are saved with the diagram.
-- **Hide** all of them with **More → View → Show sticky notes**. Arrange never moves them.
+- **Hide** all of them with the **Display** tab of the side panel → **Sticky notes**. Arrange never moves them.
 - Notes you type in the editor appear on the canvas as soon as the text is valid; a note without a saved place is put under the tables.
 
 ## Header colors
@@ -56,6 +56,6 @@ Tables that come from a database view are drawn like the others, marked **· Vie
 
 ## Theme and lines
 
-**More → View** switches **light / dark**, the background grid, snap to grid, line style, the relationship highlight and the detail level.
+The **sun/moon** button in the top bar switches **light / dark** (on a phone it is in the **More** menu). The side panel on the right of the diagram (the **‹** button at its edge, or `Ctrl+K`) has two tabs: **Tables**, and **Display** with the line style, the relationship highlight, the detail level, the layers (data lineage, sticky notes), the background grid and snap to grid. The saved view picker above the tabs applies to both.
 
 > **Tip** Press the **Docs** switch in the top bar for a browsable page of the same model, see [Generated documentation](generated-documentation).

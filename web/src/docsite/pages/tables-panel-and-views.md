@@ -4,7 +4,7 @@ Large databases are hard to read all at once. These tools help you show only wha
 
 ## Tables panel
 
-Open it with the **‹** button on the right edge of the diagram, or with `Ctrl+K` (`⌘+K` on macOS). A badge on the button shows how many tables are hidden.
+Open it with the **‹** button on the right edge of the diagram, or with `Ctrl+K` (`⌘+K` on macOS). A badge on the button shows how many tables are hidden. The panel has two tabs: **Tables** (described here) and **Display** (how the tables are drawn, see [Detail levels](#detail-levels)); `Ctrl+K` always opens the Tables tab with the search focused.
 
 ![The Tables panel grouped by table group; the search "order" dims the tables that do not match.](tables-panel.jpg)
 
@@ -21,9 +21,9 @@ Hidden tables leave their relationship lines and group boxes. They are still in 
 
 ## Detail levels
 
-**More → View → Detail level** shrinks every table:
+The **Display** tab of this panel has the **Table detail** level, which shrinks every table:
 
-![More → View: the detail level (here Keys) and the other display options.](detail-levels.jpg)
+![The Display tab of the side panel: the detail level (here Keys) and the other display options.](detail-levels.jpg)
 
 | Level | Shows |
 |-------|-------|

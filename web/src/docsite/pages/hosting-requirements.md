@@ -86,7 +86,7 @@ On one Windows 11 PC (12 cores, 7.6 GB for Docker), with the Docker image of thi
 
 ```bash
 # server: a throw-away container with a CPU and memory limit
-docker run -d --name bench-app --network rea_dbdiagram_default -p 3200:3000 --cpus 1 --memory 512m -e APP_SECRET=$(openssl rand -hex 24) -e COOKIE_SECURE=0 rea_dbdiagram-app
+docker build -t opendiagram-bench . && docker run -d --name bench-app -p 3200:3000 --cpus 1 --memory 512m -e APP_SECRET=$(openssl rand -hex 24) -e COOKIE_SECURE=0 opendiagram-bench
 docker exec bench-app node src/cli.js create-admin bench@example.com 'bench-password-123'
 BASE=http://127.0.0.1:3200 BENCH_CONTAINER=bench-app BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node server/bench.mjs
 

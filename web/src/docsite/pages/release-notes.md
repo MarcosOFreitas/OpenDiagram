@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Display options next to the diagram
+
+- The display options moved from **More → View** to a **Display** tab in the side panel of the diagram, next to **Tables**: you see the effect while you change them, and the saved view above the tabs covers both.
+- Light and dark is now one click: the **sun/moon** button in the top bar (on a phone, in the **More** menu). Wrapping long lines is a button in the editor's status bar.
+
 ## Backup and restore from the command line
 
 - `node src/cli.js backup` makes a consistent copy of all the data while the app keeps running, and `restore` brings one back (it refuses while the app is running). See [Self-hosting](self-hosting).
@@ -17,7 +22,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 
 ## Hide relationship lines
 
-- **More → View → Hide relationship lines** hides every relationship line and keeps the tables; off by default, remembered in the browser and saved with each view. Data lineage arrows are separate.
+- **Hide relationship lines** (now in the **Display** tab of the side panel) hides every relationship line and keeps the tables; off by default, remembered in the browser and saved with each view. Data lineage arrows are separate.
 
 ## Table selection, one rule
 

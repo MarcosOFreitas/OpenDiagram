@@ -37,7 +37,7 @@ Table order_items {
 }
 ```
 
-Indexes are listed under the columns of the table in the diagram. They are hidden by the **Names**, **Keys** and **Tables** detail levels, or with **More → View → Hide indexes**.
+Indexes are listed under the columns of the table in the diagram. They are hidden by the **Names**, **Keys** and **Tables** detail levels, or with the **Display** tab of the side panel → **Hide indexes**.
 
 ## Schemas
 

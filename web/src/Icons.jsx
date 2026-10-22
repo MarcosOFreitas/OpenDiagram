@@ -20,6 +20,9 @@ const P = {
   refs: <><circle cx="5" cy="6" r="2.4" /><circle cx="19" cy="18" r="2.4" /><path d="M7.2 7c7 0 3.6 10 9.6 10" /></>,
   note: <><path d="M4 4h16v10l-6 6H4z" /><path d="M14 20v-6h6" /></>,
   lineage: <><circle cx="5" cy="6" r="2.2" /><circle cx="5" cy="18" r="2.2" /><circle cx="19" cy="12" r="2.2" /><path d="M7 6.5c5 0 5 5.5 10 5.5M7 17.5c5 0 5-5.5 10-5.5" strokeDasharray="3 2.5" /></>,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+  moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  wrap: <><path d="M3 6h18M3 12h15a3 3 0 0 1 0 6h-4" /><path d="m16 15-3 3 3 3" /><path d="M3 18h6" /></>,
   db: <><ellipse cx="12" cy="5.5" rx="7.5" ry="3" /><path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" /></>,
 };
 export const Ic = ({ n, s = 16 }) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{P[n]}</svg>;
