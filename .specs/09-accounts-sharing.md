@@ -40,7 +40,7 @@ Who can open a diagram (the effective level is the **highest** that applies):
 | Source | Granted by | Notes |
 |---|---|---|
 | Owner | — | everything: edit, title, connection link, delete, sharing |
-| Administrator | role | everything except the owner's connection link/credentials (see above) |
+| Administrator | role | everything except changing the owner's connection link and using the owner's private connections (see above); the link itself is visible, as to anyone, only when it points at a shared connection they may use |
 | Person | owner (Share tab → Person; search by name/e-mail) | level `view` / `comment` / `edit` |
 | Group | owner (Share tab → Group; any group of the installation) | applies to every current member; leaving the group or deleting it removes the level |
 | Link | owner (Share tab → Links) | random 24-char token `/s/<token>`; anonymous = read-only; `comment`/`edit` require sign-in. Optional **password** (6–200 chars, scrypt in `shares.password_hash`, never returned): visitors send it in the `x-share-password` header (the UI asks once per tab and keeps it in `sessionStorage`); `401 {code:'share_password'}` when missing/wrong, `429` after 10 wrong attempts per (IP, link) in 15 min. Owner sets/changes/removes it with `PATCH /api/shares/:sid {password}` (empty removes) |

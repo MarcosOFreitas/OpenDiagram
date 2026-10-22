@@ -37,6 +37,8 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 
 The administrator decides which hosts users can reach with the `DB_HOST_POLICY` setting: `open` (default), `public-only` (blocks private, loopback and link-local addresses) or `allowlist`. See [Self-hosting](self-hosting).
 
+With `open`, anyone with an account can make the server try any host and port through **Test connection**, and the answer (refused, no answer, not found) tells them whether something listens there. That is fine when everyone with an account is trusted, and usual for a team whose databases sit on private addresses; otherwise list the database hosts with `allowlist`.
+
 The connection is opened by the **server**, so a database behind a VPN or a firewall is reachable only if the server is. People who use the app do not need the VPN. Internal and VPN addresses are private, so `public-only` blocks them. See [Self-hosting → Databases behind a VPN or a firewall](self-hosting).
 
 ## Shared connections

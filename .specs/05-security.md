@@ -29,8 +29,9 @@
 - [x] Sessions list and revocation, session length and inactivity limit, link expiry, account self-closing (7-day grace), persistent failed-attempt limiter, sign-in events in the audit log.
 - [x] Self-service password recovery without e-mail: a recovery key the person keeps (hash only, single use, rate-limited, audited).
 - [x] MCP connector for AI clients ([09](09-accounts-sharing.md)): separate agent accounts created by administrators, bearer tokens (hash only, shown once, expiry, revocation) valid only on `/mcp`, access only through the usual grants, no connection or credential ever returned, text marked as untrusted, every call audited, per-token rate limit, Origin check.
+- [x] Password hashing cost: scrypt with Node's default (N = 16384, r = 8, p = 1), below the OWASP minimum (N = 2^17). **Accepted** (audit [15](15-audit-2026-10-22.md), S4): N = 2^17 needs 128 MiB per hash, so four sign-ins at once would fill the 512 MB container measured in item 3b of [14](14-release-v1.md), and the stored `scrypt$salt$key` has no cost field (a change needs a versioned format and rehash on sign-in). Sign-in budgets (per address, per account) limit guessing instead.
 - [ ] MFA/SSO. Not planned: e-mail verification and e-mail password reset (no SMTP).
-- [ ] Dependency scan in CI; [x] container runs as non-root (user `node`, 2026-10-21); [x] read-only filesystem except `/data` and a small `/tmp` (`docker-compose.yml`).
+- [x] Dependency scan in CI (`npm audit --audit-level=high` for server and web in `ci.yml`, item 6 of [14](14-release-v1.md)); [x] container runs as non-root (user `node`, 2026-10-21); [x] read-only filesystem except `/data` and a small `/tmp` (`docker-compose.yml`).
 - [ ] Privacy notice: only schema metadata is read; no table data leaves the database.
 
 ## Reporting
