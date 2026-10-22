@@ -118,7 +118,17 @@ export function initDocs(root) {
     e.preventDefault();
     if (el.tagName === 'DETAILS') el.open = true;
     const main = root.querySelector('.dx-main');
-    if (main) main.scrollTo({ top: el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 16, behavior: 'smooth' });
+    if (!main) return;
+    // sections far from the screen are laid out only when they come near (content-visibility), so a first jump lands short or long once
+    // the sections in between get their real height: jump, let a frame lay them out, measure again, until the target stays put
+    let tries = 0;
+    const go = () => {
+      const delta = el.getBoundingClientRect().top - main.getBoundingClientRect().top - 16;
+      if (Math.abs(delta) < 2 || tries++ > 8) return;
+      main.scrollTo({ top: main.scrollTop + delta, behavior: 'auto' });
+      setTimeout(go, 50); // a frame lays out what came near (a timer, not requestAnimationFrame: it also runs where no frame is drawn)
+    };
+    go();
   });
 }
 
