@@ -23,5 +23,6 @@ Living specifications for OpenDiagram. Rules:
 | 12 | [Table selection](12-table-selection.md) — the four bugs so far, their common root cause, the rules and the missing tests | living |
 | 13 | [Feature plan](13-feature-plan.md) — proposed new features and improvements, in waves, with how each would be built and proved | proposal |
 | 14 | [Release v1.0](14-release-v1.md) — open-source single release: decisions, ordered plan, cut line, release checklist | agreed |
+| 15 | [Audit 2026-10-22](15-audit-2026-10-22.md) — full audit (security, import, performance, interface, tests, operations) and the plan for its findings | proposal |
 
 Origin: features were chosen by studying the public behaviour of comparable tools; the implementation is independent and uses no third-party code or assets other than the open-source libraries listed in the README.
