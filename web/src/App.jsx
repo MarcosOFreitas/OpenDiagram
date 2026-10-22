@@ -17,7 +17,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns, bentPath } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote, ENGINES, engine, dbPlaceholder } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -83,14 +83,15 @@ function GroupNode({ data: g }) {
     </div>
   );
 }
-// Relationship line with a draggable label: dragging it bends the line through the new point (saved in layout['@labels']);
+// Relationship line with a draggable label: dragging it bends the line through the new point, in the chosen line style (saved in layout['@labels']);
 // double-click puts it back. Without an offset the line is the normal curve/step/straight path.
 function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, markerEnd, interactionWidth, data }) {
   const flow = useStoreApi(); // the zoom is read when a label is dragged: subscribing to the viewport re-rendered every edge on every frame of a pan
   const args = { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition };
   const [base, bx, by] = data.edgeType === 'straight' ? getStraightPath(args) : data.edgeType === 'step' ? getSmoothStepPath({ ...args, borderRadius: 0 }) : data.edgeType === 'smoothstep' ? getSmoothStepPath(args) : getBezierPath(args);
   const off = data.off, px = bx + (off?.dx || 0), py = by + (off?.dy || 0);
-  const d = off ? `M${sourceX},${sourceY} Q${2 * px - (sourceX + targetX) / 2},${2 * py - (sourceY + targetY) / 2} ${targetX},${targetY}` : base; // quadratic curve that passes through the label
+  const bent = off && bentPath(data.edgeType, { x: sourceX, y: sourceY }, { x: targetX, y: targetY }, { x: px, y: py }); // through the label, in the chosen line style
+  const d = bent ? bent.d : base, lx = bent ? bent.x : px, ly = bent ? bent.y : py;
   const start = (e) => {
     e.stopPropagation(); e.preventDefault();
     const x0 = e.clientX, y0 = e.clientY, o = off || { dx: 0, dy: 0 };
@@ -104,7 +105,7 @@ function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targe
       <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} interactionWidth={interactionWidth} />
       {data.text && (
         <EdgeLabelRenderer>
-          <div className="ref-label nodrag nopan" style={{ transform: `translate(-50%, -50%) translate(${px}px, ${py}px)`, ...data.css }} onPointerDown={start} onDoubleClick={() => data.onMove(id, null)} title="Drag to move the line (double-click to reset)">{data.text}</div>
+          <div className="ref-label nodrag nopan" style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, ...data.css }} onPointerDown={start} onDoubleClick={() => data.onMove(id, null)} title="Drag to move the line (double-click to reset)">{data.text}</div>
         </EdgeLabelRenderer>
       )}
     </>

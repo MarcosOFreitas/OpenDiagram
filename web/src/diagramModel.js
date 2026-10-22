@@ -83,6 +83,27 @@ export const edgesOf = (parsed) => parsed.refs.map((r) => ({
   ? l.maps.map((m, i) => ({ id: `${l.id}#${i}`, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: [m.s], tCols: [m.t], manual: l.manual, name: '' } }))
   : [{ id: l.id, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: l.sCols, tCols: l.tCols, manual: l.manual, name: '' } }])));
 
+// A relationship line whose label was dragged to p, in the chosen line style: { d: SVG path, x, y: where the label goes }. Curved: a quadratic
+// curve whose middle is p. Straight: two segments meeting at p. Step: the vertical segment moves to p's x and the label stays on it (a label
+// dragged above or below both ends is held at the nearer end: the offset is kept for the other styles). Rounded (smoothstep): the step route
+// with its corners rounded (radius 5, at most half of the shorter segment).
+export function bentPath(type, s, t, p) {
+  if (type === 'straight') return { d: `M${s.x},${s.y} L${p.x},${p.y} L${t.x},${t.y}`, x: p.x, y: p.y };
+  if (type !== 'step' && type !== 'smoothstep') return { d: `M${s.x},${s.y} Q${2 * p.x - (s.x + t.x) / 2},${2 * p.y - (s.y + t.y) / 2} ${t.x},${t.y}`, x: p.x, y: p.y };
+  const y = Math.min(Math.max(p.y, Math.min(s.y, t.y)), Math.max(s.y, t.y));
+  const route = [s, { x: p.x, y: s.y }, { x: p.x, y: t.y }, t];
+  const pts = route.filter((q, i) => !i || q.x !== route[i - 1].x || q.y !== route[i - 1].y);
+  if (type === 'step') return { d: pts.map((q, i) => `${i ? 'L' : 'M'}${q.x},${q.y}`).join(' '), x: p.x, y };
+  const out = [`M${s.x},${s.y}`];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [a, q, b] = [pts[i - 1], pts[i], pts[i + 1]];
+    const la = Math.hypot(q.x - a.x, q.y - a.y), lb = Math.hypot(b.x - q.x, b.y - q.y), r = Math.min(5, la / 2, lb / 2);
+    out.push(`L${q.x - ((q.x - a.x) / la) * r},${q.y - ((q.y - a.y) / la) * r} Q${q.x},${q.y} ${q.x + ((b.x - q.x) / lb) * r},${q.y + ((b.y - q.y) / lb) * r}`);
+  }
+  out.push(`L${t.x},${t.y}`);
+  return { d: out.join(' '), x: p.x, y };
+}
+
 // table id -> the columns that need connection handles: every column of a reference (all of a composite one) and every column a lineage
 // arrow names. The others get none: four handles on every column made thousands of React Flow store subscribers on a big diagram.
 export function handleColumns(parsed) {

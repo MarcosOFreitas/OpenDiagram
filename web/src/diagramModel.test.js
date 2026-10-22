@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, test, expect } from 'vitest';
-import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges } from './diagramModel.js';
+import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges, bentPath } from './diagramModel.js';
 
 const DBML = `Table shop.customers { id int [pk] }
 Table shop.orders { id int [pk]
@@ -122,5 +122,32 @@ describe('nodeChanges', () => {
       { type: 'select', id: 'shop.orders', selected: true },
     ];
     expect(nodeChanges(changes)).toEqual(changes.slice(1));
+  });
+});
+
+describe('bentPath: a relationship line whose label was dragged passes through the label in the chosen line style', () => {
+  const s = { x: 0, y: 0 }, t = { x: 100, y: 100 };
+  const pts = (d) => d.match(/-?\d+(\.\d+)?/g).map(Number);
+  test('curved: a quadratic curve whose middle is the label', () => {
+    const { d, x, y } = bentPath('default', s, t, { x: 80, y: 20 });
+    expect(d).toMatch(/^M0,0 Q/);
+    const [, , cx, cy, ex, ey] = pts(d);
+    expect([(0 + 2 * cx + ex) / 4, (0 + 2 * cy + ey) / 4]).toEqual([80, 20]); // B(0.5)
+    expect([x, y]).toEqual([80, 20]);
+  });
+  test('straight: two straight segments meeting at the label', () => expect(bentPath('straight', s, t, { x: 80, y: 20 })).toEqual({ d: 'M0,0 L80,20 L100,100', x: 80, y: 20 }));
+  test('step: the vertical segment moves to the label; the label stays on it when dragged above or below both ends', () => {
+    expect(bentPath('step', s, t, { x: 30, y: 40 })).toEqual({ d: 'M0,0 L30,0 L30,100 L100,100', x: 30, y: 40 });
+    expect(bentPath('step', s, { x: 100, y: 20 }, { x: 50, y: -40 })).toEqual({ d: 'M0,0 L50,0 L50,20 L100,20', x: 50, y: 0 });
+    // both ends on the same side (seen in the browser): a bracket out to the label, never a spike that leaves the label off the line
+    expect(bentPath('step', { x: 1538, y: 179.5 }, { x: 1538, y: 157.5 }, { x: 1616, y: -121.5 })).toEqual({ d: 'M1538,179.5 L1616,179.5 L1616,157.5 L1538,157.5', x: 1616, y: 157.5 });
+  });
+  test('rounded (smoothstep): the step route with rounded corners, never the curve', () => {
+    const { d } = bentPath('smoothstep', s, t, { x: 30, y: 40 });
+    expect(d.startsWith('M0,0 L')).toBe(true);
+    expect(d.endsWith('L100,100')).toBe(true);
+    expect(d.match(/Q/g)).toHaveLength(2); // one bend per corner
+    expect(d).toContain('Q30,0 ');
+    expect(bentPath('smoothstep', s, { x: 100, y: 4 }, { x: 50, y: 2 }).d).toContain('L48,0 Q50,0 50,2'); // the radius never exceeds half a short segment
   });
 });
