@@ -31,7 +31,7 @@ Demo databases to try the import (PostgreSQL, and Oracle with `--profile oracle`
 | `DB_HOST_POLICY` | `open` | which database hosts users may reach: `open`, `public-only` (blocks hosts that resolve to private, loopback, link-local, CGNAT or multicast addresses) or `allowlist` |
 | `DB_HOST_ALLOWLIST` | | comma-separated exact host names (no wildcards or ranges), only with `allowlist` |
 | `COOKIE_SECURE` | `0` | `1` when served over HTTPS (it is also set automatically when the proxy sends `X-Forwarded-Proto: https`) |
-| `TRUST_PROXY` | `0` | `1` behind a reverse proxy, so rate limits use the real client address |
+| `TRUST_PROXY` | `0` | `1` behind a reverse proxy, so rate limits use the real client address and the request check reads `X-Forwarded-Host` |
 
 ## Databases behind a VPN or a firewall
 
@@ -54,7 +54,7 @@ Importing and refreshing read only the catalog, so a read-only user is enough. T
 
 Before exposing the instance beyond your own network:
 
-1. Serve it over **HTTPS** and set `COOKIE_SECURE=1` (and `TRUST_PROXY=1` behind a proxy).
+1. Serve it over **HTTPS** and set `COOKIE_SECURE=1` (and `TRUST_PROXY=1` behind a proxy). The proxy must tell the app which address the browser used: keep the `Host` header (nginx: `proxy_set_header Host $host;`, Caddy and Traefik do it by default) or send `X-Forwarded-Host`. Otherwise every change, sign-in included, is refused as *cross-origin request blocked*.
 2. Set a strong `APP_SECRET`.
 3. Set `DB_HOST_POLICY=public-only` or `allowlist` so users cannot point the app at your internal network.
 4. Keep sign-up closed and create accounts as the administrator. Sessions last 30 days; 8 wrong passwords in 15 minutes for the same e-mail and address lock sign-in for a few minutes (behind a proxy set `TRUST_PROXY=1` so the real address is seen).

@@ -32,13 +32,13 @@ app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body,
 });
 
 // ---------- cross-cutting: CSRF guard, login requirement, security headers
+// a browser's Origin must name this server. req.host is the host the person typed: with TRUST_PROXY=1 it comes from X-Forwarded-Host,
+// so a proxy that rewrites Host (nginx's default proxy_pass sends the upstream name) still works when it says where the request went
+const sameOrigin = (req) => { if (!req.headers.origin) return true; try { return new URL(req.headers.origin).host === req.host; } catch { return false; } };
+const blocked = (req) => { req.log.warn({ origin: req.headers.origin, host: req.host }, 'cross-origin request blocked'); return bad('cross-origin request blocked (behind a reverse proxy: keep the Host header, or send X-Forwarded-Host and set TRUST_PROXY=1)', 403); };
 app.addHook('onRequest', async (req) => {
   if (!req.url.startsWith('/api/')) return;
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin) {
-    let host;
-    try { host = new URL(req.headers.origin).host; } catch { /* malformed */ }
-    if (host !== req.headers.host) throw bad('cross-origin request blocked', 403);
-  }
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !sameOrigin(req)) throw blocked(req);
   req.user = auth.userFromRequest(req);
   const path = req.url.split('?')[0];
   const open = path === '/api/health' || path.startsWith('/api/auth/') || path.startsWith('/api/shared/');
@@ -383,8 +383,7 @@ app.delete('/api/shared/:token/comments/:cid', async (req) => { const s = await 
 // ---------- MCP connector (agents.js, mcp.js): POST /mcp with `Authorization: Bearer odt_...`; the token works nowhere else
 app.get('/mcp', (_req, reply) => reply.code(405).header('allow', 'POST').send({ error: 'use POST' })); // no server-initiated stream
 app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
-  const origin = req.headers.origin; // browsers send one; a legitimate MCP client does not (DNS-rebinding guard of the transport spec)
-  if (origin) { let host; try { host = new URL(origin).host; } catch { /* malformed */ } if (host !== req.headers.host) return reply.code(403).send({ error: 'origin not allowed' }); }
+  if (!sameOrigin(req)) return reply.code(403).send({ error: blocked(req).message }); // browsers send an Origin; a legitimate MCP client does not (DNS-rebinding guard of the transport spec)
   const agent = agents.authenticate(req.headers.authorization);
   if (!agent) return reply.code(401).header('www-authenticate', 'Bearer').send({ error: 'a valid agent token is required (and agents must be switched on in Administration → Settings)' });
   if (!agents.withinRate(agent.tokenId)) return reply.code(429).send({ error: 'too many requests, slow down' });
