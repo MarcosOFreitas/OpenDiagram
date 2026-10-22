@@ -11,6 +11,7 @@ WORKDIR /app
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY server/src ./src
+COPY LICENSE NOTICE ./
 COPY --from=web /w/server/public ./public
 # runs as the unprivileged `node` user of the base image; /data is created here so a new volume is owned by it
 RUN mkdir /data && chown node:node /data

@@ -1,30 +1,26 @@
 # License
 
-OpenDiagram is released under the **PolyForm Noncommercial License 1.0.0** (the `LICENSE` file of the repository is the text that counts).
-
-## Why
-
-OpenDiagram was born from the need for a **free** diagramming application, and it is meant to **stay free**. That is why it may not be sold, offered as a paid service, or used in a commercial product or business.
+OpenDiagram is open source under the **Apache License 2.0** (the `LICENSE` file of the repository is the text that counts, and `NOTICE` holds the copyright line).
 
 ## What you may do
 
-- Use it for **personal** projects, study, hobbies, research and education.
-- Use it in **charities, schools and public institutions** (see *Noncommercial Organizations* in the license).
-- Read the source, change it for your own noncommercial use, and share it with others, always together with the license (or its URL) and the `Required Notice:` line of the `LICENSE` file.
+- **Use it for anything**: personal projects, at work, inside a company, for clients, or as a hosted service, free of charge.
+- **Change it** and **share it**, changed or not, also as part of another product.
+- **Keep your changes private** if you only run them yourself; the license does not oblige you to publish them.
 
-## What you may not do without a separate written license
+## What you must do when you share it
 
-- Sell it, or copies of it.
-- Offer it (or a modified version) as a paid or ad-supported service.
-- Use it **inside a company for the company's work**, or include it in a product or a service of a company.
+- Include the license (`LICENSE`) and the `NOTICE` file.
+- Say in the changed files that you changed them.
+- Do not use the names of the authors to promote your product without permission.
 
-## Questions
+## Common questions
 
-**Can my team use it at work?** If the work is for a company, that is commercial use: ask the copyright holders for a license first. A public school, a university course, a charity or a personal project is noncommercial.
+**Can my team use it at work?** Yes, including for paid work and inside a company.
 
-**Is it open source?** It is **source-available**: you can read and change the code, but the license restricts commercial use, so it is not "open source" in the sense of the Open Source Initiative.
+**Is it open source?** Yes: the Apache License 2.0 is approved by the Open Source Initiative. It also grants a patent license from every contributor for their contribution.
 
-**What about earlier versions?** Versions published before 2026-10-16 were under the MIT License, and copies made then stay under it. From that date on, the PolyForm Noncommercial License applies.
+**Is there support?** No. OpenDiagram is released as is, without warranty. Issues and pull requests are welcome, and anyone may fork it.
 
 **The libraries it uses?** They keep their own licenses (MIT, Apache-2.0 and others), listed in the README.
 

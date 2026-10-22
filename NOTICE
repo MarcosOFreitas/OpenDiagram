@@ -1,0 +1,10 @@
+OpenDiagram
+Copyright 2026 Marcos Oliveira and the OpenDiagram contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It bundles third-party open-source libraries, each under its own license
+(MIT, Apache-2.0, BSD, ISC and others), among them @dbml/core (Apache-2.0),
+React Flow, CodeMirror, React, Fastify, node-postgres (MIT) and node-oracledb
+(Apache-2.0 or UPL-1.0). The full list with licenses is in server/package-lock.json
+and web/package-lock.json, and the README names the main ones.

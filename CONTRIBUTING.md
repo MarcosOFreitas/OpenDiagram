@@ -6,7 +6,7 @@ Thanks for helping. This project is small on purpose: the smallest change that s
 
 - **Open an issue** for anything bigger than a typo or a small fix, so we can agree on the approach (and on whether it fits [the roadmap](.specs/06-roadmap.md)) before you write code.
 - **Security problems are not issues.** See [`SECURITY.md`](SECURITY.md).
-- OpenDiagram is a **clean-room** implementation: do not copy code, text or images from dbdiagram.io, dbdocs or other products. Only contribute code you have the right to license under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+- OpenDiagram is a **clean-room** implementation: do not copy code, text or images from dbdiagram.io, dbdocs or other products. Only contribute code you have the right to license under the [Apache License 2.0](LICENSE).
 
 ## Set up
 
@@ -41,4 +41,4 @@ There is no linter. Unit tests (`cd server && npm test`, `cd web && npm test`) r
 - Fill in the checklist of the pull request template. Say honestly what you tested and what you did not.
 - Keep the diff focused: no drive-by reformatting, no new dependency for something a few lines can do.
 
-By contributing you agree that your contribution is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE) like the rest of the project, and that the project stays free for noncommercial use.
+By contributing you agree that your contribution is licensed under the [Apache License 2.0](LICENSE) like the rest of the project (section 5 of the license).
