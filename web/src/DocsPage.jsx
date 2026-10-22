@@ -28,7 +28,7 @@ export const docsCss = `
 .dx-main{flex:1;min-width:0;overflow:auto;padding:28px 40px 80px}
 .dx-main>div{max-width:960px;margin:0 auto}
 .dx h2{font-size:22px;margin:0}.dx h3{font-size:15px;margin:22px 0 6px}
-.dx-table{margin-top:22px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.dx-table{margin-top:22px;border:1px solid var(--line);border-radius:10px;background:var(--bg);content-visibility:auto;contain-intrinsic-size:auto 360px}
 .dx-table>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;user-select:none}
 .dx-table>summary::-webkit-details-marker{display:none}
 .dx-table>summary:hover{background:var(--chip)}
