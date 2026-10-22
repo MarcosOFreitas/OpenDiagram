@@ -34,7 +34,7 @@ jobs:
         run: |
           npm ci
           npm audit --audit-level=high
-          node --check src/*.js
+          for f in src/*.js; do node --check "$f"; done   # one file per call: node --check a.js b.js checks only a.js
           npm test
           node test-lineage.mjs
       - name: Web

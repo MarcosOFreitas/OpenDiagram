@@ -75,10 +75,13 @@ Stock keeping unit:
 2 = supplier
 '''`));
 
-// 3. the session itself is read-only even for a superuser (checked straight against the DB with the same options the app uses)
-const sql = `begin read only; create table shop.should_fail(id int);`;
-try { execSync(`docker compose exec -T demo-pg psql -U postgres -d demo -v ON_ERROR_STOP=1 -c "${sql}"`, { stdio: 'pipe' }); check('read-only txn rejects DDL', false, 'DDL succeeded'); }
-catch (e) { check('read-only txn rejects DDL', /read-only transaction/.test(String(e.stderr)), String(e.stderr).trim().split('\n')[0]); }
+// 3. the session the app opens is read-only even for a superuser: the app's own session code (introspect.js pgWith, myWith, oraWith),
+// straight to the demo databases' ports published on this machine (docker-compose.demo.yml)
+const { pgWith, myWith, oraWith } = await import('./src/introspect.js');
+const writeFails = async (name, run, re) => {
+  try { await run(); check(name, false, 'the write succeeded'); } catch (e) { check(name, re.test(e.message), e.message.split('\n')[0]); }
+};
+await writeFails('read-only session rejects DDL as a superuser (pgWith)', () => pgWith({ host: '127.0.0.1', port: 5433, database: 'demo', user: 'postgres', password: 'demo' }, (cl) => cl.query('create table shop.should_fail(id int)')), /read-only transaction/);
 
 // 4. Postgres TLS modes against demo-pg-tls (self-signed)
 const tlsBase = { ...pg('postgres', 'demo'), host: 'demo-pg-tls' };
@@ -169,10 +172,11 @@ r = await post('tables', { ...my('reader', 'reader'), schemas: ['shop'] });
 check('mysql list tables flags the view', r.status === 200 && r.tables?.length >= 4 && r.tables.filter((t) => t.view).map((t) => t.name).join() === 'v_order_totals', JSON.stringify(r.tables));
 r = await post('import', { ...my('reader', 'reader'), schemas: ['shop'], tables: ['shop.orders'] });
 check('mysql import only the picked table', r.status === 200 && r.tables === 1, `${r.tables} tables`);
-// the session statements the app sends make a write fail, for root too (straight against the server, as for PostgreSQL)
-const mysqlCli = (stmts) => execSync(`docker compose exec -T demo-mysql mysql -uroot -pdemo shop -e "${stmts}"`, { stdio: 'pipe' });
-try { mysqlCli("SET SESSION TRANSACTION READ ONLY; START TRANSACTION READ ONLY; INSERT INTO customers (name, email) VALUES ('x', 'x@example.com');"); check('mysql read-only session rejects INSERT as root', false, 'INSERT succeeded'); }
-catch (e) { check('mysql read-only session rejects INSERT as root', /READ ONLY transaction/i.test(String(e.stderr)), String(e.stderr).trim().split('\n').pop()); }
+// the app's MySQL session makes a write fail, for root too (myWith, as pgWith above)
+await writeFails('mysql read-only session rejects INSERT as root (myWith)', () => myWith({ host: '127.0.0.1', port: 3307, database: 'shop', user: 'root', password: 'demo' }, (cn) => cn.query("INSERT INTO customers (name, email) VALUES ('x', 'x@example.com')")), /READ ONLY transaction/i);
+// Oracle only when its demo runs (docker compose --profile oracle up -d) and its port is given: ORACLE_PORT=1522 node server/test-guardrails.mjs
+if (process.env.ORACLE_PORT) await writeFails('oracle read-only session rejects INSERT (oraWith)', () => oraWith({ host: '127.0.0.1', port: +process.env.ORACLE_PORT, database: 'FREEPDB1', user: 'shop', password: 'shop' }, (conn) => conn.execute("insert into customers (id, email) values (999999, 'x@example.com')")), /ORA-01456/);
+else console.log('SKIP  oracle read-only session (no ORACLE_PORT: the Oracle demo is not part of this run)');
 // TLS: the server's auto-generated certificate (its name never matches the host)
 r = await post('schemas', my('reader', 'reader', { tls: 'noverify' }));
 check('mysql tls noverify connects', r.status === 200, r.error);

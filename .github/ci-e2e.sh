@@ -59,6 +59,8 @@ wait_health http://localhost:3000/api/health || exit 1
 timings+=("${SECONDS}s  stack up (build included)")
 
 if [ -n "$FIRST" ]; then
+  # test-guardrails opens database sessions with the app's own code (server/src/introspect.js), so it needs the server's dependencies
+  [ -d server/node_modules ] || (cd server && npm ci --omit=dev --no-audit --no-fund) || exit 1
   step "server/test-auth.mjs" node server/test-auth.mjs
   step "server/test-guardrails.mjs" node server/test-guardrails.mjs
 fi

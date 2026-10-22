@@ -56,6 +56,10 @@ await new Api(BASE).call('POST', '/api/auth/login', { email: 'nobody@example.com
 // a member without any diagram: the app shows the create options instead of making a sample
 await admin.call('POST', '/api/admin/users', { email: 'nora@example.com', name: 'Nora Lima', password: 'Nora-temp-pass-0' });
 { const nora = new Api(BASE); await nora.call('POST', '/api/auth/login', { email: 'nora@example.com', password: 'Nora-temp-pass-0' }); await nora.call('POST', '/api/auth/password', { current: 'Nora-temp-pass-0', next: 'Nora-audit-pass-1' }); }
+// a member who may only comment on the sample diagram: she posts a column comment from the Docs view (member-comment)
+await admin.call('POST', '/api/admin/users', { email: 'cora@example.com', name: 'Cora Reis', password: 'Cora-temp-pass-0' });
+{ const cora = new Api(BASE); await cora.call('POST', '/api/auth/login', { email: 'cora@example.com', password: 'Cora-temp-pass-0' }); await cora.call('POST', '/api/auth/password', { current: 'Cora-temp-pass-0', next: 'Cora-audit-pass-1' }); }
+await admin.call('POST', `/api/diagrams/${shop}/access`, { type: 'user', subjectId: (await admin.call('GET', '/api/admin/users')).find((u) => u.email === 'cora@example.com').id, access: 'comment' });
 // a diagram linked to a connection whose scheduled refresh failed 5 times (there is no API for that state: it is written into the instance's database)
 const conn = await admin.call('POST', '/api/connections', { name: 'audit-db', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off', refreshMinutes: 5 });
 const failing = (await admin.call('POST', '/api/diagrams', { title: 'Refresh error' })).id;
@@ -125,7 +129,7 @@ let theme = 'light';
 const go = async (path, { as = 'admin', local = {}, base = BASE } = {}) => {
   await cdp('Network.clearBrowserCookies');
   await cdp('Page.navigate', { url: base + '/' }); await sleep(500);
-  const who = { admin: [EMAIL, PASS], maya: ['maya@example.com', 'Maya-audit-pass-1'], temp: ['temp@example.com', 'Temp-pass-0000'], nora: ['nora@example.com', 'Nora-audit-pass-1'] }[as];
+  const who = { admin: [EMAIL, PASS], maya: ['maya@example.com', 'Maya-audit-pass-1'], temp: ['temp@example.com', 'Temp-pass-0000'], nora: ['nora@example.com', 'Nora-audit-pass-1'], cora: ['cora@example.com', 'Cora-audit-pass-1'] }[as];
   await ev(`(async () => { localStorage.clear(); ${who ? `const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ${JSON.stringify(who[0])}, password: ${JSON.stringify(who[1])} }) }); if (!r.ok) throw new Error('login ' + r.status);` : ''} localStorage.setItem('view', JSON.stringify({ theme: ${JSON.stringify(theme)}, grid: true })); for (const [k, v] of Object.entries(${JSON.stringify(local)})) localStorage.setItem(k, v); })()`);
   await cdp('Page.navigate', { url: base + path }); await sleep(2200);
   await ev(AUDIT);
@@ -199,6 +203,35 @@ await run('forced-password-change', () => go('/', { as: 'temp' }), { vps: ['desk
 // 2. main screen, menus
 await run('main', () => go('/', { local: D }), { vps: ['desktop', 'phone'], kb: true });
 await run('menu-export', async () => { await go('/', { local: D }); await ev(`H.click('Export', H.q('header.top'))`); }, { vps: ['desktop', 'phone'] });
+// the PNG and SVG exports really hold the diagram (.specs/04): the files the Export menu produces are caught, then an image of a sane size
+// with drawn content (not one background colour) and an SVG that names the sample's tables; anything else is a finding
+const EXPORT_IMAGES = `(async () => {
+  window.__exports = {};
+  HTMLAnchorElement.prototype.click = function () { if (this.download) window.__exports[this.download.split('.').pop()] = this.href; };
+  for (const [label, ext] of [['PNG image', 'png'], ['SVG image', 'svg']]) {
+    await H.click('Export', H.q('header.top')); await H.click(label, H.q('.menu-pop'));
+    for (let k = 0; k < 40 && !window.__exports[ext]; k++) await H.w(250);
+  }
+})()`;
+const CHECK_IMAGES = `(async () => {
+  const out = [], { png, svg } = window.__exports || {};
+  if (!png?.startsWith('data:image/png')) out.push('no PNG was produced');
+  else {
+    const i = await new Promise((ok, no) => { const x = new Image(); x.onload = () => ok(x); x.onerror = no; x.src = png; });
+    const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight;
+    const g = c.getContext('2d'); g.drawImage(i, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data, bg = d[0] + ',' + d[1] + ',' + d[2], colours = new Set();
+    let drawn = 0, n = 0;
+    for (let k = 0; k < d.length; k += 4 * 97) { n++; const px = d[k] + ',' + d[k + 1] + ',' + d[k + 2]; colours.add(px); if (px !== bg) drawn++; }
+    if (i.naturalWidth < 400 || i.naturalHeight < 200) out.push('PNG too small: ' + i.naturalWidth + 'x' + i.naturalHeight);
+    if (colours.size < 8 || drawn / n < 0.05) out.push('PNG looks empty: ' + colours.size + ' colours, ' + Math.round(100 * drawn / n) + '% drawn');
+  }
+  const text = svg?.startsWith('data:image/svg') ? decodeURIComponent(svg.slice(svg.indexOf(',') + 1)) : '';
+  if (!text.includes('<svg')) out.push('no SVG was produced');
+  else for (const t of ['customers', 'orders', 'products']) if (!new RegExp('>\\\\s*' + t + '\\\\s*<').test(text)) out.push('SVG does not show the table ' + t);
+  return out;
+})()`;
+await run('export-images', async () => { await go('/', { local: D }); await ev(EXPORT_IMAGES); }, { after: async () => { const bad = await ev(CHECK_IMAGES); if (bad.length) note('export-images', 'desktop', { export: bad }); } });
 await run('menu-more', async () => { await go('/', { local: D }); await ev(`H.click('More', H.q('header.top'))`); }, { vps: ['desktop', 'phone'] });
 await run('menu-account', async () => { await go('/', { local: D }); await ev(`(async () => { [...document.querySelectorAll('header.top .menu > .tbtn')].pop().click(); await H.w(300); })()`); }, { vps: ['desktop', 'phone'] });
 await run('account-recovery-key', async () => { await go('/', { local: D }); await ev(`(async () => { await H.account('Account'); await H.click('Generate', H.q('.drawer')); H.set(H.q('.drawer input[aria-label="Your password, to make the key"]'), '${PASS}'); await H.w(200); await H.click('Generate', H.q('.drawer')); await H.w(700); })()`); }, { vps: ['desktop', 'phone'], kb: true });
@@ -239,6 +272,24 @@ await run('canvas-sticky-note', async () => { await go('/', { local: D }); await
 await run('canvas-table-selected', async () => { await go('/', { local: D }); await ev(`(async () => { document.querySelector('.react-flow__node-table')?.click(); await H.w(500); })()`); }, { vps: ['desktop'] });
 await run('newer-version-bar', async () => { await go('/', { local: D }); await ev(`H.w(500)`); await admin.call('PUT', `/api/diagrams/${shop}`, { dbml: SAMPLE + '\n// edited elsewhere\n' }); await sleep(9000); }, { vps: ['desktop'] });
 // 6. docs view
+// levels below owner, through the interface (test-auth.mjs checks the same through the API): a comment-level member posts a column comment
+// typed with real key events in the Docs view; an edit-level member's typing is autosaved into the owner's diagram
+const COMMENT_MARK = `audit column comment ${Date.now()}`, EDIT_MARK = `// typed by an edit-level member ${Date.now()}`;
+await run('member-comment', async () => {
+  await go('/', { as: 'cora', local: D });
+  await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(800); const box = H.q('.dx-main td .cmt.none'); if (!box) throw new Error('no column comment box for a comment-level member'); box.click(); await H.w(300); H.q('.dx-main td .cmt-in').focus(); })()`);
+  await cdp('Input.insertText', { text: COMMENT_MARK }); await key('Enter', 2); await sleep(1200); // Ctrl+Enter posts
+}, { themes: ['light'], after: async () => {
+  const c = (await admin.call('GET', `/api/diagrams/${shop}/comments`)).find((x) => x.text === COMMENT_MARK);
+  if (!c || c.author !== 'Cora Reis' || c.key.split('.').length < 3) note('member-comment', 'desktop', { comment: `the column comment of a comment-level member was not saved as hers (${JSON.stringify(c ?? null)})` });
+} });
+await run('member-edit-save', async () => {
+  await go('/', { as: 'maya', local: D });
+  await ev(`(async () => { const t = H.q('button[aria-label="Toggle editor"][aria-expanded="false"]'); if (t) { t.click(); await H.w(400); } H.q('.cm-content').focus(); document.execCommand('insertText', false, ${JSON.stringify(`${EDIT_MARK}\n`)}); await H.w(3000); })()`);
+}, { themes: ['light'], after: async () => {
+  const d = await admin.call('GET', `/api/diagrams/${shop}`), v = (await admin.call('GET', `/api/diagrams/${shop}/versions`))[0];
+  if (!d.dbml.includes(EDIT_MARK) || v.author !== 'Maya Santos') note('member-edit-save', 'desktop', { save: `the typing of an edit-level member was not autosaved (latest entry by ${v.author})` });
+} });
 await run('docs-view', async () => { await go('/', { local: D }); await ev(`H.click('Docs', H.q('.mode'))`); }, { vps: ['desktop', 'phone'], kb: false });
 // the live import of demo-pg: check constraints (the Checks list) and a partitioned table (its note)
 await run('docs-view-checks', async () => { await go('/', { local: { lastDiagram: lin, tablesPanel: '0' } }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); const s = [...document.querySelectorAll('.dx-sub')].find((e) => e.textContent === 'Checks'); if (!s) throw new Error('no Checks list'); s.scrollIntoView({ block: 'center' }); })()`); }, { vps: ['desktop', 'phone'], kb: false });
