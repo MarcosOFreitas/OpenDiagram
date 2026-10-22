@@ -9,6 +9,7 @@ if (!cookie) { console.error('admin sign-in failed: set TEST_ADMIN_EMAIL and TES
 const conns = {
   pg: { type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'postgres', password: 'demo', schemas: ['shop'] },
   oracle: { type: 'oracle', host: 'demo-oracle', port: 1521, database: 'FREEPDB1', user: 'shop', password: 'shop', schemas: ['SHOP'] },
+  mysql: { type: 'mysql', host: 'demo-mysql', port: 3306, database: '', user: 'reader', password: 'reader', schemas: ['shop'] },
 };
 
 const summarize = (dbml) => {
@@ -45,7 +46,6 @@ for (const [name, body] of Object.entries(conns)) {
   for (const fmt of ['postgres', 'mysql', 'mssql', 'oracle', 'json']) {
     try {
       const out = exporter.export(r.dbml, fmt);
-      if (fmt === 'oracle') { console.log(`${fmt}: export ok (${out.length}b), import unsupported`); continue; }
       const back = importer.import(out, fmt);
       const d = diff(orig, summarize(back));
       console.log(`${fmt}: ${d.length ? 'DIFFS' : 'identical'}`);

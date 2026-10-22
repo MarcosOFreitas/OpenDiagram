@@ -24,9 +24,13 @@ DB → DBML → export → re-import → compare columns/types/PK/NOT NULL/index
 | Source ↓ / format → | PG | MySQL | MSSQL | Oracle | JSON |
 |---------------------|----|-------|-------|--------|------|
 | Postgres demo (+ views, enum, sequence, trigger) | identical¹ | fails | fails | export only | fails |
-| Oracle demo | identical¹ | fails | identical¹ | export only | fails |
+| Oracle demo | identical¹ | fails | identical¹ | fails² | fails |
+| MySQL demo (2026-10-22, @dbml/core 10) | differs (`serial`) | identical except two importer limits³ | fails (`unsigned`) | fails² | fails |
 
 ¹ after normalizing type aliases (`timestamp without time zone`≡`timestamp`, `character varying`≡`varchar`) and ref direction (the exporter flips endpoint order).
+
+² measured 2026-10-22 with the PostgreSQL demo (the Oracle demo was not running): the Oracle exporter writes `CREATE USER` for each schema, which the Oracle importer of `@dbml/core` 10 rejects; the live import is not affected.
+³ `@dbml/core`'s MySQL **importer** drops `UNSIGNED` (`int unsigned` comes back as `int`) and names an inline `ENUM(...)` `<table>_<column>_enum`; the live import keeps both (`int unsigned`, `Enum shop.orders_status`, checked by `test-guardrails.mjs`), and the export writes them correctly. Everything else (tables, columns, keys, indexes, references) is identical.
 
 Failures are cross-dialect issues, not parser bugs: PG defaults (`nextval(...::regclass)`), `character varying`, Oracle `NUMBER`, etc. are not valid in the target dialect.
 
