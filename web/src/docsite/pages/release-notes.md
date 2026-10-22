@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Backup and restore from the command line
+
+- `node src/cli.js backup` makes a consistent copy of all the data while the app keeps running, and `restore` brings one back (it refuses while the app is running). See [Self-hosting](self-hosting).
+
 ## Safer container
 
 - The container runs as the unprivileged user `node` and reports its health to Docker. **Updating an existing installation:** hand the data volume over once, see [Self-hosting](self-hosting) (*Updating*).

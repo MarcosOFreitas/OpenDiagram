@@ -63,16 +63,16 @@ Before exposing the instance beyond your own network:
 Everything is one SQLite file in the `appdata` volume. Restoring needs the **same** `APP_SECRET`.
 
 ```bash
-docker compose stop app                     # the database runs in WAL mode: copy it while the app is stopped
-docker compose cp app:/data ./backup        # backup
-docker compose start app
-# on the new machine: start once, then stop, restore and start
-docker compose up -d --build
+docker compose exec app node src/cli.js backup                       # a consistent copy while the app runs: /data/backup-<date>-<time>.db
+docker compose cp app:/data/backup-20261022-101500.db .              # take it off the machine (the name is printed by the command above)
+# restore, on this machine or a new one (start the app once there so the volume exists)
+docker compose cp ./backup-20261022-101500.db app:/data/
 docker compose stop app
-docker compose cp ./backup/. app:/data
-docker compose run --rm --user root --entrypoint chown app -R node:node /data   # files copied in belong to root; the app runs as the user node
+docker compose run --rm app node src/cli.js restore /data/backup-20261022-101500.db
 docker compose start app
 ```
+
+`restore` checks that the file is an OpenDiagram database and refuses while the app is running on the data (stop it first; `--force` skips that check when a crashed app left its mark). Backups stay in the volume until you delete them (`docker compose exec app sh -c 'rm /data/backup-*.db'`).
 
 ## Updating
 

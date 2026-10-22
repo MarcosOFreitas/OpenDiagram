@@ -71,7 +71,7 @@ Up to about **100 tables** the diagram is smooth. Beyond that, moving and zoomin
 - The image is **470 MB**. Data lives in the `/data` volume: one `app.db` file (SQLite, WAL mode).
 - A diagram is stored as its DBML text, once for the current version and once more in each **history entry** (the last 60 unnamed versions are kept, named ones always). Estimate for one diagram: **size of the DBML × up to 61** in the worst case, and much less in practice because saves by the same person within 10 minutes share an entry. For a 200-table diagram (122 KB) that is under 8 MB.
 - The audit log keeps 180 days, at most 200,000 rows (a few hundred bytes each), and the last 50,000 failed sign-ins.
-- Back it up by copying `app.db` with the app stopped (see [Self-hosting](self-hosting)); the app now stops cleanly in about a second.
+- Back it up with `node src/cli.js backup`, which makes a consistent copy while the app runs (see [Self-hosting](self-hosting)); a backup is about the size of `app.db`.
 
 ## Network
 

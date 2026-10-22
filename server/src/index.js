@@ -387,12 +387,14 @@ else {
   const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
   housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
   refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
+  // `cli.js restore` refuses while this mark is fresh (the app may run in another container than the CLI); removed on a clean stop
+  const alive = () => auth.setSetting('server_alive', Math.floor(Date.now() / 1000)); alive(); setInterval(alive, 30_000).unref();
   await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });
 
   // docker stop / Ctrl+C: finish the requests in flight and fold the WAL into the database file, instead of being killed ten seconds later (exit 137)
   for (const sig of ['SIGTERM', 'SIGINT']) {
     process.once(sig, async () => {
-      try { await app.close(); db.exec('pragma wal_checkpoint(truncate)'); } finally { process.exit(0); }
+      try { await app.close(); db.prepare("delete from settings where key = 'server_alive'").run(); db.exec('pragma wal_checkpoint(truncate)'); } finally { process.exit(0); }
     });
   }
 }

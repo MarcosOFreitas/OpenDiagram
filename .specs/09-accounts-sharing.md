@@ -29,7 +29,7 @@ One installation = one organisation. People have **e-mail + password** accounts 
 **Administrators have access to every diagram of the organisation** (role `admin` on diagrams they do not own): they can open, edit (DBML, layout, title), comment, share (people, groups, links), delete, and delete any comment. They still **never** see another account's saved connections, credentials or the diagram's connection link (`source` is hidden and `PUT` ignores it), and cannot use their connections. The Diagrams tab lists *Everyone else's diagrams (administrator)*.
 
 **Operator CLI** (also the way back in if every administrator is locked out):
-`docker compose exec app node src/cli.js create-admin <email> <password> [name]` · `reset-password <email> <new-password>` · `list-users`.
+`docker compose exec app node src/cli.js create-admin <email> <password> [name]` · `reset-password <email> <new-password>` · `list-users` · `backup [file]` · `restore <file> [--force]` (app stopped).
 
 ## Diagrams and sharing
 

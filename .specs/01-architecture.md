@@ -25,7 +25,7 @@ One Docker image: multi-stage build — Vite builds the UI into `server/public`,
 | `server/src/dbml.js` | Model → DBML: quoting, types, defaults (as backtick expressions), notes, composite PK/indexes, refs with actions. |
 | `server/src/store.js` | CRUD of saved connections per account; secret handling (`undefined`/`''` keep, `null` clears). |
 | `server/src/db.js`, `auth.js`, `admin.js`, `diagrams.js`, `policy.js` | SQLite schema and migrations; accounts + sessions + throttling + settings; users, groups, settings and the last-administrator guard; diagrams, versions, grants, links and comments with access levels; outbound host policy. See [09](09-accounts-sharing.md). |
-| `server/src/audit.js`, `presence.js`, `lineage.js`, `cli.js` | Audit log (180 days); who has a diagram open (memory only); column lineage of views read from their SQL; operator CLI (`create-admin`, `reset-password`, `list-users`). |
+| `server/src/audit.js`, `presence.js`, `lineage.js`, `cli.js` | Audit log (180 days); who has a diagram open (memory only); column lineage of views read from their SQL; operator CLI (`create-admin`, `reset-password`, `list-users`, `backup`, `restore`). |
 | `web/src/App.jsx` | Workspace: parse DBML → nodes/edges, layout (dagre, compound for TableGroups), drawer tabs, refresh/auto-refresh, import/export. |
 | `web/src/Editor.jsx` | CodeMirror 6: DBML stream tokenizer, autocomplete, diagnostics from parser errors. |
 
