@@ -70,12 +70,18 @@ export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows =
 // tls: off | verify (validate chain + hostname, optional CA PEM) | noverify (encrypted, certificate not checked)
 const pgSsl = (c) => (c.tls === 'verify' ? { rejectUnauthorized: true, ...(c.caPem ? { ca: c.caPem } : {}) } : c.tls === 'noverify' ? { rejectUnauthorized: false } : false);
 
+// `c.address` (DB_HOST_POLICY=public-only) is the address the policy checked: connect there, and let TLS check the name (servername)
+export const pgConfig = (c) => {
+  const ssl = pgSsl(c);
+  return {
+    host: c.address || c.host, port: +c.port || 5432, database: c.database, user: c.user, password: c.password, ssl: ssl && c.address ? { ...ssl, servername: c.host } : ssl, connectionTimeoutMillis: 8000,
+    options: '-c default_transaction_read_only=on -c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000',
+  };
+};
+
 // guardrail 1: every session is read-only (server-side), whatever privileges the credential has
 async function pgWith(c, fn) {
-  const cl = new pg.Client({
-    host: c.host, port: +c.port || 5432, database: c.database, user: c.user, password: c.password, ssl: pgSsl(c), connectionTimeoutMillis: 8000,
-    options: '-c default_transaction_read_only=on -c statement_timeout=30000 -c idle_in_transaction_session_timeout=60000',
-  });
+  const cl = new pg.Client(pgConfig(c));
   await cl.connect();
   try {
     await cl.query('BEGIN READ ONLY');
@@ -165,13 +171,15 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
 // ---------- Oracle (thin mode, no Instant Client) ----------
 const SAFE = /^[^()="'\\\s]+$/; // keeps user input from breaking out of the connect descriptor
 
-function oraConnectString(c) {
+// a pinned address (c.address) is used unless TLS is verified: the thin driver checks the certificate against the host it connects to
+export function oraConnectString(c) {
   const port = +c.port || 1521;
   for (const v of [c.host, c.database]) if (!v || !SAFE.test(v)) throw Object.assign(new Error('invalid host or service name'), { statusCode: 400 });
   if (c.serverDn && /["()]/.test(c.serverDn)) throw Object.assign(new Error('invalid server certificate DN'), { statusCode: 400 });
   const tls = c.tls === 'verify' || c.tls === 'noverify';
   const security = tls ? `(SECURITY=(SSL_SERVER_DN_MATCH=${c.tls === 'verify' ? 'ON' : 'OFF'})${c.serverDn ? `(SSL_SERVER_CERT_DN="${c.serverDn}")` : ''})` : '';
-  return `(DESCRIPTION=(ADDRESS=(PROTOCOL=${tls ? 'tcps' : 'tcp'})(HOST=${c.host})(PORT=${port}))(CONNECT_DATA=(SERVICE_NAME=${c.database}))${security})`;
+  const host = c.address && c.tls !== 'verify' && SAFE.test(c.address) ? c.address : c.host;
+  return `(DESCRIPTION=(ADDRESS=(PROTOCOL=${tls ? 'tcps' : 'tcp'})(HOST=${host})(PORT=${port}))(CONNECT_DATA=(SERVICE_NAME=${c.database}))${security})`;
 }
 
 // guardrail 1: SET TRANSACTION READ ONLY — the session cannot change data even if the user could
@@ -335,8 +343,9 @@ async function oraPrivileges(c, schemas) {
 // ---------- MySQL 8.0+ (MariaDB 10.6+ best effort) ----------
 // A database is a schema: the Database field only sets the session default. The server may be one a user controls (any host the
 // policy allows), so the driver never runs code built from what it sends (disableEval) and never offers to read local files.
+// a pinned address (c.address) is used unless TLS is verified: mysql2 checks the certificate only against the host it connects to
 export const myConfig = (c) => ({
-  host: c.host, port: +c.port || 3306, user: c.user, password: c.password, database: c.database || undefined,
+  host: c.address && c.tls !== 'verify' ? c.address : c.host, port: +c.port || 3306, user: c.user, password: c.password, database: c.database || undefined,
   ssl: c.tls === 'verify' ? { rejectUnauthorized: true, verifyIdentity: true, ...(c.caPem ? { ca: c.caPem } : {}) } : c.tls === 'noverify' ? { rejectUnauthorized: false } : undefined, // mysql2 checks the host name only with verifyIdentity
   connectTimeout: 8000, disableEval: true, flags: ['-LOCAL_FILES'], multipleStatements: false, dateStrings: true, supportBigNumbers: true, bigNumberStrings: true,
 });

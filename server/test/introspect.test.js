@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assemble, oraNotNull, explainDbError, pgColumn, oraColumn } from '../src/introspect.js';
+import { assemble, oraNotNull, explainDbError, pgColumn, oraColumn, pgConfig, myConfig, oraConnectString } from '../src/introspect.js';
 
 const t = (schema, name, extra = {}) => ({ schema, name, comment: null, ...extra });
 const c = (schema, table, name) => ({ schema, table, col: { name, type: 'int', nullable: true } });
@@ -164,4 +164,18 @@ test('a generated expression that PostgreSQL wraps in parentheses is not wrapped
   const r = { schema: 's', table: 't', attname: 'gross', type: 'numeric(10,2)', nn: false, def: '(net + vat)', cmt: null, ident: '', gen: 's', owned: false };
   assert.equal(pgColumn(r).comment, 'GENERATED ALWAYS AS (net + vat) STORED');
   assert.equal(pgColumn({ ...r, def: '(a + 1) * (b + 1)' }).comment, 'GENERATED ALWAYS AS ((a + 1) * (b + 1)) STORED');
+});
+
+test('a pinned address is where the drivers connect; PostgreSQL TLS still checks the name, MySQL and Oracle verify keep the name (their drivers check only the host they connect to)', () => {
+  const c = { host: 'db.example.com', address: '203.0.113.7', port: '', database: 'FREEPDB1', user: 'u', password: 'p' };
+  assert.equal(pgConfig({ ...c, tls: 'off' }).host, '203.0.113.7');
+  const v = pgConfig({ ...c, tls: 'verify' });
+  assert.deepEqual([v.host, v.ssl.servername, v.ssl.rejectUnauthorized], ['203.0.113.7', 'db.example.com', true]);
+  assert.equal(pgConfig({ ...c, address: undefined, tls: 'verify' }).ssl.servername, undefined);
+  assert.equal(pgConfig({ ...c, address: undefined, tls: 'off' }).host, 'db.example.com');
+  assert.equal(myConfig({ ...c, tls: 'off' }).host, '203.0.113.7');
+  assert.equal(myConfig({ ...c, tls: 'noverify' }).host, '203.0.113.7');
+  assert.equal(myConfig({ ...c, tls: 'verify' }).host, 'db.example.com');
+  assert.match(oraConnectString({ ...c, tls: 'off' }), /\(HOST=203\.0\.113\.7\)/);
+  assert.match(oraConnectString({ ...c, tls: 'verify' }), /\(HOST=db\.example\.com\)/);
 });

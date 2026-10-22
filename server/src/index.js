@@ -84,7 +84,8 @@ async function resolve(b, user) {
   assertType(c.type);
   if (!c.host || (!c.database && c.type !== 'mysql') || !c.user) throw bad(c.type === 'mysql' ? 'host and user are required' : 'host, database and user are required');
   c.tls = ['off', 'verify', 'noverify'].includes(c.tls) ? c.tls : 'off';
-  await assertHostAllowed(c.host);
+  const address = await assertHostAllowed(c.host); // public-only: the checked address, pinned for the drivers (introspect.js)
+  if (address) c.address = address;
   return c;
 }
 // a failed check is itself a warning: never silently treat "could not verify" as "safe"

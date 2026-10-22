@@ -17,7 +17,9 @@ export function isPrivateIp(ip) {
   return v === '::1' || v === '::' || v.startsWith('fe8') || v.startsWith('fe9') || v.startsWith('fea') || v.startsWith('feb') || v.startsWith('fc') || v.startsWith('fd');
 }
 
-export async function assertHostAllowed(host, env = process.env) {
+// With public-only it returns the address it checked: the drivers connect to that address, so a second lookup by the driver cannot
+// answer a private one (DNS rebinding). Otherwise nothing: open and allowlist connect by name.
+export async function assertHostAllowed(host, env = process.env, lookup = (h) => dns.lookup(h, { all: true })) {
   const mode = env.DB_HOST_POLICY || 'open';
   if (mode === 'open') return;
   const h = String(host).toLowerCase();
@@ -26,6 +28,7 @@ export async function assertHostAllowed(host, env = process.env) {
     if (!allow.includes(h)) throw forbidden(`host "${host}" is not in this server's allowlist`);
     return;
   }
-  const addrs = net.isIP(h) ? [{ address: h }] : await dns.lookup(h, { all: true }).catch(() => { throw forbidden(`cannot resolve host "${host}"`); });
+  const addrs = net.isIP(h) ? [{ address: h }] : await lookup(h).catch(() => { throw forbidden(`cannot resolve host "${host}"`); });
   if (addrs.some((a) => isPrivateIp(a.address))) throw forbidden('this server only connects to public database hosts');
+  return addrs[0].address;
 }
