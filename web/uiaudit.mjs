@@ -183,6 +183,8 @@ const fillConn = (extra = '') => ev(`(async () => { await H.more('Database'); co
 await run('login', () => go('/', { as: null }), { vps: ['desktop', 'phone'], kb: true });
 await run('login-recover', async () => { await go('/', { as: null }); await ev(`H.click('Forgot your password?')`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('home-empty', () => go('/', { as: 'nora' }), { vps: ['desktop', 'phone'], kb: true });
+// the editor's Ctrl+F panel (searchPanel.js), with a search typed, a match selected and the replace row open
+await run('editor-search', async () => { await go('/', { local: D }); await ev(`(async () => { const t = H.q('button[aria-label="Toggle editor"][aria-expanded="false"]'); if (t) { t.click(); await H.w(400); } const c = H.q('.cm-content'); c.focus(); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', ctrlKey: true, bubbles: true, cancelable: true })); await H.w(300); const f = H.q('.cm-sp input[main-field]'); if (!f) throw new Error('no search panel'); if (document.activeElement !== f) throw new Error('Ctrl+F did not focus the find field'); f.value = 'id'; f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); H.q('.cm-sp [aria-label="Show replace"]').click(); await H.w(300); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 if (EMPTY && ONLY.includes('first-run')) await run('first-run', () => go('/', { as: null, base: EMPTY }), { vps: ['desktop', 'phone'], kb: true });
 await run('forced-password-change', () => go('/', { as: 'temp' }), { vps: ['desktop', 'phone'], kb: true });
 // 2. main screen, menus

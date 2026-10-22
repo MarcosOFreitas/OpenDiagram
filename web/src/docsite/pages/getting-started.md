@@ -40,7 +40,7 @@ The two tables appear with a line between them. Click a table to highlight its r
 | Autocomplete (keywords, types, tables, `table.column`) | opens as you type; `Ctrl+Space` forces it |
 | Syntax errors | underlined in the code; the first message is in the status bar |
 | Colors | after a `headercolor:` or `color:` value a small square opens a color picker; typing `color: ` offers presets |
-| Find and replace | `Ctrl+F` (`⌘+F` on macOS) opens the find and replace bar |
+| Find and replace | `Ctrl+F` (`⌘+F` on macOS) opens the find bar: it counts the matches ("2 of 12"), `Enter` / `Shift+Enter` go to the next / previous one, **Aa**, **W** and **.\*** turn on match case, whole word and regular expressions, the arrow at the end opens **Replace**, `Esc` closes it |
 | Wrap long lines | the button at the right of the editor's status bar (under the code) |
 | Resize the editor | drag the edge between the editor and the diagram (double-click resets) |
 

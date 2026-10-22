@@ -5,6 +5,7 @@ import { EditorState, Compartment } from '@codemirror/state';
 import { StreamLanguage, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { search } from '@codemirror/search';
+import { createSearchPanel } from './searchPanel.js';
 import { autocompletion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
 
@@ -103,21 +104,24 @@ const colorSwatches = ViewPlugin.fromClass(class {
   update(u) { if (u.docChanged || u.viewportChanged) this.decorations = swatches(u.view); }
 }, { decorations: (v) => v.decorations });
 
-// Ctrl+F / Ctrl+H panel: friendlier labels (CodeMirror looks them up in these phrases)
-const PHRASES = { Find: 'Find', Replace: 'Replace with…', next: '↓ Next', previous: '↑ Prev', all: 'Select all', 'match case': 'Aa  Match case', 'by word': 'Whole word', regexp: '.*  Regex', replace: 'Replace', 'replace all': 'Replace all' };
-
 const theme = EditorView.theme({
   '.cm-panels': { backgroundColor: '#111a2b', color: '#d6deeb' },
   '.cm-panels.cm-panels-top': { borderBottom: '1px solid #243350' },
-  '.cm-search': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 8px', padding: '9px 34px 9px 10px', position: 'relative', fontSize: '12px' },
-  '.cm-search br': { display: 'none' },
-  '.cm-search .cm-textfield': { flex: '1 1 150px', minWidth: '110px', margin: 0, background: '#0b111c', color: '#e5e9f2', border: '1px solid #2a3750', borderRadius: '6px', padding: '5px 8px', fontSize: '12.5px' },
-  '.cm-search .cm-textfield:focus': { outline: 'none', borderColor: '#4f8cff', boxShadow: '0 0 0 2px #264a8a' },
-  '.cm-search .cm-button': { backgroundImage: 'none', background: '#1a2438', color: '#d6deeb', border: '1px solid #2a3750', borderRadius: '6px', padding: '4px 10px', minHeight: '26px', margin: 0, cursor: 'pointer' },
-  '.cm-search .cm-button:hover': { background: '#223050' },
-  '.cm-search label': { color: '#aab4c8', display: 'inline-flex', alignItems: 'center', gap: '5px', margin: 0, cursor: 'pointer', whiteSpace: 'nowrap' },
-  '.cm-search label input': { margin: 0, accentColor: '#4f8cff' },
-  '.cm-search [name=close]': { position: 'absolute', right: '6px', top: '8px', background: 'transparent', border: 'none', color: '#8b9ab5', fontSize: '17px', cursor: 'pointer', padding: 0, width: '26px', height: '26px' },
+  // the Ctrl+F panel (searchPanel.js): one row of foundation-sized controls (--ctl-sm, --r-sm) on the editor's dark surface
+  '.cm-sp': { display: 'flex', flexDirection: 'column', gap: '6px', padding: '6px 8px' },
+  '.cm-sp-row': { display: 'flex', alignItems: 'center', gap: '2px' },
+  '.cm-sp-row[hidden]': { display: 'none' },
+  '.cm-sp-field': { flex: '1 1 auto', minWidth: '0', height: 'var(--ctl-sm)', margin: '0 4px 0 0', background: '#0b111c', color: '#e5e9f2', border: '1px solid #2a3750', borderRadius: 'var(--r-sm)', padding: '0 8px', fontSize: '12.5px' },
+  '.cm-sp-field:focus': { outline: 'none', borderColor: '#4f8cff', boxShadow: '0 0 0 2px #264a8a' },
+  '.cm-sp-count': { flex: 'none', minWidth: '62px', padding: '0 4px', textAlign: 'right', color: '#aab4c8', fontSize: '12px', whiteSpace: 'nowrap' },
+  '.cm-sp-btn, .cm-sp-text': { flex: 'none', display: 'inline-grid', placeItems: 'center', height: 'var(--ctl-sm)', minWidth: 'var(--ctl-sm)', padding: '0 4px', margin: 0, background: 'transparent', color: '#c3cde0', border: '1px solid transparent', borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: '12px' },
+  '.cm-sp-opt': { fontFamily: 'ui-monospace, "Cascadia Mono", Consolas, monospace', fontWeight: 600 },
+  '.cm-sp-opt[aria-pressed=true]': { background: '#264a8a', borderColor: '#4f8cff', color: '#fff' },
+  '.cm-sp-more svg': { transition: 'transform var(--t-fast) var(--ease)' },
+  '.cm-sp-more[aria-expanded=true] svg': { transform: 'rotate(90deg)' },
+  '.cm-sp-text': { padding: '0 10px', background: '#1a2438', borderColor: '#2a3750' },
+  '.cm-sp-btn:hover, .cm-sp-text:hover': { background: '#223050' },
+  '.cm-sp-btn:focus-visible, .cm-sp-text:focus-visible': { outline: '2px solid #4f8cff', outlineOffset: '1px' },
   '.cm-searchMatch': { backgroundColor: 'rgba(252, 211, 77, .28)', outline: '1px solid rgba(252, 211, 77, .55)' },
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'rgba(79, 140, 255, .45)', outline: '1px solid #4f8cff' },
   '.cm-selectionMatch': { backgroundColor: 'rgba(79, 140, 255, .18)' },
@@ -172,7 +176,7 @@ export default function Editor({ value, onChange, diags, info, readOnly = false,
         doc: value,
         extensions: [
           ro.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]), wrapC.current.of(wrap ? EditorView.lineWrapping : []),
-          basicSetup, search({ top: true }), EditorState.phrases.of(PHRASES), dbml, syntaxHighlighting(highlight), theme, lintGutter(), autocompletion({
+          basicSetup, search({ top: true, createPanel: createSearchPanel }), dbml, syntaxHighlighting(highlight), theme, lintGutter(), autocompletion({
             override: [complete],
             addToOptions: [{ position: 20, render: (c) => { if (!/^#[0-9a-f]{6}$/i.test(c.label)) return null; const sw = document.createElement('span'); sw.style.cssText = `display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;background:${c.label}`; return sw; } }],
           }), colorSwatches,
