@@ -48,6 +48,8 @@ If a connection test says it cannot connect, test from the same place the app ru
 
 Importing and refreshing read only the catalog, so a read-only user is enough. The scheduled refresh also runs on the server, so it needs the same network path. A shared or scheduled connection stops working when the VPN is down, and the Database drawer shows the last error.
 
+**Logs:** `docker compose logs app` shows every request (share-link tokens are masked) and every failed scheduled refresh (`scheduled refresh failed`, with the diagram id and the error). Each answer of the app carries an `x-request-id` header (visible in the browser's developer tools, Network tab): it is the `reqId` of the matching log line, so a person reporting a problem can give it to you.
+
 ## Publishing it
 
 Before exposing the instance beyond your own network:

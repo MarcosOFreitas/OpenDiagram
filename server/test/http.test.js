@@ -84,3 +84,9 @@ test('request logs never carry a share-link token', async () => {
   assert.equal(maskUrl('/api/shared/AbC123_-xyz/comments/7?x=1'), '/api/shared/***/comments/7?x=1');
   assert.equal(maskUrl('/api/diagrams/42'), '/api/diagrams/42');
 });
+
+test('every answer carries its request id, the one in the server log', async () => {
+  const r = await app.inject({ method: 'GET', url: '/api/health' });
+  assert.equal(typeof r.headers['x-request-id'], 'string');
+  assert.ok(r.headers['x-request-id'].length > 0);
+});

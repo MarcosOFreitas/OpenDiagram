@@ -33,8 +33,8 @@ export function due(now = Math.floor(Date.now() / 1000)) {
     .filter((d) => now >= Math.max(d.last_run || 0, Math.floor((json(d.source)?.at || 0) / 1000)) + Math.max(MIN, d.mins) * 60 + jitter(d.id));
 }
 
-// deps = { resolve(body, user), generate(conn, { schemas, tables, ddl }) }: the same functions as the manual refresh
-export async function refreshOne(d, { resolve, generate }, now = Math.floor(Date.now() / 1000)) {
+// deps = { resolve(body, user), generate(conn, { schemas, tables, ddl }), log? }: the same functions as the manual refresh, and the server log
+export async function refreshOne(d, { resolve, generate, log }, now = Math.floor(Date.now() / 1000)) {
   const src = json(d.source);
   let conn;
   try {
@@ -60,6 +60,7 @@ export async function refreshOne(d, { resolve, generate }, now = Math.floor(Date
   } catch (e) {
     if (e.code === 'conflict') return; // someone saved in the meantime: try again next minute, not a failure
     record(d.id, false, e.message, now);
+    log?.warn({ diagram: d.id, error: e.message }, 'scheduled refresh failed'); // also in the log: the app shows it only to the people who open the diagram
     if (conn?.shared) audit.log(ACTOR, 'connection.refresh', { target: conn.name, connectionId: conn.id, diagramId: d.id, ok: false, detail: `scheduled: ${e.message}` });
   }
 }

@@ -46,7 +46,8 @@ app.addHook('onRequest', async (req) => {
   // accounts created/reset by an admin must pick their own password before doing anything else
   if (req.user?.mustChangePassword && !path.startsWith('/api/auth/') && !path.startsWith('/api/shared/') && path !== '/api/health') throw bad('password change required', 403);
 });
-app.addHook('onSend', async (_req, reply) => {
+app.addHook('onSend', async (req, reply) => {
+  reply.header('x-request-id', req.id); // the id of this request in the server log: quote it when reporting a problem
   reply.header('x-content-type-options', 'nosniff').header('referrer-policy', 'no-referrer').header('x-frame-options', 'DENY')
     .header('content-security-policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
 });
@@ -405,7 +406,7 @@ if (TEST) await app.ready();
 else {
   const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
   housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
-  refresh.start({ resolve, generate }); // scheduled metadata refresh of linked diagrams
+  refresh.start({ resolve, generate, log: app.log }); // scheduled metadata refresh of linked diagrams
   // `cli.js restore` refuses while this mark is fresh (the app may run in another container than the CLI); removed on a clean stop
   const alive = () => auth.setSetting('server_alive', Math.floor(Date.now() / 1000)); alive(); setInterval(alive, 30_000).unref();
   await app.listen({ port: +process.env.PORT || 3000, host: '0.0.0.0' });

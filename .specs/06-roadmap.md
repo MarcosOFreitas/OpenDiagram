@@ -35,7 +35,7 @@ Nothing here blocks a release; take them in this order of value for the effort.
 4. ~~**API** (audit 03, optional ones left)~~ Done 2026-10-22: `POST /api/connections` validates like the administrators' route (`validConn`: type, name up to 80, host, database, user, port 1-65535 or empty = default, host policy); `schemas` and `tables` must be lists of names; a stale `baseVersion` with identical content answers the current version instead of 409; share tokens are masked in the request log (`maskUrl`).
 5. **Docker** (audit 06): `npm ci` from lockfiles, `USER node`, demo ports bound to 127.0.0.1, `HEALTHCHECK` and a restart policy; regenerate the demo certificate with `CA:FALSE`.
 6. **CI** (audit 05): alert when `main` is red, pin actions by SHA, `npm audit` step, and the required-check trap when the repository goes public (the ruleset is not enforced while it is private; enable Private vulnerability reporting then). Doc drift: `07-testing.md` says "two jobs" (there are three), `AGENTS.md` says "~20 min" for e2e (it is ~11 min in 4 shards).
-7. **Observability** (audit 11): scheduled-refresh failures in the log, `/api/health` doing `select 1`, a request id per request.
+7. ~~**Observability** (audit 11)~~ Done 2026-10-22: scheduled-refresh failures go to the server log, `/api/health` runs `select 1` (the container health check uses it), every answer carries `x-request-id`, the id of its line in the log.
 8. **Audits not run yet** (one at a time, no sub-agents): security (01), SQL (02), performance (07), simplicity (08), tests (09), review of the last commits (10), UI/UX of every screen (12). The skills are in `.claude/skills`; `AGENTS.md` says how each applies here.
 
 ## Later

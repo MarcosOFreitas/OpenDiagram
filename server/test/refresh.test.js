@@ -129,3 +129,12 @@ test('the scheduled refresh keeps "all" as "all"', async () => {
   await refreshOne(row(id), fake(GEN2), NOW);
   assert.deepEqual(JSON.parse(row(id).source).tables, []);
 });
+
+test('a failed scheduled refresh is also written to the server log, so an operator sees it without opening the app', async () => {
+  const id = linked(conn(5));
+  const lines = [];
+  await refreshOne(row(id), { ...fake(new Error('connect ETIMEDOUT')), log: { warn: (o, msg) => lines.push([o, msg]) } }, NOW);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0][0].diagram, id);
+  assert.match(lines[0][0].error, /ETIMEDOUT/);
+});
