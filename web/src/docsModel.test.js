@@ -122,3 +122,17 @@ describe('enums of the same name in different schemas', () => {
     expect(md).toContain('### ops.status');
   });
 });
+
+describe('check constraints', () => {
+  const T = "Table shop.items {\n  qty int [check: `qty >= 0`]\n  kind text\n\n  checks {\n    `kind in ('a', 'b')` [name: 'items_kind_check']\n  }\n}\nTable shop.plain {\n  id int\n}\n";
+  test('the table checks (with their name) and the column checks (named after the column) are listed', () => {
+    const m = model(T);
+    expect(m.byId.get('shop.items').checks).toEqual([{ name: 'items_kind_check', expr: "kind in ('a', 'b')" }, { name: 'qty', expr: 'qty >= 0' }]);
+    expect(m.byId.get('shop.plain').checks).toEqual([]);
+  });
+  test('the Markdown export has a Checks list', () => {
+    const md = toMarkdown(model(T), 'T');
+    expect(md).toContain("**Checks**\n\n- `kind in ('a', 'b')` — items_kind_check\n- `qty >= 0` — qty\n");
+    expect(md.match(/\*\*Checks\*\*/g)).toHaveLength(1);
+  });
+});

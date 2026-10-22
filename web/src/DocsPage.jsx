@@ -200,6 +200,10 @@ function Table({ model, t, collapsed, ctx }) {
           <div className="dx-sub">Indexes</div>
           <ul className="plain">{t.indexes.map((i, n) => <li key={n}>{i.pk ? 'PRIMARY KEY' : i.unique ? 'UNIQUE' : 'INDEX'} <code>({i.cols.join(', ')})</code>{i.name && <> — {i.name}</>}</li>)}</ul>
         </>)}
+        {t.checks.length > 0 && (<>
+          <div className="dx-sub">Checks</div>
+          <ul className="plain">{t.checks.map((k, n) => <li key={n}><code>{k.expr}</code>{k.name && <> — {k.name}</>}</li>)}</ul>
+        </>)}
         {t.builtFrom.length > 0 && (<>
           <div className="dx-sub">Built from <small className="note">data lineage</small></div>
           <ul className="plain">{t.builtFrom.map((l, n) => <li key={n}>{model.byId.get(l.id) ? <a href={`#${slug(l.id)}`}>{display(model.byId.get(l.id))}</a> : <code>{l.id}</code>}<small className="note">{linkCols(l)}</small></li>)}</ul>

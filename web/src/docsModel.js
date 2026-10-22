@@ -20,6 +20,7 @@ export function buildModel(db, lineage = []) {
       default: defaultText(f.dbdefault), note: f.note || '', refs: [],
     })),
     indexes: t.indexes.map((i) => ({ name: i.name || '', unique: !!i.unique, pk: !!i.pk, type: i.type || '', cols: i.columns.map((c) => c.value) })),
+    checks: [...(t.checks || []).map((k) => ({ name: k.name || '', expr: k.expression })), ...t.fields.flatMap((f) => (f.checks || []).map((k) => ({ name: k.name || f.name, expr: k.expression })))], // a column check is named after its column
     incoming: [], groups: [], builtFrom: [], feeds: [],
   }));
   const byId = new Map(tables.map((t) => [t.id, t]));
@@ -97,6 +98,7 @@ export function toMarkdown(model, title, commentList = [], changelog = []) {
         t.indexes.forEach((i) => out.push(`- ${i.pk ? 'PRIMARY KEY' : i.unique ? 'UNIQUE' : 'INDEX'} (${i.cols.join(', ')})${i.name ? ` — ${i.name}` : ''}`));
         out.push('');
       }
+      if (t.checks.length) out.push('**Checks**', '', ...t.checks.map((k) => `- \`${k.expr}\`${k.name ? ` — ${k.name}` : ''}`), '');
       if (t.builtFrom.length) {
         out.push('**Built from** (data lineage)', '');
         t.builtFrom.forEach((l) => out.push(`- ${display(model.byId.get(l.id) ?? { name: l.id })}${linkCols(l)}`));
