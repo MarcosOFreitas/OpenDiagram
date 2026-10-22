@@ -4,7 +4,8 @@
 
 - **PostgreSQL**: the session starts with `default_transaction_read_only=on` and runs inside `BEGIN READ ONLY`, with a 30-second statement timeout.
 - **Oracle**: the session runs `SET TRANSACTION READ ONLY` with a call timeout.
-- Only **catalog / dictionary views** are queried (`pg_catalog`, `ALL_*`). Your tables are never read.
+- **MySQL**: the session is set to `READ ONLY` and every use runs inside `START TRANSACTION READ ONLY`, with a 30-second limit per query. The connection never lets the server ask for one of your local files, and never runs code built from what the server sends.
+- Only **catalog / dictionary views** are queried (`pg_catalog`, `ALL_*`, `information_schema`). Your tables are never read.
 
 ## Privilege warnings
 
@@ -13,6 +14,7 @@ When you test a connection, OpenDiagram checks what the user can do. If it can d
 - it is a superuser, or can create roles or databases;
 - it can `INSERT` / `UPDATE` / `DELETE` in the selected schemas, or create objects there;
 - (Oracle) it owns the schema, or holds powerful roles.
+- (MySQL) it holds any privilege other than `USAGE`, `SELECT`, `SHOW VIEW` and `SHOW DATABASES`, on the whole server or on a selected database, directly or through an active role (`EXECUTE` included, since a procedure can write); the warning names the privilege and where it applies. For a clean MySQL user: `GRANT SELECT, SHOW VIEW ON shop.* TO 'reader'@'%';`.
 
 Prefer a **dedicated read-only user**. To refuse risky credentials altogether, tick **Block credentials with write privileges (strict)**: the import is then blocked with an explanation. A check that cannot be completed is reported as a warning, never treated as safe.
 

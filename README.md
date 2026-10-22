@@ -6,7 +6,7 @@ Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming t
 
 ## Features
 
-- **Live import** from PostgreSQL and Oracle: tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
+- **Live import** from PostgreSQL, Oracle and MySQL 8.0+ (MariaDB 10.6+ best effort): tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
 - **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL and Oracle (TCPS) with certificate verification and a custom CA.
 - **Keep metadata fresh**: manual refresh or an automatic interval (every 5 minutes at the least, run by the server even with no page open); your TableGroups and layout survive a refresh.
 - **MCP connector for AI clients**: separate agent accounts created by administrators, bearer tokens, tools to list, read, comment on and edit only the diagrams shared with them; an agent never sees a connection or a credential; every call is audited.
@@ -53,10 +53,11 @@ The demo databases are reachable **from the app container** with these hosts:
 |----|------|------|--------------------|-----------------|
 | Postgres | `demo-pg` | 5432 | `demo` | `postgres`/`demo` (superuser: triggers guardrail warnings), `writer`/`writer` (can write: warning), `reader`/`reader` (select only: clean) |
 | Postgres + TLS (self-signed) | `demo-pg-tls` | 5432 | `demo` | `postgres`/`demo` |
+| MySQL 8.4 | `demo-mysql` | 3306 | (database `shop`) | `root`/`demo` (everything: warnings), `writer`/`writer` (can write: warning), `reader`/`reader` (read only: clean) |
 | Oracle | `demo-oracle` | 1521 | `FREEPDB1` | `shop`/`shop` |
 | Oracle over TLS | `demo-oracle-tls` (alias `oracle.demo.test`) | 2484 | `FREEPDB1` | `shop`/`shop`; the certificate (CN `oracle.demo.test`, in `demo/oracle-tls`) is throw-away and trusted by the app |
 
-Schema to import: `shop` (Postgres) or `SHOP` (Oracle). The Oracle demo creates its user and tables on the first start (allow a minute or two). If the tables are ever missing, load them once: `docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql`. To re-run the Postgres demo init after editing `demo/pg.sql`: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
+Schema to import: `shop` (Postgres and MySQL) or `SHOP` (Oracle). The Oracle demo creates its user and tables on the first start (allow a minute or two). If the tables are ever missing, load them once: `docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql`. To re-run the Postgres demo init after editing `demo/pg.sql`: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
 
 The demo databases are for trying and testing only and live in `docker-compose.demo.yml`, which a real deployment does not use (their passwords are public; their ports are published on `127.0.0.1` only).
 
@@ -118,7 +119,7 @@ In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connec
 
 ## Known limitations
 
-- PostgreSQL and Oracle only for live import; functions and procedures are not imported. MySQL / SQL Server work as SQL file import and export targets.
+- PostgreSQL, Oracle and MySQL for live import (MariaDB best effort); functions and procedures are not imported. SQL Server works as an SQL file import and export target. MySQL triggers are imported only with a user that has the `TRIGGER` privilege.
 - Oracle SQL **files** import tables, keys, indexes and comments only (views, sequences and triggers come with the live import). JSON is export-only.
 - Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
 - The scheduled refresh runs in the server process (one instance); it skips a diagram that someone is editing and pauses after 5 failures in a row.

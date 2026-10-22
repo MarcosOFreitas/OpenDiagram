@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Import from MySQL
+
+- **More → Database → MySQL** reads a MySQL 8.0+ database live, with the same guarantees as PostgreSQL and Oracle: a read-only session, warnings for a user that can do more than read, TLS. Enum columns become DBML enums. MariaDB 10.6+ should work too (not tested regularly). See [Import from a database](database-import#mysql).
+
 ## Smoother large diagrams
 
 - A diagram with table groups no longer keeps the browser busy while nothing happens, and moving around the canvas no longer redraws the whole page: with 100 tables zooming went from about 13 to about 80 frames per second, an idle page from 20 to the screen's full rate, and the diagram follows a keystroke in about a quarter of a second instead of half a second.

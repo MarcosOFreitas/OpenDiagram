@@ -1,18 +1,25 @@
 # Import from a database
 
-OpenDiagram can read the structure of a **PostgreSQL** or **Oracle** database and turn it into DBML. The DBML is regenerated from the live catalog, and you can keep editing it afterwards.
+OpenDiagram can read the structure of a **PostgreSQL**, **Oracle** or **MySQL** database and turn it into DBML. The DBML is regenerated from the live catalog, and you can keep editing it afterwards.
 
 > **Important** Every session is opened **read-only** and only queries catalog views. Table data is never read. See [Security & TLS](database-security).
 
 ## Connect
 
 1. Open **More → Database**.
-2. Choose **PostgreSQL** or **Oracle** and fill the host, port, database (for Oracle: the **service name**), user and password.
+2. Choose **PostgreSQL**, **Oracle** or **MySQL** and fill the host, port, database (for Oracle: the **service name**; for MySQL it is optional, because each MySQL database is a schema you pick after the test), user and password.
 3. Choose the TLS mode if needed (see [Security & TLS](database-security#tls)).
 4. Press **Test connection**. You get the list of schemas and any warnings about the privileges of the user.
 5. **Save** keeps the connection for later. The password is stored encrypted and is never shown again.
 
 ![The connection form. A successful test lists the schemas of the database.](connection-form.jpg)
+
+### MySQL
+
+- **MySQL 8.0 and later** are supported and tested. **MariaDB 10.6 and later** should work (same protocol and catalog) but are not tested regularly.
+- The **schemas** you can tick are the databases the user can see (system databases are left out).
+- An `enum('new','paid')` column becomes a DBML **enum** named after its table and column (`shop.orders_status`), and `AUTO_INCREMENT` becomes `increment`.
+- **Triggers** are listed only when the user has the MySQL `TRIGGER` privilege, which a read-only user does not have: with a read-only user, triggers are not imported.
 
 ## Choose what to import
 

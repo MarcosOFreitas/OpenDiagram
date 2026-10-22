@@ -3,6 +3,7 @@ import { api, errMsg } from './api.js';
 import Loading from './Loading.jsx';
 import Empty from './Empty.jsx';
 import { press } from './a11y.js';
+import { ENGINES, engine, dbPlaceholder } from './useConnect.js';
 
 const BLANK = { id: '', type: 'postgres', name: '', host: '', port: 5432, database: '', user: '', password: '', tls: 'verify', serverDn: '', caPem: '', blockWritable: true };
 
@@ -19,7 +20,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
   const edit = (c) => { setForm({ ...BLANK, ...c, password: '', caPem: '' }); setOpen(true); };
   const save = act(async () => {
     if (!form.id && !form.password) throw new Error('enter the password of the database user');
-    await api('admin/connections', { ...form, port: +form.port || (form.type === 'oracle' ? 1521 : 5432), ...(form.id ? {} : { id: undefined }) });
+    await api('admin/connections', { ...form, port: +form.port || engine(form.type)[2], ...(form.id ? {} : { id: undefined }) });
     setForm(BLANK); setOpen(false); await load();
   }, 'Connection saved');
   const test = (c) => act(async () => { const r = await api('schemas', { id: c.id }); if (r.warnings?.length) throw new Error(`Connected, but this credential ${r.warnings.join('; ')}. Use a read-only user.`); }, 'Connected (read-only session): no extra privileges')();
@@ -34,10 +35,10 @@ export default function AdminConnections({ users, groups, act, setErr }) {
       </div>
       {open && (
         <form className="conn-form" onSubmit={(e) => { e.preventDefault(); save(); }} autoComplete="off">
-          <div className="seg">{[['postgres', 'PostgreSQL'], ['oracle', 'Oracle']].map(([v, l]) => <button type="button" key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port: v === 'oracle' ? 1521 : 5432 })}>{l}</button>)}</div>
+          <div className="seg">{ENGINES.map(([v, l, port]) => <button type="button" key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port })}>{l}</button>)}</div>
           <input placeholder="Name (shown to people)" value={form.name} onChange={set('name')} required />
           <div className="row"><input placeholder="Host" value={form.host} onChange={set('host')} required /><input className="port" placeholder="Port" value={form.port} onChange={set('port')} /></div>
-          <input placeholder={form.type === 'oracle' ? 'Service name (e.g. FREEPDB1)' : 'Database'} value={form.database} onChange={set('database')} required />
+          <input placeholder={dbPlaceholder(form.type)} value={form.database} onChange={set('database')} required={form.type !== 'mysql'} />
           <div className="row"><input placeholder="Database user (read-only)" value={form.user} onChange={set('user')} required autoComplete="off" /><input type="password" placeholder={form.id ? '(unchanged)' : 'Password'} value={form.password} onChange={set('password')} autoComplete="new-password" /></div>
           <select value={form.tls} onChange={set('tls')} title="Transport encryption">
             <option value="off">TLS: off</option>
@@ -59,7 +60,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
         return (
           <div key={c.id} className="group-card">
             <div className="group-head">
-              <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
+              <span className={`badge ${c.type}`}>{engine(c.type)[3]}</span>
               <b>{c.name}</b><small>{c.host}:{c.port}/{c.database} · user <code>{c.user}</code> · TLS {c.tls}</small>
               <span className="grow" />
               <button onClick={() => test(c)}>Test</button>

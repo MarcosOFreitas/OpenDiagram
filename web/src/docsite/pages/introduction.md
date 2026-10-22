@@ -9,7 +9,7 @@ OpenDiagram is a free, open-source tool (Apache-2.0: see [License](license)) to 
 ## What you can do
 
 - **Write DBML** in a code editor with autocomplete, inline errors and color pickers, and see the diagram update live.
-- **Import from a database** (PostgreSQL, Oracle): tables, columns, keys, indexes, views, enums, sequences and triggers. Sessions are always **read-only** and only read catalog metadata, never your data. See [Import from a database](database-import).
+- **Import from a database** (PostgreSQL, Oracle, MySQL): tables, columns, keys, indexes, views, enums, sequences and triggers. Sessions are always **read-only** and only read catalog metadata, never your data. See [Import from a database](database-import).
 - **Work with large diagrams**: table groups, saved views, detail levels, hiding tables, automatic layouts. See [Working with diagrams](diagram-basics).
 - **Generate documentation**: a browsable, searchable page of every table, with comments, plus a standalone HTML or Markdown export. See [Generated documentation](generated-documentation).
 - **Share and collaborate**: accounts with roles, sharing with people, groups and links (optionally password-protected). See [Accounts & permissions](accounts-and-sharing).

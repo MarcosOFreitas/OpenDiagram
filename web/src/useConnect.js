@@ -4,6 +4,11 @@ import { ALL, fromStored, toStored } from './tableSelection.js';
 
 // a chosen table the database no longer has: said, never silently dropped
 export const goneNote = (missing) => (missing?.length ? `Not in the database any more: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}` : '');
+// the engines of the live import: value, name, default port, badge (the Database drawer and Administration -> Shared connections)
+export const ENGINES = [['postgres', 'PostgreSQL', 5432, 'PG'], ['oracle', 'Oracle', 1521, 'ORA'], ['mysql', 'MySQL', 3306, 'MY']];
+export const engine = (type) => ENGINES.find((e) => e[0] === type) ?? ENGINES[0];
+// the Database field: an Oracle service name; optional for MySQL, where a database is a schema chosen after Test connection
+export const dbPlaceholder = (type) => (type === 'oracle' ? 'Service name (e.g. FREEPDB1)' : type === 'mysql' ? 'Database (optional)' : 'Database');
 export const EMPTY = { type: 'postgres', host: '', port: 5432, database: '', user: '', password: '', name: '', tls: 'off', caPem: '', clearCa: false, serverDn: '', blockWritable: false, refreshMinutes: 0 };
 
 // State and actions of the Database drawer: saved + shared connections, the form, schemas, the table picker and the import.

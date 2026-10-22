@@ -19,7 +19,7 @@ import History from './History.jsx';
 import { closure } from './lineage.js';
 import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
-import { useConnect, goneNote } from './useConnect.js';
+import { useConnect, goneNote, ENGINES, engine, dbPlaceholder } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
 import { Ic, Logo } from './Icons.jsx';
 
@@ -867,7 +867,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {conns.map((c) => (
                 <div key={c.id} className={`card act ${form.id === c.id ? 'sel' : ''}`}>
                   <button type="button" className="card-open grow" aria-current={form.id === c.id ? 'true' : undefined} onClick={() => pick(c)}>
-                    <span className={`badge ${c.type}`}>{c.type === 'oracle' ? 'ORA' : 'PG'}</span>
+                    <span className={`badge ${c.type}`}>{engine(c.type)[3]}</span>
                     <span className="grow"><b>{c.name}</b><small>{`${c.host}:${c.port}/${c.database}`.replace(/([./_])/g, '$1​')}</small></span>
                   </button>
                   {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete" aria-label={`Delete ${c.name}`}>✕</button>}
@@ -877,13 +877,13 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {form.shared && <small className="hint">Registered by an administrator. You can use it to import and refresh, but the database user and password are not visible to you and cannot be changed here. Every use is recorded.</small>}
               <fieldset className="conn-fs" disabled={!!form.shared}>
               <div className="seg">
-                {[['postgres', 'PostgreSQL'], ['oracle', 'Oracle']].map(([v, l]) => (
-                  <button key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port: v === 'oracle' ? 1521 : 5432 })}>{l}</button>
+                {ENGINES.map(([v, l, port]) => (
+                  <button key={v} className={form.type === v ? 'on' : ''} onClick={() => setForm({ ...form, type: v, port })}>{l}</button>
                 ))}
               </div>
               <input placeholder="Connection name" value={form.name} onChange={set('name')} />
               <div className="row"><input placeholder="Host" value={form.host} onChange={set('host')} /><input className="port" placeholder="Port" value={form.port} onChange={set('port')} /></div>
-              <input placeholder={form.type === 'oracle' ? 'Service name (e.g. FREEPDB1)' : 'Database'} value={form.database} onChange={set('database')} />
+              <input placeholder={dbPlaceholder(form.type)} value={form.database} onChange={set('database')} />
               <div className="row"><input placeholder="User" value={form.user} onChange={set('user')} /><input type="password" placeholder={form.id ? '(unchanged)' : 'Password'} value={form.password} onChange={set('password')} /></div>
               <h4>Security</h4>
               <div className="ro">🔒 Read-only: every session is opened read-only and only reads catalog metadata — never table data.</div>
