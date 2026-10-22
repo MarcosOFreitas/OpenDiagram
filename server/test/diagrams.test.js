@@ -144,3 +144,14 @@ test('access names that exist on Object.prototype are a 400, not a 500', () => {
     assert.throws(() => dg.createShare(owner, id, access), { statusCode: 400 });
   }
 });
+
+test('the diagram list says which of my diagrams are linked to a database, and says nothing about other people\'s', () => {
+  const me = { id: 9101, role: 'member' };
+  db.prepare("insert into users (id, email, name, password_hash, created_at) values (9101, 'linked-owner@example.com', 'Lin', 'x', 0)").run();
+  const plain = dg.create(me.id, { title: 'plain', dbml: '' }), linked = dg.create(me.id, { title: 'linked', dbml: '' });
+  db.prepare('update diagrams set source = ? where id = ?').run(JSON.stringify({ connId: 'c1' }), linked);
+  const l = dg.list(me);
+  assert.equal(l.find((d) => d.id === plain).linked, false);
+  assert.equal(l.find((d) => d.id === linked).linked, true);
+  assert.ok(dg.list({ id: 9102, role: 'admin' }).every((d) => !('linked' in d))); // an administrator sees other people's diagrams, never their link
+});

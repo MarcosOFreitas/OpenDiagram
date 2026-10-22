@@ -82,7 +82,12 @@ header.top { height: 46px; background: var(--top); color: #e5e9f2; display: flex
 .card:hover, .card.sel { border-color: var(--accent); background: #f5f8ff; }
 .card.act { padding: 0; gap: 0; cursor: default; } .card .card-open { min-width: 0; white-space: normal; overflow-wrap: anywhere; display: flex; align-items: center; gap: 10px; align-self: stretch; text-align: left; border: 0; background: transparent; padding: 8px 10px; min-height: 0; font: inherit; color: inherit; border-radius: inherit; cursor: pointer; } .card.act > .ghost { margin-right: 6px; } .card .card-open > .grow { min-width: 0; } .card.act > .chip { margin-right: 10px; }
 a[role="button"] { display: inline-block; min-width: 24px; height: 24px; line-height: 24px; margin: -6px 0; padding: 0 4px; text-align: center; vertical-align: middle; } /* a text link that acts like a button keeps a 24px target without making its line taller */ /* the card's own button fills the card: the whole card clicks and focuses as one control */
-.card small { display: block; color: var(--muted); }
+.card small { display: block; color: var(--muted); font-size: 12px; } /* secondary text: the size of .hint */
+.card b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; } /* a very long title takes two lines; the whole one is in its tooltip */
+.lib-tools { display: flex; flex-wrap: wrap; gap: 8px; } .lib-tools input { flex: 1 1 160px; } .lib-tools select { flex: 0 0 auto; width: auto; }
+.card-ask { display: flex; gap: 6px; margin-right: 6px; } .card-ask button { min-height: var(--ctl-sm); padding: 0 10px; font-size: 12px; }
+.shell[data-theme="dark"] .dbody .card .card-open { background: transparent; } /* the drawer's dark button rule must not paint the card's stretched button */
+.card-ask .danger, .shell[data-theme="dark"] .dbody .card-ask .danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 .badge { font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 5px; color: #fff; background: #336791; } .badge.oracle { background: #c74634; }
 .ghost { border: 0 !important; background: transparent !important; color: #9aa3b2; padding: 2px 6px !important; }
 .hint { color: var(--muted); font-size: 11.5px; }

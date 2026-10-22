@@ -44,7 +44,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `diagramModel.test.js` | DBML to diagram data, TableGroups kept on refresh, change summary, view kind |
 | web | `docsModel.test.js`, `templates.test.js` | generated documentation and Markdown; every starter template parses and documents |
 | web | `api.test.js`, `historyDiff.test.js`, `Menu.test.jsx`, `AdminAudit.test.jsx` | fetch wrapper and storage guards, line diff, menu dismissal, audit filters sent to the server |
-| web | `Library.test.jsx`, `a11y.test.jsx` | the Diagrams list is reachable by keyboard (Tab + Enter opens, once), delete buttons name the diagram, the open one is `aria-current` and says so in words; `press()` makes a non-button focusable and Enter/Space-operable |
+| web | `Library.test.jsx`, `a11y.test.jsx` | `pickDiagrams` (search by title or owner, sort, linked only), the search box from 9 diagrams on, delete asked in the card with the focus on Cancel; the Diagrams list is reachable by keyboard (Tab + Enter opens, once), delete buttons name the diagram, the open one is `aria-current` and says so in words; `press()` makes a non-button focusable and Enter/Space-operable |
 
 ### Rules
 

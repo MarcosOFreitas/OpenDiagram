@@ -1,7 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Library from './Library.jsx';
+import Library, { pickDiagrams } from './Library.jsx';
 
 const diagrams = [
   { id: 'a', title: 'Orders', role: 'owner', updatedAt: 1, shares: 2 },
@@ -30,10 +30,16 @@ describe('Library: keyboard and screen readers', () => {
     expect(onOpen).toHaveBeenCalledTimes(2); // a click and a key press each open once, never twice
   });
 
-  test('delete buttons say which diagram they delete', async () => {
+  test('delete buttons say which diagram they delete, and deleting asks in the card first', async () => {
     const { user, onDelete } = setup();
     expect(screen.getAllByRole('button', { name: /^Delete / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Delete Orders', 'Delete Inventory', 'Delete Audit']);
     await user.click(screen.getByRole('button', { name: 'Delete Inventory' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(document.activeElement.textContent).toBe('Cancel'); // the safe choice has the focus
+    await user.keyboard('{Enter}');
+    expect(onDelete).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Delete Inventory' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, delete Inventory' }));
     expect(onDelete).toHaveBeenCalledWith(diagrams[1]);
   });
 
@@ -42,5 +48,31 @@ describe('Library: keyboard and screen readers', () => {
     expect(screen.getByRole('button', { name: /^Orders/ }).getAttribute('aria-current')).toBe('true');
     expect(screen.getByRole('button', { name: /^Inventory/ }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('button', { name: /^Orders/ }).textContent).toMatch(/Open now/);
+  });
+});
+
+describe('Library: finding a diagram', () => {
+  const many = Array.from({ length: 10 }, (_, i) => ({ id: `m${i}`, title: `Model ${String.fromCharCode(74 - i)}`, role: 'owner', updatedAt: i, linked: i % 2 === 0 }));
+
+  test('pickDiagrams: search by title or owner, newest first or by name, only the ones linked to a database', () => {
+    const list = [...diagrams, { id: 'e', title: 'orders archive', role: 'owner', updatedAt: 5, linked: true }];
+    expect(pickDiagrams(list, { q: 'ORDERS' }).map((d) => d.id)).toEqual(['e', 'a']);
+    expect(pickDiagrams(list, { q: 'ana' }).map((d) => d.id)).toEqual(['c']);
+    expect(pickDiagrams(list, { sort: 'name' }).map((d) => d.title)).toEqual(['Audit', 'Billing', 'Inventory', 'Orders', 'orders archive']);
+    expect(pickDiagrams(list, { linked: true }).map((d) => d.id)).toEqual(['e']);
+  });
+
+  test('the search shows once there are more than 8 diagrams, and says when nothing matches', async () => {
+    const { user } = setup({ diagrams: many });
+    const box = screen.getByRole('searchbox', { name: 'Search diagrams' });
+    await user.type(box, 'model j');
+    expect(screen.getAllByRole('button', { name: /^Model / }).map((b) => b.textContent)).toEqual([expect.stringMatching(/^Model J/)]);
+    await user.clear(box); await user.type(box, 'zzz');
+    expect(screen.getByText('No diagram matches.')).toBeTruthy();
+  });
+
+  test('few diagrams: no search box', () => {
+    setup();
+    expect(screen.queryByRole('searchbox')).toBeNull();
   });
 });

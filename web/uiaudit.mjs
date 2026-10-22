@@ -33,6 +33,7 @@ await admin.call('POST', '/api/auth/login', { email: EMAIL, password: PASS });
 await admin.call('POST', '/api/admin/users', { email: 'temp@example.com', name: 'Temp User', password: 'Temp-pass-0000' }); // stays "must change password"
 const versions = ['First', 'Second'].map((label, i) => [SAMPLE.replace('  phone varchar(30)\n', `  phone varchar(30)\n  extra_${i} int\n`), `${label} version`]);
 const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-audit-pass-1', sampleExtra: "\n\nNote note_1 {\n  'A sticky note'\n}\n", versions });
+await admin.call('POST', '/api/diagrams', { title: 'Customer data warehouse with every table of the legacy ERP, its staging copies and the reporting views of the 2026 migration', dbml: 'Table a {\n  id int\n}\n' }); // a very long title: overflow in a Library card is caught
 const open = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
 const locked = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view', password: 'link-secret-1' });
 await maya.call('POST', `/api/diagrams/${shop}/comments`, { body: 'A comment from Maya', target: 'table:customers' }).catch(() => {});

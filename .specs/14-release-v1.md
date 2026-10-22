@@ -40,7 +40,7 @@ The riskiest item (MySQL) comes right after the foundation, with a kill criterio
 | **Wave 1: "kept up to date" visible** ||||
 | 8 | Structural schema diff between two versions (tables, columns, types, defaults, nullability, keys, refs, indexes) in the History compare dialog, above the text diff | 2 | Pure module with unit tests from DBML pairs (rename = remove + add, type change, FK change); `uiaudit.mjs drawer-history-compare` zero findings; `versions-and-history` docs picture retaken |
 | 9 | Drift: a refresh that changes the structure stores a summary on its version ("+2 tables, 1 type changed"); the Library card says "changed since you last opened it" (`last_seen_version` per user and diagram) | 1.5 | `refresh.test.js` and `http.test.js` cover summary and badge; migration in `db.js` tested on an old database |
-| 10 | Library: search, sort (name / last change), filter "linked to a database" | 0.5 | `Library.test.jsx`; `uiaudit.mjs library` zero findings at 375 px and both themes |
+| 10 | **Done 2026-10-22** (`pickDiagrams` and the in-card delete tested in `Library.test.jsx`; the full `uiaudit` run is pending). Library: search, sort (name / last change), filter "linked to a database" | 0.5 | `Library.test.jsx`; `uiaudit.mjs library` zero findings at 375 px and both themes |
 | **Release** ||||
 | 11 | Release: README status line, release notes, `docshots.mjs`, full `ci-e2e.sh`, `behaviorcheck` golden current, tag `v1.0.0` (the author pushes) | 1 | Release checklist below all ticked |
 | | **Total** | **16** | |

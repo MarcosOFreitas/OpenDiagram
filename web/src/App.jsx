@@ -419,8 +419,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const newDiagram = async (templateId) => { try { const t = TEMPLATES.find((x) => x.id === templateId); const { id } = await api('diagrams', t ? { title: t.title, dbml: t.dbml } : { title: 'Untitled diagram', dbml: BLANK }); setDiagrams(await api('diagrams')); await openDiagram(id); } catch (e) { notify('err', errMsg(e)); } };
-  const deleteDiagram = async (d) => {
-    if (!window.confirm(`Delete "${d.title}"? Its share links and comments are removed too.`)) return;
+  const deleteDiagram = async (d) => { // the Library asks first, in the card
     try {
       await api(`diagrams/${d.id}`, undefined, 'DELETE');
       const list = await api('diagrams'); setDiagrams(list);

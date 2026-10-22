@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Finding diagrams
+
+- **More → Diagrams** gets a search box (name or owner), a sort by name or by last change and a filter for the diagrams linked to a database, once you have more than eight. Deleting asks in the card itself; very long titles take two lines.
+
 ## Safer agent tokens
 
 - A new agent token expires after **90 days** unless you choose another length or *Never expires* on purpose. Tokens made before keep their expiry.

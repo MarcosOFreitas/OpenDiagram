@@ -48,7 +48,7 @@ The two tables appear with a line between them. Click a table to highlight its r
 
 ## Diagrams, templates and deleting
 
-**More → Diagrams** lists your diagrams and the ones shared with you, lets you start from a template and delete a diagram. Deleting a diagram also removes its share links and comments.
+**More → Diagrams** lists your diagrams and the ones shared with you, lets you start from a template and delete a diagram (the card asks first). With more than eight, a search box (name or owner), a sort by name or last change and a filter for the diagrams linked to a database appear. Deleting a diagram also removes its share links and comments.
 
 ## Next steps
 

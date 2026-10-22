@@ -28,9 +28,9 @@ export function roleFor(user, d) {
 
 // own diagrams + diagrams shared with me (directly or through a group)
 export function list(user) {
-  const own = db.prepare(`select d.id, d.title, d.updated_at, (select count(*) from shares s where s.diagram_id = d.id) shares,
+  const own = db.prepare(`select d.id, d.title, d.updated_at, d.source is not null linked, (select count(*) from shares s where s.diagram_id = d.id) shares,
       (select count(*) from diagram_access a where a.diagram_id = d.id) grants from diagrams d where owner_id = ? order by updated_at desc`).all(user.id)
-    .map((r) => ({ id: r.id, title: r.title, updatedAt: r.updated_at, role: 'owner', shares: r.shares + r.grants }));
+    .map((r) => ({ id: r.id, title: r.title, updatedAt: r.updated_at, role: 'owner', shares: r.shares + r.grants, linked: !!r.linked })); // linked: only for the owner, like the link itself
   // administrators see every other diagram of the organisation; everybody else only what was shared with them
   const others = (user.role === 'admin'
     ? db.prepare('select d.*, u.name owner_name from diagrams d join users u on u.id = d.owner_id where d.owner_id <> ? order by d.updated_at desc').all(user.id)
