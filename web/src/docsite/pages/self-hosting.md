@@ -57,7 +57,7 @@ Before exposing the instance beyond your own network:
 1. Serve it over **HTTPS** and set `COOKIE_SECURE=1` (and `TRUST_PROXY=1` behind a proxy). The proxy must tell the app which address the browser used: keep the `Host` header (nginx: `proxy_set_header Host $host;`, Caddy and Traefik do it by default) or send `X-Forwarded-Host`. Otherwise every change, sign-in included, is refused as *cross-origin request blocked*.
 2. Set a strong `APP_SECRET`.
 3. Set `DB_HOST_POLICY=public-only` or `allowlist` so users cannot point the app at your internal network.
-4. Keep sign-up closed and create accounts as the administrator. Sessions last 30 days; 8 wrong passwords in 15 minutes for the same e-mail and address lock sign-in for a few minutes (behind a proxy set `TRUST_PROXY=1` so the real address is seen).
+4. Keep sign-up closed and create accounts as the administrator. Sessions last 30 days. Wrong passwords lock sign-in for a few minutes after 8 in 15 minutes for the same e-mail and address, 50 from one address whatever the e-mail, or 30 for one e-mail from any address (behind a proxy set `TRUST_PROXY=1` so the real address is seen; otherwise everyone shares the proxy's address and its budget of 50).
 5. Read the security notes of the project (`.specs/05-security.md`) first.
 
 ## Backup and moving to another machine

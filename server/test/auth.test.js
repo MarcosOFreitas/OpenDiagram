@@ -65,6 +65,27 @@ test('login throttling: 8 failures lock that ip+e-mail with 429, even for the ri
   await auth.login({ email: 'throttle@example.com', password: PW }, '4.4.4.4'); // another ip is not locked
 });
 
+test('one address trying many e-mails (password spraying) is stopped after 50 failures, for every e-mail; other addresses are not', async () => {
+  await auth.createUser({ email: 'sprayed@example.com', password: PW });
+  for (let i = 0; i < 50; i++) await assert.rejects(auth.login({ email: `nobody${i}@example.com`, password: 'Summer2026!x' }, '10.1.1.1'), { statusCode: 401 });
+  await assert.rejects(auth.login({ email: 'sprayed@example.com', password: PW }, '10.1.1.1'), { statusCode: 429 });
+  await auth.login({ email: 'sprayed@example.com', password: PW }, '10.1.1.2');
+});
+
+test('one e-mail tried from many addresses (distributed guessing) is stopped after 30 failures, also for the right password', async () => {
+  await auth.createUser({ email: 'target@example.com', password: PW });
+  for (let i = 0; i < 30; i++) await assert.rejects(auth.login({ email: 'target@example.com', password: 'guess-guess-1' }, `10.2.${i}.1`), { statusCode: 401 });
+  await assert.rejects(auth.login({ email: 'target@example.com', password: PW }, '10.2.200.1'), { statusCode: 429 });
+});
+
+test('a success clears only the address + e-mail count: the wider budgets are not reset by signing in to an own account', async () => {
+  await auth.createUser({ email: 'own@example.com', password: PW });
+  for (let i = 0; i < 49; i++) await assert.rejects(auth.login({ email: `ghost${i}@example.com`, password: 'Summer2026!x' }, '10.3.3.3'), { statusCode: 401 });
+  await auth.login({ email: 'own@example.com', password: PW }, '10.3.3.3');
+  await assert.rejects(auth.login({ email: 'ghost-last@example.com', password: 'Summer2026!x' }, '10.3.3.3'), { statusCode: 401 });
+  await assert.rejects(auth.login({ email: 'own@example.com', password: PW }, '10.3.3.3'), { statusCode: 429 });
+});
+
 test('limiter helpers used by share-link passwords', () => {
   assert.ok(!auth.isLimited('k1'));
   for (let i = 0; i < 3; i++) auth.recordFail('k1');

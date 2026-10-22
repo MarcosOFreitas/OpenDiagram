@@ -76,13 +76,15 @@ export async function register({ email, password, name }, ip) {
 
 export async function login({ email, password }, ip) {
   email = String(email ?? '').trim().toLowerCase();
-  const k = `l|${ip}|${email}`;
-  if (limited(k)) throw bad('too many failed attempts, try again in a few minutes', 429);
+  // three budgets of failures in 15 minutes: this address + e-mail (8), this address with any e-mail (50: password spraying; generous,
+  // since without TRUST_PROXY everyone behind a proxy shares one address) and this e-mail from any address (30: distributed guessing)
+  const keys = [[`l|${ip}|${email}`, 8], [`la|${ip}`, 50], [`le|${email}`, 30]];
+  if (keys.some(([k, max]) => limited(k, max))) throw bad('too many failed attempts, try again in a few minutes', 429);
   const u = db.prepare('select * from users where email = ?').get(email);
   const ok = u ? await verify(String(password ?? ''), u.password_hash) : (await DUMMY, false);
-  if (!ok) { fail(k); throw bad('invalid e-mail or password', 401); }
+  if (!ok) { keys.forEach(([k]) => fail(k)); throw bad('invalid e-mail or password', 401); }
   if (u.disabled) throw bad('this account is disabled: contact an administrator', 403);
-  forgive(k);
+  forgive(keys[0][0]); // only the pair: signing in to an own account must not reset the wider budgets
   return pub(u);
 }
 

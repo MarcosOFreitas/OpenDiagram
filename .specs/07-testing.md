@@ -31,7 +31,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `recovery.test.js` | the recovery key: needs the password, shown once, any spelling works once, same answer for every failure, limits per address and per e-mail, a new key replaces the old, an administrator reset voids it |
 | server | `closing.test.js` | closing an account (signed out, private connections gone, links and grants removed, shared connections kept), the 7-day waiting list, handing a diagram to a person and a group, purge, the failed-sign-in cap |
 | server | `diagrams.test.js` | `roleFor`, grants, 404 for other accounts' diagrams, version conflicts (409), history, summaries |
-| server | `auth.test.js` | password rules, login throttling, sessions and cookies, sign-up policy |
+| server | `auth.test.js` | password rules, login throttling (per address + e-mail, per address across e-mails, per e-mail across addresses; a success does not reset the wider budgets), sessions and cookies, sign-up policy |
 | server | `admin.test.js` | last-administrator guard, groups, settings, directory search |
 | server | `introspect.test.js` | catalog rows to the neutral model (the part that needs no database): checks and partitioning on their table, Oracle's system `NOT NULL` checks skipped |
 | web | `useConnect.test.js` | the Database drawer flow: list reloads when the drawer opens or Administration closes, a shared connection is never saved and imports by its own id, schemas for a connection that has none, Full DDL follows the diagram link, save/delete/reset |
