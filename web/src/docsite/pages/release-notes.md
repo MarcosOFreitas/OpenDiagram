@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Faster first load
+
+- The server sends the app's files compressed (brotli or gzip, about 1.6 MB instead of 16 MB) and the browser keeps them until the next update, so opening OpenDiagram again downloads almost nothing.
+
 ## Hide relationship lines
 
 - **More → View → Hide relationship lines** hides every relationship line and keeps the tables; off by default, remembered in the browser and saved with each view. Data lineage arrows are separate.

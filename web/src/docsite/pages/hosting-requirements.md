@@ -76,6 +76,7 @@ Up to about **100 tables** the diagram is smooth. Beyond that, moving and zoomin
 ## Network
 
 - The browser talks to the server over HTTPS (put a reverse proxy in front, see [Self-hosting](self-hosting)). Every open diagram makes **one small request every 4 seconds** (presence), 0.25 requests per second per person; 150 people make about 40 requests per second.
+- The first visit downloads the app once: about **1.6 MB** with brotli, 2.9 MB with gzip (the main file is 16 MB uncompressed, most of it the DBML parser). The server sends the files already compressed and lets the browser keep them for a year (their names change with every build), so later visits download only the small `index.html`. A reverse proxy does not need to compress them again.
 - A saved diagram sends the whole DBML (23 to 369 KB for the sizes above), at most once per edit pause.
 - The server must reach your databases (PostgreSQL, Oracle) on their ports. Importing reads only the catalog.
 

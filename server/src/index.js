@@ -373,7 +373,13 @@ app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
 app.setErrorHandler((e, req, reply) => { if (!e.statusCode || e.statusCode >= 500) req.log.error(e); return reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) }); }); // driver errors (bad password, TLS...) are meant to be shown
-app.register(fstatic, { root: fileURLToPath(new URL('../public', import.meta.url)) });
+// hashed files under assets/ never change, so they are cached for a year; index.html is revalidated so a new build is picked up.
+// The web build writes .br / .gz next to each asset (web/precompress.js); preCompressed picks one by Accept-Encoding, else the plain file.
+app.register(fstatic, {
+  root: process.env.OD_PUBLIC_DIR || fileURLToPath(new URL('../public', import.meta.url)),
+  preCompressed: true,
+  setHeaders: (res, path) => res.header('cache-control', /[\\/]assets[\\/]/.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache'),
+});
 app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsWith('/api/') ? reply.sendFile('index.html') : reply.status(404).send({ error: 'not found' })));
 
 if (TEST) await app.ready();
