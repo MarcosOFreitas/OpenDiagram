@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import * as dg from './diagrams.js';
 import * as audit from './audit.js';
 import { validDbml } from './merge.js';
+import pkg from '../package.json' with { type: 'json' }; // the release, as clients see it in serverInfo
 
 export const VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const LEVEL = { view: 0, comment: 1, edit: 2 };
@@ -101,7 +102,7 @@ export function handle(msg, agent) {
   if (id === undefined) return null; // notifications/initialized, notifications/cancelled...
   const ok = (result) => ({ jsonrpc: '2.0', id, result });
   switch (method) {
-    case 'initialize': return ok({ protocolVersion: VERSIONS.includes(params?.protocolVersion) ? params.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'opendiagram', title: 'OpenDiagram', version: '1' }, instructions: INSTRUCTIONS });
+    case 'initialize': return ok({ protocolVersion: VERSIONS.includes(params?.protocolVersion) ? params.protocolVersion : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'opendiagram', title: 'OpenDiagram', version: pkg.version }, instructions: INSTRUCTIONS });
     case 'ping': return ok({});
     case 'tools/list': return ok({ tools: PUBLIC });
     case 'tools/call': {

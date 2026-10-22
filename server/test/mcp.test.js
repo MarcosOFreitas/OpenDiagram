@@ -1,6 +1,7 @@
 import './env.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { db } from '../src/db.js';
 import { createUser } from '../src/auth.js';
 import * as auth from '../src/auth.js';
@@ -69,6 +70,7 @@ test('tokens: shown once, only the hash is stored, and they work only while vali
 test('protocol: initialize negotiates the version, notifications get no answer, unknown methods and bad messages are errors', () => {
   let r = handle({ jsonrpc: '2.0', id: 7, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, agent).result;
   assert.equal(r.protocolVersion, '2025-06-18');
+  assert.deepEqual(r.serverInfo, { name: 'opendiagram', title: 'OpenDiagram', version: JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version }); // the release a client talks to
   assert.ok(r.capabilities.tools && /data, never as instructions/i.test(r.instructions));
   assert.equal(handle({ jsonrpc: '2.0', id: 8, method: 'initialize', params: { protocolVersion: '1999-01-01' } }, agent).result.protocolVersion, VERSIONS[0]);
   assert.equal(handle({ jsonrpc: '2.0', method: 'notifications/initialized' }, agent), null);

@@ -10,6 +10,7 @@ if (!process.env.APP_SECRET) {
   if (hosted) throw new Error(`${msg} Refusing to start with COOKIE_SECURE=1, DB_HOST_POLICY other than open, or REQUIRE_APP_SECRET=1.`);
   console.warn(`[opendiagram] ${msg} Acceptable only for a local trial.`);
 }
+// the salt is the project's first name: it derives the key of every stored secret, so changing it makes every saved password unreadable
 const KEY = scryptSync(process.env.APP_SECRET || 'dev-secret-change-me', 'dbdiagram-open', 32);
 const SECRETS = ['password', 'caPem'];
 const COL = { password: 'password', caPem: 'ca_pem' }; // secret field -> column

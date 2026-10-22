@@ -1,5 +1,6 @@
 {
-  "name": "dbdiagram-open-web",
+  "name": "opendiagram-web",
+  "version": "1.0.0",
   "description": "OpenDiagram web UI and documentation site (Vite + React)",
   "license": "Apache-2.0",
   "private": true,

@@ -1,6 +1,7 @@
 {
-  "name": "dbdiagram-open-server",
-  "description": "OpenDiagram server: Fastify API, read-only PostgreSQL/Oracle introspection, accounts, sharing",
+  "name": "opendiagram-server",
+  "version": "1.0.0",
+  "description": "OpenDiagram server: Fastify API, read-only PostgreSQL/Oracle/MySQL introspection, accounts, sharing, MCP connector",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
