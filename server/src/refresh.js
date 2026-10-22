@@ -9,7 +9,7 @@ import * as audit from './audit.js';
 import * as presence from './presence.js';
 import { userById } from './auth.js';
 import { getForUse } from './store.js';
-import { keepGroups, diffSummary } from './merge.js';
+import { keepGroups, diffSummary, loadParser } from './merge.js';
 
 export const MIN = 5, MAX_FAILURES = 5;
 const ACTOR = { id: null, name: 'Scheduled refresh' };
@@ -42,6 +42,7 @@ export async function refreshOne(d, { resolve, generate }, now = Math.floor(Date
     if (!owner || db.prepare('select disabled from users where id = ?').get(owner.id).disabled) throw new Error('the owner of the diagram is disabled');
     if (!getForUse(owner, src.connId)) throw new Error('the owner no longer has access to the connection');
     conn = await resolve({ id: src.connId }, owner);
+    await loadParser();
     const r = await generate(conn, { schemas: src.schemas, tables: src.tables, ddl: !!src.ddl });
     const gen = genHash(r.dbml);
     let detail = 'already up to date';

@@ -19,15 +19,15 @@ Measured with a limit of 1 vCPU and 512 MB, 150 people signed in at once with th
 
 | | Value |
 |---|---|
-| Container image | 468 MB |
+| Container image | 470 MB (414 MB of it is the `node:24-slim` base) |
 | Start-up (container started until it answers) | 1.3 to 3.5 s |
-| Memory with nobody connected | about 165 MB |
-| Memory at the peak (150 people) | about 220 MB |
+| Memory with nobody connected | about 75 MB; about 250 MB once the scheduled refresh or the MCP connector has run (they load the DBML parser) |
+| Memory at the peak (150 people) | about 145 MB; about 320 MB with the DBML parser loaded |
 | CPU in steady state, 150 people | 15 % of one core on average, 27 % at the busiest second |
 | CPU in steady state, 50 people | 5 % of one core |
 | Time to stop (`docker stop`) | about 1 s, exit code 0 |
 
-**Memory** is the first limit to size: Node.js itself takes about 160 MB. A limit of 256 MB still worked in the test (peak 228 MB) but leaves almost no room; use 512 MB or more.
+**Memory** is the first limit to size. Without the scheduled refresh and the MCP connector the app stays under 150 MB; the DBML parser they need takes about 180 MB more once it is loaded (it is loaded on first use, and stays). Use 512 MB, which leaves room for both.
 
 **CPU** is spent mostly on **signing in**: passwords are hashed with scrypt on purpose, about 40 ms of one core per sign-in (80 ms on half a core). If everybody signs in in the same second (a meeting that starts), the last person waits:
 

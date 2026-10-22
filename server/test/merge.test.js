@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { keepGroups, diffSummary } from '../src/merge.js';
+import { keepGroups, diffSummary, loadParser } from '../src/merge.js';
+
+await loadParser();
 
 // the same cases as the browser's web/src/diagramModel.test.js: the two copies must agree
 const DBML = `Table shop.customers { id int [pk] }

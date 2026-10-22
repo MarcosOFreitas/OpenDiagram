@@ -10,6 +10,7 @@ import * as audit from './audit.js';
 import * as admin from './admin.js';
 import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
+import { loadParser } from './merge.js';
 import { assertHostAllowed } from './policy.js';
 import * as refresh from './refresh.js';
 import * as agents from './agents.js';
@@ -367,6 +368,7 @@ app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
   const agent = agents.authenticate(req.headers.authorization);
   if (!agent) return reply.code(401).header('www-authenticate', 'Bearer').send({ error: 'a valid agent token is required (and agents must be switched on in Administration → Settings)' });
   if (!agents.withinRate(agent.tokenId)) return reply.code(429).send({ error: 'too many requests, slow down' });
+  if (req.body?.method === 'tools/call') await loadParser(); // update_diagram validates the DBML; loaded on the first agent call, not at start-up (merge.js)
   const res = mcp.handle(req.body, agent);
   return res === null ? reply.code(202).send() : reply.send(res);
 });

@@ -10,6 +10,9 @@ import * as dg from '../src/diagrams.js';
 import * as store from '../src/store.js';
 import * as audit from '../src/audit.js';
 import { handle, VERSIONS } from '../src/mcp.js';
+import { loadParser } from '../src/merge.js';
+
+await loadParser(); // the /mcp route does this before a tool call
 
 const owner = await createUser({ email: 'owner@example.com', password: 'long-enough-pass', name: 'Olga' });
 await createUser({ email: 'boss@example.com', password: 'long-enough-pass', name: 'Boss', role: 'admin' });

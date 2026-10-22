@@ -1,14 +1,19 @@
 // What a metadata refresh keeps of the existing diagram text (TableGroups, hand-written lineage) and the one-line summary of what changed.
 // Mirrors keepGroups/withGroups/diffSummary of web/src/diagramModel.js (the browser's manual refresh): server/test/merge.test.js and web/src/diagramModel.test.js run the same cases.
-import { Parser } from '@dbml/core';
+// @dbml/core takes about 330 MB of memory once loaded (it bundles every SQL dialect parser), and only a scheduled refresh or an
+// MCP save needs it here: it is loaded on first use, so an instance that uses neither never pays for it.
+let Parser;
+export const loadParser = async () => { Parser ??= (await import('@dbml/core')).Parser; };
+const parser = () => { if (!Parser) throw new Error('merge.js: await loadParser() first'); return new Parser(); };
 
 const MANUAL = /^\s*\/\/\s*lineage:/i; // by hand (not `(auto)`)
 const tid = (schema, name) => `${schema || 'public'}.${name}`;
 const qid = (x) => (/^[A-Za-z_]\w*$/.test(x) ? x : `"${x.replaceAll('"', '\\"')}"`);
 
 function parse(text) {
+  const p = parser();
   try {
-    const db = new Parser().parse(text, 'dbmlv2');
+    const db = p.parse(text, 'dbmlv2');
     const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({ id: tid(t.schema.name, t.name), sig: t.fields.map((f) => `${f.name}:${f.type.type_name}`).join(',') }));
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
     return { tables, groups };
@@ -28,7 +33,8 @@ function withGroups(newDbml, groups) {
 
 // null when the text is valid DBML, otherwise the first problem ("line N: message")
 export function validDbml(text) {
-  try { new Parser().parse(text, 'dbmlv2'); return null; } catch (e) { const d = e?.diags?.[0]; return d ? `line ${d.location?.start?.line ?? 1}: ${d.message}` : String(e?.message ?? 'syntax error').split('\n')[0].slice(0, 200); }
+  const p = parser();
+  try { p.parse(text, 'dbmlv2'); return null; } catch (e) { const d = e?.diags?.[0]; return d ? `line ${d.location?.start?.line ?? 1}: ${d.message}` : String(e?.message ?? 'syntax error').split('\n')[0].slice(0, 200); }
 }
 
 export function keepGroups(oldDbml, newDbml) {
