@@ -27,7 +27,7 @@ There is **no linter**. Verification = unit tests (fast, no Docker) + the end-to
 (cd server && npm test)             # unit tests: node:test, ~5 s, no Docker (server/test/*.test.js); http.test.js tries the real routes through app.inject (OD_NO_LISTEN=1)
 (cd web && npm test)                # unit + component tests: Vitest, Testing Library, jsdom (web/src/**/*.test.{js,jsx})
 git config core.hooksPath .githooks # once per clone: runs the tests the staged files can affect before every commit (FULL=1 = all)
-bash .github/ci-e2e.sh              # what the CI `e2e` job runs: stack, test-auth, test-guardrails, uiaudit, behaviorcheck vs web/behavior.golden.json (~20 min; see its header)
+bash .github/ci-e2e.sh              # what the CI `e2e` job runs: stack, test-auth, test-guardrails, uiaudit, behaviorcheck vs web/behavior.golden.json (~25 min in one run, ~8 min as the 4 CI shards; see its header)
 node server/test-auth.mjs            # accounts, roles, groups, sharing, link permissions, shared connections, audit, SSRF policy
 node server/test-guardrails.mjs      # read-only sessions, privilege warnings, PostgreSQL TLS modes
 node server/test-oracle-tls.mjs      # Oracle TLS modes against demo-oracle-tls (needs --profile oracle and -f docker-compose.demo-tls.yml: the app trusts the public demo certificate only then)
