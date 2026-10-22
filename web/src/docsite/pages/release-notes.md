@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Faster first visit
+
+- The first visit downloads about 0.4 MB instead of 1.6 MB: the SQL import and export tools, most of the old download, now load only when someone imports or exports SQL.
+
 ## Richer import
 
 - Auto-numbered columns (PostgreSQL serial and identity, Oracle identity) come as `increment`, generated columns with their expression in the column note, PostgreSQL partial indexes with their `WHERE`. PostgreSQL partitions are no longer listed or imported: their parent says how it is partitioned.

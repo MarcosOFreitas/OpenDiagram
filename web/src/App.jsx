@@ -1,6 +1,5 @@
 import { Fragment, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useStore, useStoreApi, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
-import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
 import { DocsView, standaloneHtml } from './DocsPage.jsx';
@@ -611,9 +610,10 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const linked = conns.find((c) => c.id === source?.connId);
   const every = linked?.refreshMinutes || 0;
 
-  const importText = (text, fmt = sqlFmt) => {
+  const sqlTools = () => import('@dbml/core'); // the SQL parsers and exporters (about 15 MB): loaded only for an import or export
+  const importText = async (text, fmt = sqlFmt) => {
     if (readOnly) return notify('err', 'This diagram is read-only for you');
-    try { setDbml(fmt === 'dbml' ? text : importer.import(text, fmt)); notify('ok', `Imported from ${fmt}`); }
+    try { setDbml(fmt === 'dbml' ? text : (await sqlTools()).importer.import(text, fmt)); notify('ok', `Imported from ${fmt}`); }
     catch (e) { notify('err', `Import ${fmt} failed: ${errMsg(e)}`); }
   };
   const importFile = async (f) => { if (f) importText(await f.text()); };
@@ -630,14 +630,14 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         if (fmt === 'docs-html') download(`${base}-docs.html`, standaloneHtml(m, title, comments, named));
         else download(`${base}-docs.md`, toMarkdown(m, title, comments, named));
       } else if (fmt === 'dbml') download(`${base}.dbml`, dbml);
-      else if (fmt === 'json') download(`${base}.json`, exporter.export(dbml, 'json'));
+      else if (fmt === 'json') download(`${base}.json`, (await sqlTools()).exporter.export(dbml, 'json'));
       else if (fmt === 'png' || fmt === 'svg') {
         const b = getNodesBounds(nodes.filter((n) => n.type !== 'note' || notesOn).map((n) => ({ ...n, measured: n.measured ?? { width: 220, height: n.type === 'note' ? 120 : tableHeight(n.data) } })));
         const w = Math.ceil(b.width + 120), h = Math.ceil(b.height + 120);
         const vp = getViewportForBounds(b, w, h, 0.1, 2, 0.05);
         const url = await (fmt === 'png' ? toPng : toSvg)(document.querySelector('.react-flow__viewport'), { backgroundColor: canvasBg, width: w, height: h, style: { width: `${w}px`, height: `${h}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})` } });
         const a = document.createElement('a'); a.href = url; a.download = `${base}.${fmt}`; a.click();
-      } else download(`${base}.${fmt}.sql`, exporter.export(dbml, fmt));
+      } else download(`${base}.${fmt}.sql`, (await sqlTools()).exporter.export(dbml, fmt));
       notify('ok', `Exported ${fmt}`);
     } catch (e) { notify('err', `Export ${fmt} failed: ${errMsg(e)}`); }
   };

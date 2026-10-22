@@ -1,5 +1,5 @@
 // Pure DBML-side logic of the workspace (no React): parsing for the diagram, TableGroup merging on refresh, change summary, header text colour.
-import { Parser } from '@dbml/core';
+import { parseDbml } from './dbmlParse.js';
 import { errMsg } from './api.js';
 import { tid } from './docsModel.js';
 import { lineageEdges, MANUAL } from './lineage.js';
@@ -15,7 +15,7 @@ export const pid = (r) => tid(r.parent.schemaName, r.parent.tableName); // a ref
 export const viewKindOf = (note) => { const n = typeof note === 'string' ? note : note?.value || ''; const m = /(^|\n)(MATERIALIZED VIEW|VIEW)(\n|$)/.exec(n); return m ? (m[2] === 'VIEW' ? 'View' : 'Mat. view') : ''; };
 export function parse(text) {
   try {
-    const db = new Parser().parse(text, 'dbmlv2');
+    const db = parseDbml(text);
     const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({
       id: tid(t.schema.name, t.name), schema: t.schema.name, name: t.name, note: t.note, headerColor: t.headerColor, viewKind: viewKindOf(t.note),
       fields: t.fields.map((f) => ({ name: f.name, type: f.type.type_name, pk: f.pk, notNull: f.not_null, unique: f.unique, note: f.note })),

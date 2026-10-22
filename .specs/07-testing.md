@@ -48,6 +48,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `docsModel.test.js`, `templates.test.js` | generated documentation and Markdown (with the Checks list); every starter template parses and documents |
 | web | `api.test.js`, `historyDiff.test.js`, `Menu.test.jsx`, `AdminAudit.test.jsx` | fetch wrapper and storage guards, line diff, menu dismissal, audit filters sent to the server |
 | web | `layout.test.js` (fixes of 2026-10-22) | tables new to a diagram with places never overlap the kept ones (a second import did); the header width counts the view mark |
+| web | `dbmlParse.test.js` | the app's own DBML parse gives the same database (every template and a full case) and the same error `diags` as `@dbml/core`'s `Parser` |
 | web | `workspace.test.jsx` | the `App` with a stubbed API: autosave of the owner (title, DBML, link, layout, `baseVersion`), the edit-conflict dialog on a 409 and no further save, deleting the open diagram leads to the create options |
 | web | `searchPanel.test.js` | the editor's Ctrl+F bar in a real CodeMirror view (jsdom): match count and its text, focus in the find field on open (it went to the DBML), Enter / Shift+Enter, the option toggles, replace on demand and never when read-only, Escape; `uiaudit.mjs editor-search` audits it |
 | web | `emptyHome.test.jsx` | the whole `App` with a stubbed API: an account without diagrams gets the create options and no `POST /api/diagrams` (the sample used to be created behind its back); `uiaudit.mjs home-empty` audits the screen |
