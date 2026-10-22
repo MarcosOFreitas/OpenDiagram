@@ -242,3 +242,13 @@ test('list_diagrams pages: limit and offset, with the next offset when there is 
   const rest = text(call('list_diagrams', { limit: 2, offset: all.length - 1 }));
   assert.doesNotMatch(rest, /next_offset/);
 });
+
+test('an agent cannot send a huge DBML: it is refused before it is parsed (.specs/15, M6)', () => {
+  const id = mine(); give(id, 'edit');
+  const v = dg.getForUser(owner, id).version;
+  const big = `${DBML}${'// a line that only makes the text bigger\n'.repeat(15_000)}`; // more than 500 000 characters
+  const r = call('update_diagram', { id, dbml: big, base_version: v });
+  assert.equal(r.isError, true);
+  assert.match(text(r), /at most 500 000 characters/);
+  assert.equal(dg.getForUser(owner, id).dbml, DBML);
+});

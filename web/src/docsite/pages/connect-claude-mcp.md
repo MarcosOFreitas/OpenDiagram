@@ -30,7 +30,7 @@ The address is the same server and port as the app, path `/mcp`. Over a network,
 | `get_diagram` | view | the DBML, the title and the **version** |
 | `list_comments` | view | the comments of a diagram |
 | `add_comment` | comment | adds a comment to the whole diagram, a table (`schema.table`) or a column (`schema.table.column`) |
-| `update_diagram` | edit | replaces the DBML, and **must** send the version it read (`base_version`) |
+| `update_diagram` | edit | replaces the DBML (at most 500 000 characters), and **must** send the version it read (`base_version`) |
 
 - A save is refused when somebody else saved in the meantime (the agent must read again) and when the DBML does not parse. Nothing is half saved.
 - Every save by an agent is **its own entry in the diagram's history**, with the agent's name, so you can compare it and restore the version before it.
