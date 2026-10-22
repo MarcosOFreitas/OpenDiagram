@@ -533,6 +533,7 @@ export function explainDbError(e, c = {}) {
               : /^NJS-518\b|^ORA-12514\b/.test(msg) ? `The listener does not know the service "${c.database}": check the service name (for example FREEPDB1).`
                 : /^ORA-28000\b/.test(msg) ? 'This Oracle account is locked.'
                   : TLS_CODES.test(code) ? `The server's certificate was not accepted (${code}): give its CA certificate, or choose "encrypted, not verified".`
+                    : code === 'HANDSHAKE_SSL_ERROR' && /certificate|self[- ]signed|altname/i.test(msg) ? 'The server\'s certificate was not accepted: give its CA certificate, or choose "encrypted, not verified".' // mysql2 wraps the TLS error and drops its code
                     : /does not support SSL/i.test(msg) || code === 'HANDSHAKE_NO_SSL_SUPPORT' ? 'This server does not accept TLS connections: set TLS to off.'
                       : null;
   return Object.assign(e instanceof Error ? e : new Error(msg), { message: plain ? `${plain} (${msg})` : msg, statusCode: 502 });

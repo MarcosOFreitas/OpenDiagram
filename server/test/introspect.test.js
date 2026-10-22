@@ -179,3 +179,10 @@ test('a pinned address is where the drivers connect; PostgreSQL TLS still checks
   assert.match(oraConnectString({ ...c, tls: 'off' }), /\(HOST=203\.0\.113\.7\)/);
   assert.match(oraConnectString({ ...c, tls: 'verify' }), /\(HOST=db\.example\.com\)/);
 });
+
+test('MySQL wraps a rejected certificate as HANDSHAKE_SSL_ERROR (seen in the e2e): it is still explained as a certificate problem', () => {
+  const e = Object.assign(new Error('self-signed certificate in certificate chain'), { code: 'HANDSHAKE_SSL_ERROR' });
+  assert.match(explainDbError(e, { type: 'mysql', host: 'db', port: '' }).message, /^The server's certificate was not accepted.*\(self-signed certificate in certificate chain\)$/);
+  const other = Object.assign(new Error('wrong version number'), { code: 'HANDSHAKE_SSL_ERROR' });
+  assert.equal(explainDbError(other, { type: 'mysql', host: 'db' }).message, 'wrong version number'); // another handshake failure is not a certificate problem
+});
