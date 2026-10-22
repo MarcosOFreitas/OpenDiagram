@@ -1,5 +1,6 @@
 // Pure DBML-side logic of the workspace (no React): parsing for the diagram, TableGroup merging on refresh, change summary, header text colour.
 import { parseDbml } from './dbmlParse.js';
+import { schemaDiff, summaryLine } from '../../server/src/schemaDiff.js';
 import { errMsg } from './api.js';
 import { tid } from './docsModel.js';
 import { lineageEdges, MANUAL } from './lineage.js';
@@ -56,16 +57,12 @@ export function keepGroups(oldDbml, newDbml) {
 }
 // which lines the canvas draws: never one that touches a hidden table; data lineage arrows only when they are on; relationship (Ref) lines unless "Hide relationship lines" is on
 export const edgeShown = (e, { hidden, lineageOn = true, hideRefs = false }) => !hidden.has(e.source) && !hidden.has(e.target) && (lineageOn || e.data.kind !== 'lineage') && (!hideRefs || e.data.kind === 'lineage');
-export function diffSummary(oldDbml, newDbml) {
-  const o = parse(oldDbml), n = parse(newDbml);
-  if (o.error || n.error) return 'schema changed';
-  const sig = (t) => t.fields.map((f) => `${f.name}:${f.type}`).join(',');
-  const om = new Map(o.tables.map((t) => [t.id, sig(t)])), nm = new Map(n.tables.map((t) => [t.id, sig(t)]));
-  let add = 0, rem = 0, chg = 0;
-  for (const [k, v] of nm) { if (!om.has(k)) add++; else if (om.get(k) !== v) chg++; }
-  for (const k of om.keys()) if (!nm.has(k)) rem++;
-  const parts = [add && `+${add} table(s)`, rem && `−${rem} table(s)`, chg && `${chg} changed`].filter(Boolean);
-  return parts.length ? parts.join(', ') : 'indexes/relationships/comments changed';
+// the toast of a manual refresh: what changed in the structure, in the words of History -> Compare and of the history entry the server writes
+export function refreshSummary(oldDbml, newDbml) {
+  let a, b;
+  try { a = parseDbml(oldDbml); b = parseDbml(newDbml); } catch { return 'schema changed'; }
+  const changes = schemaDiff(a, b);
+  return changes.length ? summaryLine(changes) : 'no structural change';
 }
 
 // React Flow's node changes that may reach the nodes state. TableGroup boxes (`g:<name>`) are derived from their tables on every render

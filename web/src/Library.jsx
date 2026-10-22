@@ -17,6 +17,10 @@ const Open = ({ current, onClick, children }) => (
   <button type="button" className="card-open grow" aria-current={current ? 'true' : undefined} onClick={onClick}>{children}</button>
 );
 const Text = ({ title, children }) => <span className="grow"><b title={title}>{title}</b>{children}</span>;
+// changes since the person last opened the diagram (server: diagrams.js unseenBy); people who can edit also get the latest one and how many
+const Unseen = ({ d: { unseen, lastChange: c } }) => unseen && (
+  <small><span className="chip">Changed since you last opened it{c?.count > 1 ? ` (${c.count})` : ''}</span>{c && ` ${c.summary} · ${c.author} · ${ago(c.at * 1000)}`}</small>
+);
 
 // deleting asks in the card itself; Cancel takes the focus, so Enter right after the click does nothing harmful
 function Trash({ d, title = 'Delete diagram', asking, onAsk, onDelete }) {
@@ -68,14 +72,14 @@ export default function Library({ diagrams, currentId, isAdmin, templates = [], 
       {mine.length === 0 && <small className="hint">{q || linked ? 'No diagram matches.' : 'No diagrams yet.'}</small>}
       {mine.map((d) => (
         <div key={d.id} className={`card act ${now(d) ? 'sel' : ''}`}>
-          <Open current={now(d)} onClick={() => onOpen(d.id)}><Text title={d.title}><small>{now(d) ? 'Open now · ' : ''}{ago(d.updatedAt * 1000)}{d.shares ? ` · shared with ${d.shares}` : ''}{d.linked ? ' · linked to a database' : ''}</small></Text></Open>
+          <Open current={now(d)} onClick={() => onOpen(d.id)}><Text title={d.title}><small>{now(d) ? 'Open now · ' : ''}{ago(d.updatedAt * 1000)}{d.shares ? ` · shared with ${d.shares}` : ''}{d.linked ? ' · linked to a database' : ''}</small><Unseen d={d} /></Text></Open>
           {trash(d)}
         </div>
       ))}
       {shared.length > 0 && <h4>{isAdmin ? 'Everyone else\'s diagrams (administrator)' : 'Shared with me'}</h4>}
       {shared.map((d) => (
         <div key={d.id} className={`card act ${now(d) ? 'sel' : ''}`}>
-          <Open current={now(d)} onClick={() => onOpen(d.id)}><Text title={d.title}><small>{now(d) ? 'Open now · ' : ''}{d.ownerName} · {ROLE[d.role]} · {ago(d.updatedAt * 1000)}</small></Text></Open>
+          <Open current={now(d)} onClick={() => onOpen(d.id)}><Text title={d.title}><small>{now(d) ? 'Open now · ' : ''}{d.ownerName} · {ROLE[d.role]} · {ago(d.updatedAt * 1000)}</small><Unseen d={d} /></Text></Open>
           {d.role === 'admin' && trash(d, 'Delete diagram (administrator)')}
         </div>
       ))}

@@ -1,6 +1,8 @@
 // What a metadata refresh keeps of the existing diagram text (TableGroups, hand-written lineage) and the one-line summary of what changed.
-// Mirrors keepGroups/withGroups/diffSummary of web/src/diagramModel.js (the browser's manual refresh): server/test/merge.test.js and web/src/diagramModel.test.js run the same cases.
+// keepGroups/withGroups mirror web/src/diagramModel.js (the browser's manual refresh): server/test/merge.test.js and web/src/diagramModel.test.js run the same cases.
 // The DBML parse (dbmlParse.js, a few MB of memory once loaded) is needed only by a refresh or an MCP save: it is loaded on first use.
+import { schemaDiff, summaryLine } from './schemaDiff.js';
+
 let parseDbml;
 export const loadParser = async () => { parseDbml ??= (await import('./dbmlParse.js')).parseDbml; };
 const parser = () => { if (!parseDbml) throw new Error('merge.js: await loadParser() first'); return parseDbml; };
@@ -13,7 +15,7 @@ function parse(text) {
   const p = parser();
   try {
     const db = p(text);
-    const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({ id: tid(t.schema.name, t.name), sig: t.fields.map((f) => `${f.name}:${f.type.type_name}`).join(',') }));
+    const tables = db.schemas.flatMap((s) => s.tables).map((t) => ({ id: tid(t.schema.name, t.name) }));
     const groups = db.schemas.flatMap((s) => s.tableGroups || []).map((g) => ({ name: g.name, color: g.color, tables: g.tables.map((t) => tid(t.schema?.name ?? t.schemaName, t.name)) }));
     return { tables, groups };
   } catch { return { error: true }; }
@@ -44,13 +46,14 @@ export function keepGroups(oldDbml, newDbml) {
   return withGroups(manual.length ? `${newDbml.replace(/\n*$/, '\n')}\n${manual.join('\n')}\n` : newDbml, o.groups);
 }
 
-export function diffSummary(oldDbml, newDbml) {
-  const o = parse(oldDbml), n = parse(newDbml);
-  if (o.error || n.error) return 'schema changed';
-  const om = new Map(o.tables.map((t) => [t.id, t.sig])), nm = new Map(n.tables.map((t) => [t.id, t.sig]));
-  let add = 0, rem = 0, chg = 0;
-  for (const [k, v] of nm) { if (!om.has(k)) add++; else if (om.get(k) !== v) chg++; }
-  for (const k of om.keys()) if (!nm.has(k)) rem++;
-  const parts = [add && `+${add} table(s)`, rem && `−${rem} table(s)`, chg && `${chg} changed`].filter(Boolean);
-  return parts.length ? parts.join(', ') : 'indexes/relationships/comments changed';
+// what a refresh changed in the structure, in the words of History -> Compare ("1 table added, 2 tables changed"); null when nothing
+// structural changed or a side does not parse. A person can send a refresh save of 2 MB: past MAX_PARSE the line summary is enough.
+const MAX_PARSE = 500_000;
+export function structural(oldDbml, newDbml) {
+  const p = parser();
+  if (oldDbml.length > MAX_PARSE || newDbml.length > MAX_PARSE) return null;
+  let a, b;
+  try { a = p(oldDbml); b = p(newDbml); } catch { return null; }
+  const changes = schemaDiff(a, b);
+  return changes.length ? summaryLine(changes) : null;
 }

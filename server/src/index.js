@@ -10,7 +10,7 @@ import * as audit from './audit.js';
 import * as admin from './admin.js';
 import { listSchemas, importModel, listTables, privilegeWarnings } from './introspect.js';
 import { toDbml } from './dbml.js';
-import { loadParser } from './merge.js';
+import { loadParser, structural } from './merge.js';
 import { assertHostAllowed } from './policy.js';
 import * as refresh from './refresh.js';
 import * as agents from './agents.js';
@@ -288,17 +288,27 @@ const LEVEL = { ...dg.RANK, admin: 3, owner: 4 }; // 'admin' = administrator on 
 const can = (role, min) => LEVEL[role] >= LEVEL[min];
 app.get('/api/diagrams', (req) => dg.list(req.user));
 app.post('/api/diagrams', (req) => ({ id: dg.create(req.user.id, req.body ?? {}) }));
-app.get('/api/diagrams/:id', (req) => { const d = dg.getForUser(req.user, req.params.id); return d.role === 'owner' && d.source ? { ...d, refresh: refresh.stateOf(d.id) } : d; }); // refresh: last scheduled run / error / paused, for the owner
-const baseVersion = (b) => { if (b?.baseVersion === undefined) return undefined; if (!Number.isInteger(b.baseVersion)) throw bad('baseVersion must be an integer'); return b.baseVersion; }; // the version the client last saw; a stale one is answered with 409
-const saveOpts = (req) => ({ baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || req.body?.entry === 'refresh', reason: req.body?.entry === 'refresh' ? 'Refresh from database' : '' }); // overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh. Both get their own history entry
-app.put('/api/diagrams/:id', (req) => {
+app.get('/api/diagrams/:id', (req) => {
   const d = dg.getForUser(req.user, req.params.id);
-  const o = saveOpts(req);
+  dg.markSeen(req.user.id, d.id, d.version); // opened: the Library's "changed since you last opened it" starts from here
+  return d.role === 'owner' && d.source ? { ...d, refresh: refresh.stateOf(d.id) } : d; // refresh: last scheduled run / error / paused, for the owner
+});
+const baseVersion = (b) => { if (b?.baseVersion === undefined) return undefined; if (!Number.isInteger(b.baseVersion)) throw bad('baseVersion must be an integer'); return b.baseVersion; }; // the version the client last saw; a stale one is answered with 409
+// overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh, and its entry says what changed in the structure (merge.js). Both get their own history entry
+const saveOpts = async (req, before) => {
+  const refreshed = req.body?.entry === 'refresh' && typeof req.body?.dbml === 'string';
+  if (refreshed) await loadParser();
+  return { baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || refreshed, reason: refreshed ? dg.REFRESH : '', summary: refreshed ? structural(before, req.body.dbml) : null };
+};
+app.put('/api/diagrams/:id', async (req) => {
+  const d = dg.getForUser(req.user, req.params.id);
+  const o = await saveOpts(req, d.dbml);
   let version;
   if (d.role === 'owner') version = dg.update(d.id, req.body ?? {}, { includeSource: true, ...o });
   else if (d.role === 'admin') version = dg.update(d.id, { title: req.body?.title, dbml: req.body?.dbml, layout: req.body?.layout }, o); // never the owner's connection link
   else if (can(d.role, 'edit')) version = dg.update(d.id, { dbml: req.body?.dbml, layout: req.body?.layout }, o); // editors change content only: never title, connection link or sharing
   else throw bad('this diagram is read-only for you', 403);
+  dg.markSeen(req.user.id, d.id, version); // one's own save is seen
   return { ok: true, version };
 });
 
@@ -310,7 +320,9 @@ app.post('/api/diagrams/:id/versions', (req) => { dg.nameVersion(editable(req).i
 app.post('/api/diagrams/:id/versions/:vid/restore', (req) => {
   const d = editable(req), v = dg.getVersion(d.id, +req.params.vid);
   const patch = { dbml: v.dbml, layout: v.layout, ...(d.role === 'owner' || d.role === 'admin' ? { title: v.title } : {}) }; // editors never change the title
-  return { ok: true, version: dg.update(d.id, patch, { actor: req.user }) };
+  const version = dg.update(d.id, patch, { actor: req.user });
+  dg.markSeen(req.user.id, d.id, version);
+  return { ok: true, version };
 });
 app.delete('/api/diagrams/:id', (req) => {
   if (!can(dg.getForUser(req.user, req.params.id).role, 'admin')) throw bad('only the owner or an administrator can delete a diagram', 403);
@@ -384,7 +396,7 @@ app.post('/api/shared/:token/presence', async (req) => { // visitors of a link t
 app.put('/api/shared/:token', async (req) => {
   const s = await share(req, 'edit');
   const { dbml, layout } = req.body ?? {};
-  const version = dg.update(s.diagramId, { dbml, layout }, saveOpts(req)); // editors change the diagram itself, never its title, connection link or sharing
+  const version = dg.update(s.diagramId, { dbml, layout }, await saveOpts(req, s.dbml)); // editors change the diagram itself, never its title, connection link or sharing
   return { ok: true, version };
 });
 app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));

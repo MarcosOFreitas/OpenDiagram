@@ -32,7 +32,12 @@ const admin = new Api(BASE);
 await admin.call('POST', '/api/auth/login', { email: EMAIL, password: PASS });
 await admin.call('POST', '/api/admin/users', { email: 'temp@example.com', name: 'Temp User', password: 'Temp-pass-0000' }); // stays "must change password"
 const versions = ['First', 'Second'].map((label, i) => [SAMPLE.replace('  phone varchar(30)\n', `  phone varchar(30)\n  extra_${i} int\n`), `${label} version`]);
-const { maya, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-audit-pass-1', sampleExtra: "\n\nNote note_1 {\n  'A sticky note'\n}\n", versions });
+const { maya, mayaId, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-audit-pass-1', sampleExtra: "\n\nNote note_1 {\n  'A sticky note'\n}\n", versions });
+// the administrator opened Warehouse, then Maya refreshed it: its Library card says "changed since you last opened it" (.specs/14, item 9)
+const warehouse = (await admin.call('POST', '/api/diagrams', { title: 'Warehouse', dbml: 'Table stock {\n  id int [pk]\n}\n' })).id;
+await admin.call('POST', `/api/diagrams/${warehouse}/access`, { type: 'user', subjectId: mayaId, access: 'edit' });
+await admin.call('GET', `/api/diagrams/${warehouse}`);
+await maya.call('PUT', `/api/diagrams/${warehouse}`, { dbml: 'Table stock {\n  id int [pk]\n}\nTable bins {\n  id int [pk]\n}\n', entry: 'refresh' });
 await admin.call('POST', '/api/diagrams', { title: 'Customer data warehouse with every table of the legacy ERP, its staging copies and the reporting views of the 2026 migration', dbml: 'Table a {\n  id int\n}\n' }); // a very long title: overflow in a Library card is caught
 const open = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view' });
 const locked = await admin.call('POST', `/api/diagrams/${shop}/shares`, { access: 'view', password: 'link-secret-1' });
@@ -200,7 +205,8 @@ await run('account-recovery-key', async () => { await go('/', { local: D }); awa
 await run('account-delete-form', async () => { await go('/', { local: D }); await ev(`(async () => { await H.account('Account'); await H.click('Delete my account', H.q('.drawer')); })()`); }, { vps: ['desktop', 'phone'], kb: true });
 await run('account-password-form', async () => { await go('/', { local: D }); await ev(`H.account('Account')`); }, { vps: ['desktop', 'phone'], kb: true });
 // 3. drawers
-for (const d of ['Diagrams', 'Import', 'History']) await run(`drawer-${d.toLowerCase()}`, async () => { await go('/', { local: D }); await ev(`H.more(${JSON.stringify(d)})`); }, { vps: ['desktop', 'phone'], kb: false });
+await run('drawer-diagrams', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('Diagrams'); await H.w(500); if (![...document.querySelectorAll('.drawer .card .chip')].some((c) => /Changed since you last opened it/.test(c.textContent))) throw new Error('no "changed since you last opened it" on the Warehouse card'); })()`); }, { vps: ['desktop', 'phone'], kb: false });
+for (const d of ['Import', 'History']) await run(`drawer-${d.toLowerCase()}`, async () => { await go('/', { local: D }); await ev(`H.more(${JSON.stringify(d)})`); }, { vps: ['desktop', 'phone'], kb: false });
 await run('drawer-import-pasted', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('Import'); const s = H.q('.drawer select'); s && H.set(s, s.options[1]?.value ?? s.value); H.set(H.q('.drawer textarea'), 'CREATE TABLE t (id int);'); await H.w(300); })()`); }, { vps: ['desktop'] });
 await run('drawer-history-compare', async () => { await go('/', { local: D }); await ev(`(async () => { await H.more('History'); await H.click('Compare', H.q('.drawer')); await H.w(700); if (!H.q('.sdiff .dl')) throw new Error('no structural diff in the Compare dialog'); })()`); }, { vps: ['desktop', 'phone'], dialog: '.admin-card', kb: false });
 await run('drawer-database', () => go('/', { local: D }).then(() => fillConn()), { vps: ['desktop', 'phone'], kb: true });

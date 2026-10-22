@@ -2,6 +2,12 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Changed since you last opened it
+
+- A refresh from the database now says what changed in the structure, in its history entry and in its message: *Refresh from database: 1 table added, 2 tables changed*. The scheduled refresh writes the same words in the audit log.
+- **More → Diagrams** marks a diagram that someone else (a person, an agent or the scheduled refresh) changed since you last opened it. People who can edit also see the latest change, who made it, when, and how many there were; people who can only view or comment see the mark alone. Opening the diagram clears it.
+- Fixed: editing right after a manual refresh merged your edits into the refresh's own history entry, so its summary was lost; your edits now start a new entry.
+
 ## Less memory for refreshes and agents
 
 - The server reads DBML with a lighter parser: it no longer loads the SQL parsers of every database (about 300 MB of memory) for a scheduled refresh or an agent's save. See [Hosting requirements](hosting-requirements).

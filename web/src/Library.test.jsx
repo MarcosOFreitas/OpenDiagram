@@ -76,3 +76,20 @@ describe('Library: finding a diagram', () => {
     expect(screen.queryByRole('searchbox')).toBeNull();
   });
 });
+
+describe('Library: "changed since you last opened it" (.specs/14, item 9)', () => {
+  test('people who can edit see the latest change and how many there are; the others see the badge alone; nothing new, nothing shown', () => {
+    const at = Math.floor(Date.now() / 1000) - 7200;
+    setup({ diagrams: [
+      { id: 'a', title: 'Orders', role: 'owner', updatedAt: at, unseen: true, lastChange: { summary: 'Refresh from database: 1 table added', author: 'Scheduled refresh', at, count: 3 } },
+      { id: 'b', title: 'Billing', role: 'edit', ownerName: 'Ana', updatedAt: at, unseen: true, lastChange: { summary: 'added c; +1 / -0 lines', author: 'Ana', at, count: 1 } },
+      { id: 'c', title: 'Audit', role: 'view', ownerName: 'Ana', updatedAt: at, unseen: true },
+      { id: 'd', title: 'Stock', role: 'owner', updatedAt: at, unseen: false },
+    ] });
+    const card = (name) => screen.getByRole('button', { name: new RegExp(`^${name}`) }).textContent;
+    expect(card('Orders')).toMatch(/Changed since you last opened it \(3\) Refresh from database: 1 table added · Scheduled refresh · 2 h ago$/);
+    expect(card('Billing')).toMatch(/Changed since you last opened it added c; \+1 \/ -0 lines · Ana · 2 h ago$/); // one change: no count
+    expect(card('Audit')).toMatch(/Changed since you last opened it$/);
+    expect(card('Stock')).not.toMatch(/Changed/);
+  });
+});

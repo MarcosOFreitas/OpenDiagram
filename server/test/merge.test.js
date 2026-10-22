@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { keepGroups, diffSummary, loadParser } from '../src/merge.js';
+import { keepGroups, structural, loadParser } from '../src/merge.js';
 
 await loadParser();
 
@@ -34,11 +34,12 @@ test('names that need quoting are quoted', () => {
 test('unparsable old text: the new text as it is', () => assert.equal(keepGroups('Table {', DBML), DBML));
 test('no groups: unchanged', () => assert.equal(keepGroups(DBML, DBML), DBML));
 
-test('diffSummary', () => {
+test('structural: what a refresh changed in the structure, in the words of schemaDiff.js; null when nothing structural changed, a side does not parse or is too large to parse', () => {
   const add = `${DBML}Table shop.items { id int }\n`;
-  assert.equal(diffSummary(DBML, add), '+1 table(s)');
-  assert.equal(diffSummary(add, DBML), '−1 table(s)');
-  assert.equal(diffSummary(DBML, DBML.replace('customer_id int', 'customer_id bigint')), '1 changed');
-  assert.equal(diffSummary(DBML, `${DBML}// comment\n`), 'indexes/relationships/comments changed');
-  assert.equal(diffSummary('Table {', DBML), 'schema changed');
+  assert.equal(structural(DBML, add), '1 table added');
+  assert.equal(structural(add, DBML), '1 table removed');
+  assert.equal(structural(DBML, DBML.replace('customer_id int', 'customer_id bigint')), '1 table changed');
+  assert.equal(structural(DBML, `${DBML}// comment\n`), null);
+  assert.equal(structural('Table {', DBML), null);
+  assert.equal(structural(DBML, `${add}// ${'x'.repeat(500_000)}\n`), null);
 });

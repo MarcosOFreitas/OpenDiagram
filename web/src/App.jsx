@@ -16,7 +16,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns, bentPath, savePayload } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, refreshSummary, edgeShown, nodeChanges, edgesOf, handleColumns, bentPath, savePayload } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote, ENGINES, engine, dbPlaceholder } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -329,6 +329,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const openDiagram = useCallback(async (id) => {
     const [d, list] = await Promise.all([api(`diagrams/${id}`), api(`diagrams/${id}/comments`)]);
     store('lastDiagram', id);
+    setDiagrams((l) => l.map((x) => (x.id === id && x.unseen ? { ...x, unseen: false, lastChange: undefined } : x))); // opening it is seeing it (the server recorded it)
     startDoc({ ...d, access: d.role, isOwner: d.role === 'owner' }, list);
   }, [startDoc]);
   useEffect(() => {
@@ -423,6 +424,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       if (d.id === doc?.id) { if (list[0]) await openDiagram(list[0].id); else { setDrawer(null); setDoc(null); setEmpty(true); } }
     } catch (e) { notify('err', errMsg(e)); }
   };
+  useEffect(() => { if (drawer === 'diagrams' && !shared) api('diagrams').then(setDiagrams).catch(() => {}); }, [drawer]); // eslint-disable-line react-hooks/exhaustive-deps -- what changed since the list was loaded (new diagrams, "changed since you last opened it")
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
   useEffect(() => {
     const onKey = (e) => {
@@ -604,7 +606,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       lastGen.current = r.dbml; store(`gen:${doc.id}`, r.dbml);
       if (merged !== cur) entryRef.current = 'refresh';
       setDbml(merged);
-      notify(gone ? 'err' : 'ok', `Metadata refreshed: ${diffSummary(cur, merged)}${gone ? `. ${gone}` : ''}`);
+      notify(gone ? 'err' : 'ok', `Metadata refreshed: ${refreshSummary(cur, merged)}${gone ? `. ${gone}` : ''}`);
     } catch (e) { notify('err', `Refresh failed: ${errMsg(e)}`); } finally { refreshing.current = false; setBusy(''); }
   }, [source, notify, doc]);
   const linked = conns.find((c) => c.id === source?.connId);

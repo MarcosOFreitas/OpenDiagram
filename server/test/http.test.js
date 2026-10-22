@@ -145,3 +145,45 @@ test('a connection whose secrets were saved under another APP_SECRET: listed wit
   assert.match(use.json().error, /cannot be read.*APP_SECRET.*Enter the password again/);
   assert.equal((await call('POST', '/api/schemas', { id: cid, password: 'typed-again' })).statusCode, 502); // got past the check: 127.0.0.1:1 refuses
 });
+
+test('a save that follows a refresh (entry "refresh") stores what changed in the structure, and later edits do not rewrite it (.specs/14, item 9)', async () => {
+  const d = (await call('POST', '/api/diagrams', { title: 'R', dbml: 'Table a { id int }\n' })).json().id;
+  const summaries = async () => (await call('GET', `/api/diagrams/${d}/versions`)).json().map((v) => v.summary);
+  assert.equal((await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable b { id int }\n', entry: 'refresh' })).statusCode, 200);
+  assert.equal((await summaries())[0], 'Refresh from database: 1 table added');
+  await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable b { id int }\nTable c { id int }\n' }); // the person goes on editing within minutes
+  assert.deepEqual((await summaries()).slice(0, 2), ['added c; +1 / -0 lines', 'Refresh from database: 1 table added']);
+  await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable b { id int }\nTable c { id int }\n// lineage: b <- a (auto)\n', entry: 'refresh' });
+  assert.equal((await summaries())[0], 'Refresh from database: +1 / -0 lines'); // nothing structural: the line summary
+});
+
+test('Library: "changed since you last opened it" lights for changes by someone else and shows the change only to people who can edit (.specs/14, item 9)', async () => {
+  const people = {};
+  for (const [name, email] of [['Bo', 'bo@example.com'], ['Cy', 'cy@example.com']]) {
+    people[name] = await createUser({ email, password: 'long-enough-pass', name });
+    const c = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password: 'long-enough-pass' } })).headers['set-cookie'].split(';')[0];
+    people[name].call = (method, url, payload) => app.inject({ method, url, payload, headers: { cookie: c } });
+  }
+  const { Bo: { call: bo }, Cy: { call: cy } } = people;
+  const d = (await call('POST', '/api/diagrams', { title: 'Shared', dbml: 'Table a { id int }\n' })).json().id;
+  await call('POST', `/api/diagrams/${d}/access`, { type: 'user', subjectId: people.Bo.id, access: 'edit' });
+  await call('POST', `/api/diagrams/${d}/access`, { type: 'user', subjectId: people.Cy.id, access: 'view' });
+  const card = async (who) => { const x = (await who('GET', '/api/diagrams')).json().find((y) => y.id === d); return { unseen: x.unseen, ...(x.lastChange && { ...x.lastChange, at: typeof x.lastChange.at }) }; };
+  const open = (who) => who('GET', `/api/diagrams/${d}`);
+  const save = (who, dbml, entry) => who('PUT', `/api/diagrams/${d}`, { dbml, entry });
+
+  await save(call, 'Table a { id bigint }\n');
+  assert.deepEqual(await card(bo), { unseen: false }); // Bo never opened it: nothing to compare with
+  await open(call); await open(bo); await open(cy);
+  await save(call, 'Table a { id bigint }\nTable b { id int }\n', 'refresh');
+  assert.deepEqual(await card(call), { unseen: false }); // her own change
+  assert.deepEqual(await card(bo), { unseen: true, summary: 'Refresh from database: 1 table added', author: 'Ana', at: 'number', count: 1 });
+  assert.deepEqual(await card(cy), { unseen: true }); // view only: the badge, not the history
+  await save(call, 'Table a { id bigint }\nTable b { id int }\nTable c { id int }\n');
+  assert.deepEqual(await card(bo), { unseen: true, summary: 'added c; +1 / -0 lines', author: 'Ana', at: 'number', count: 2 }); // the latest one and how many
+  await open(bo);
+  assert.deepEqual(await card(bo), { unseen: false }); // opening it puts the badge out
+  await save(bo, 'Table a { id bigint }\nTable b { id int }\nTable c { id int }\nTable e { id int }\n');
+  assert.deepEqual(await card(bo), { unseen: false }); // his own save
+  assert.deepEqual(await card(call), { unseen: true, summary: 'added e; +1 / -0 lines', author: 'Bo', at: 'number', count: 1 });
+});

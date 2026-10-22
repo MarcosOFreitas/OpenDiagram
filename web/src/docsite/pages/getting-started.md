@@ -50,6 +50,8 @@ The two tables appear with a line between them. Click a table to highlight its r
 
 **More → Diagrams** lists your diagrams and the ones shared with you, lets you start from a template and delete a diagram (the card asks first). With more than eight, a search box (name or owner), a sort by name or last change and a filter for the diagrams linked to a database appear. Deleting a diagram also removes its share links and comments.
 
+A card says **Changed since you last opened it** when someone else (a person, an agent or the scheduled refresh) changed the diagram after you last opened it. If you can edit it, the card also shows the latest change, for example *Refresh from database: 1 table added · Scheduled refresh · 2 h ago*, and how many changes there were; if you can only view or comment, just the mark. Opening the diagram clears it; your own changes never set it.
+
 ## Next steps
 
 - Learn the [DBML syntax](dbml).

@@ -106,6 +106,13 @@ create table if not exists diagram_versions (
   created_at integer not null, saved_at integer not null
 );
 create index if not exists diagram_versions_by_diagram on diagram_versions (diagram_id, version);
+-- the version each person last opened or saved: the Library's "changed since you last opened it" (diagrams.js unseenBy)
+create table if not exists diagram_seen (
+  user_id integer not null references users(id) on delete cascade,
+  diagram_id text not null references diagrams(id) on delete cascade,
+  version integer not null,
+  primary key (user_id, diagram_id)
+);
 create table if not exists comments (
   id text primary key,
   diagram_id text not null references diagrams(id) on delete cascade,

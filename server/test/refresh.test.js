@@ -57,7 +57,13 @@ test('a changed schema is saved as its own "Refresh from database" entry by "Sch
   assert.equal(JSON.parse(d.source).gen, genHash(GEN2));
   const last = dg.listVersions(id)[0];
   assert.equal(last.author, 'Scheduled refresh');
-  assert.match(last.summary, /^Refresh from database: added shop\.c/);
+  assert.equal(last.summary, 'Refresh from database: 1 table added'); // the structure, as History -> Compare says it (item 9)
+});
+
+test('a refresh that changes nothing structural keeps the line summary', async () => {
+  const id = linked(conn(5), { gen: genHash(GEN1) });
+  await refreshOne(row(id), fake(`${GEN1}// lineage: shop.b <- shop.a (auto)\n`), NOW);
+  assert.equal(dg.listVersions(id)[0].summary, 'Refresh from database: +1 / -0 lines');
 });
 
 test('a diagram linked before the server knew its last import only gets a baseline: manual edits stay, the next change is applied', async () => {
@@ -109,7 +115,7 @@ test('tick skips a diagram somebody is editing and refreshes the others; a share
   assert.ok(!/shop\.c/.test(row(busy).dbml)); // the busy one is tried again next minute
   const log = audit.list({ diagramId: calm })[0];
   assert.equal(log.action, 'connection.refresh');
-  assert.match(log.detail, /^scheduled: /);
+  assert.equal(log.detail, 'scheduled: 1 table added'); // the same words as its history entry
 });
 
 test('the scheduled refresh never changes the table selection of the diagram, and says when a chosen table is gone', async () => {

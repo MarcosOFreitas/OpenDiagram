@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, test, expect } from 'vitest';
-import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges, bentPath, savePayload } from './diagramModel.js';
+import { parse, viewKindOf, withGroups, keepGroups, refreshSummary, readable, qid, cid, pid, edgeShown, nodeChanges, bentPath, savePayload } from './diagramModel.js';
 
 const DBML = `Table shop.customers { id int [pk] }
 Table shop.orders { id int [pk]
@@ -73,13 +73,13 @@ describe('withGroups / keepGroups (refresh keeps the user TableGroups)', () => {
   test('keepGroups with unparsable old text returns the new text', () => expect(keepGroups('Table {', DBML)).toBe(DBML));
 });
 
-describe('diffSummary', () => {
+describe('refreshSummary: the toast of a manual refresh, in the words of History -> Compare and of the history entry (.specs/14, item 9)', () => {
   const add = `${DBML}Table shop.items { id int }\n`;
-  test('added', () => expect(diffSummary(DBML, add)).toBe('+1 table(s)'));
-  test('removed', () => expect(diffSummary(add, DBML)).toBe('−1 table(s)'));
-  test('changed column list', () => expect(diffSummary(DBML, DBML.replace('customer_id int', 'customer_id bigint'))).toBe('1 changed'));
-  test('nothing structural', () => expect(diffSummary(DBML, `${DBML}// comment\n`)).toBe('indexes/relationships/comments changed'));
-  test('unparsable', () => expect(diffSummary('Table {', DBML)).toBe('schema changed'));
+  test('added', () => expect(refreshSummary(DBML, add)).toBe('1 table added'));
+  test('removed', () => expect(refreshSummary(add, DBML)).toBe('1 table removed'));
+  test('a column type', () => expect(refreshSummary(DBML, DBML.replace('customer_id int', 'customer_id bigint'))).toBe('1 table changed'));
+  test('nothing structural', () => expect(refreshSummary(DBML, `${DBML}// comment\n`)).toBe('no structural change'));
+  test('unparsable', () => expect(refreshSummary('Table {', DBML)).toBe('schema changed'));
 });
 
 describe('readable', () => {

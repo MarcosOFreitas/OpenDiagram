@@ -26,6 +26,22 @@ export function roleFor(user, d) {
   return rows.map((r) => r.access).sort((x, y) => RANK[y] - RANK[x])[0] ?? null;
 }
 
+// ---- "changed since you last opened it" (Library): the version each person last opened or saved, and the history entries newer than it made
+// by someone else (a person, an agent or the scheduled refresh; a starting point has no author). People who can edit also get the latest one.
+export const markSeen = (userId, diagramId, version) => db.prepare(`insert into diagram_seen (user_id, diagram_id, version) values (?, ?, ?)
+  on conflict(user_id, diagram_id) do update set version = max(version, excluded.version)`).run(userId, diagramId, version);
+function unseenBy(user) {
+  const out = new Map();
+  for (const r of db.prepare(`select v.diagram_id id, v.version, v.summary, v.author, v.saved_at from diagram_seen s join diagram_versions v on v.diagram_id = s.diagram_id and v.version > s.version
+      where s.user_id = ? and v.author is not null and v.author_id is not ? order by v.version desc, v.id`).all(user.id, user.id)) {
+    const u = out.get(r.id);
+    if (u) u.versions.add(r.version); // a named copy shares its version: counted once
+    else out.set(r.id, { summary: r.summary, author: r.author, at: r.saved_at, versions: new Set([r.version]) });
+  }
+  return out;
+}
+const EDITS = new Set(['owner', 'admin', 'edit']);
+
 // own diagrams + diagrams shared with me (directly or through a group)
 export function list(user) {
   const own = db.prepare(`select d.id, d.title, d.updated_at, d.source is not null linked, (select count(*) from shares s where s.diagram_id = d.id) shares,
@@ -38,7 +54,11 @@ export function list(user) {
       select diagram_id from diagram_access where (subject_type = 'user' and subject_id = ?) or (subject_type = 'group' and subject_id in (select group_id from group_members where user_id = ?)))
       order by d.updated_at desc`).all(user.id, user.id, user.id))
     .map((d) => ({ id: d.id, title: d.title, updatedAt: d.updated_at, role: roleFor(user, d), ownerName: d.owner_name, shares: 0 }));
-  return [...own, ...others];
+  const unseen = unseenBy(user);
+  return [...own, ...others].map((d) => {
+    const u = unseen.get(d.id);
+    return { ...d, unseen: !!u, ...(u && EDITS.has(d.role) && { lastChange: { summary: u.summary, author: u.author, at: u.at, count: u.versions.size } }) };
+  });
 }
 
 export function create(owner, { title, dbml } = {}) {
@@ -89,10 +109,11 @@ export function summarize(before, after, layoutChanged = false) {
   return parts.join('; ') || 'title or settings';
 }
 
-const recent = (id) => db.prepare('select id, dbml, layout, label, author_id, created_at from diagram_versions where diagram_id = ? order by version desc limit 2').all(id);
+const recent = (id) => db.prepare('select id, dbml, layout, label, author_id, summary, created_at from diagram_versions where diagram_id = ? order by version desc limit 2').all(id);
+export const REFRESH = 'Refresh from database'; // the reason of a refresh's entry: the person's next edits start a new entry, so it keeps saying what the refresh changed
 
 // records the new state in the history (called after every content save)
-function snapshot(id, version, st, actor, separate = false, reason = '') {
+function snapshot(id, version, st, actor, separate = false, reason = '', summary = null) {
   let rows = recent(id);
   const t = now();
   if (!rows.length) { // first save since history exists: keep what was there before as the starting point
@@ -101,20 +122,20 @@ function snapshot(id, version, st, actor, separate = false, reason = '') {
     rows = recent(id);
   }
   const last = rows[0];
-  if (!separate && actor && last.author_id === actor.id && !last.label && t - last.created_at < COALESCE && rows.length > 1) { // same person, still working: update the entry
+  if (!separate && actor && last.author_id === actor.id && !last.label && !last.summary.startsWith(`${REFRESH}: `) && t - last.created_at < COALESCE && rows.length > 1) { // same person, still working: update the entry
     db.prepare('update diagram_versions set version = ?, title = ?, dbml = ?, layout = ?, summary = ?, saved_at = ? where id = ?')
       .run(version, st.title, st.dbml, st.layout, summarize(rows[1].dbml, st.dbml, rows[1].layout !== st.layout), t, last.id);
   } else {
     db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, (reason ? `${reason}: ` : '') + summarize(last.dbml, st.dbml, last.layout !== st.layout), t, t);
+      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, (reason ? `${reason}: ` : '') + (summary ?? summarize(last.dbml, st.dbml, last.layout !== st.layout)), t, t);
   }
   db.prepare(`delete from diagram_versions where diagram_id = ? and label is null and id not in
     (select id from diagram_versions where diagram_id = ? and label is null order by version desc limit ?)`).run(id, id, KEEP);
 }
 
 // partial update; `source` (link to a saved connection) is only ever set by the owner.
-// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. `separate` forces its own history entry (someone chose to overwrite a newer version, or a refresh from the database); `reason` prefixes its summary. A save that changes nothing does not bump it.
-export function update(id, patch, { includeSource = false, baseVersion, actor, separate = false, reason = '' } = {}) {
+// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. `separate` forces its own history entry (someone chose to overwrite a newer version, or a refresh from the database); `reason` prefixes its summary, `summary` replaces the line summary (a refresh: what changed in the structure). A save that changes nothing does not bump it.
+export function update(id, patch, { includeSource = false, baseVersion, actor, separate = false, reason = '', summary = null } = {}) {
   check(patch);
   const cur = db.prepare('select version, title, dbml, layout, source, updated_at from diagrams where id = ?').get(id);
   if (!cur) throw bad('diagram not found', 404);
@@ -128,7 +149,7 @@ export function update(id, patch, { includeSource = false, baseVersion, actor, s
   if (baseVersion !== undefined && baseVersion !== cur.version) throw conflict(cur.version);
   const version = cur.version + 1;
   db.prepare('update diagrams set title = ?, dbml = ?, layout = ?, source = ?, version = ?, updated_at = ? where id = ?').run(next.title, next.dbml, next.layout, next.source, version, now(), id);
-  if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor, separate, reason);
+  if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor, separate, reason, summary);
   return version;
 }
 

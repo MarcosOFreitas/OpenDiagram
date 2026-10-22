@@ -21,13 +21,13 @@ Measured with a limit of 1 vCPU and 512 MB, 150 people signed in at once with th
 |---|---|
 | Container image | 470 MB (414 MB of it is the `node:24-slim` base) |
 | Start-up (container started until it answers) | 1.3 to 3.5 s |
-| Memory with nobody connected | about 75 MB; about 250 MB once the scheduled refresh or the MCP connector has run (they load the DBML parser) |
-| Memory at the peak (150 people) | about 145 MB; about 320 MB with the DBML parser loaded |
+| Memory with nobody connected | about 75 MB; about 155 MB after refreshes of a 200-table diagram (the server reads its DBML) |
+| Memory at the peak (150 people) | about 145 MB |
 | CPU in steady state, 150 people | 15 % of one core on average, 27 % at the busiest second |
 | CPU in steady state, 50 people | 5 % of one core |
 | Time to stop (`docker stop`) | about 1 s, exit code 0 |
 
-**Memory** is the first limit to size. Without the scheduled refresh and the MCP connector the app stays under 150 MB; the DBML parser they need takes about 180 MB more once it is loaded (it is loaded on first use, and stays). Use 512 MB, which leaves room for both.
+**Memory** is the first limit to size. With 150 people the app stays under 150 MB. A refresh (manual or scheduled) and an agent's save make the server read DBML: its parser takes a few MB once loaded, and reading a 200-table diagram grows the process by about 80 MB, which Node keeps for a while (measured: 74 MB idle, 157 MB after five refreshes of a 200-table diagram in a row; refreshes during the 150-person peak were not measured). Use 512 MB, which leaves room for both.
 
 **CPU** is spent mostly on **signing in**: passwords are hashed with scrypt on purpose, about 40 ms of one core per sign-in (80 ms on half a core). If everybody signs in in the same second (a meeting that starts), the last person waits:
 
