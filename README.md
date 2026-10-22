@@ -114,7 +114,7 @@ In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connec
 
 Built on [`@dbml/core`](https://github.com/holistics/dbml) (Apache-2.0), [React Flow](https://reactflow.dev) (MIT), [CodeMirror 6](https://codemirror.net) (MIT), [dagre](https://github.com/dagrejs/dagre) (MIT), [html-to-image](https://github.com/bubkoo/html-to-image) (MIT), [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser) (MIT), [node-postgres](https://node-postgres.com) (MIT), [node-oracledb](https://node-oracledb.readthedocs.io) (Apache-2.0 / UPL), [Fastify](https://fastify.dev) (MIT). The UI/UX review rules were checked with the [ui-ux-pro-max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT, vendored under `.claude/skills` with its notice).
 
-Developed by Marcos Oliveira together with AI tools: [Claude](https://www.anthropic.com/claude) (Anthropic) through Claude Code, with the plugins [Ponytail](https://github.com/DietrichGebert/ponytail), [Caveman](https://github.com/JuliusBrussee/caveman), [Context7](https://github.com/upstash/context7) and codebase-graph.
+Developed by Marcos Oliveira together with AI tools: [Claude](https://www.anthropic.com/claude) (Anthropic) through Claude Code, with the plugins [Ponytail](https://github.com/DietrichGebert/ponytail), [Caveman](https://github.com/JuliusBrussee/caveman), [Context7](https://github.com/upstash/context7) and [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) (code graph search).
 
 OpenDiagram is an independent project, **not affiliated with or endorsed by dbdiagram.io or Holistics**. It is a clean-room implementation of comparable behaviour; no code or assets from their service are used. DBML is an open language by Holistics.
 
