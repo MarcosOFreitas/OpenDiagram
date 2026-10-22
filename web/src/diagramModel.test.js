@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, test, expect } from 'vitest';
-import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges, bentPath } from './diagramModel.js';
+import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges, bentPath, savePayload } from './diagramModel.js';
 
 const DBML = `Table shop.customers { id int [pk] }
 Table shop.orders { id int [pk]
@@ -150,4 +150,15 @@ describe('bentPath: a relationship line whose label was dragged passes through t
     expect(d).toContain('Q30,0 ');
     expect(bentPath('smoothstep', s, { x: 100, y: 4 }, { x: 50, y: 2 }).d).toContain('L48,0 Q50,0 50,2'); // the radius never exceeds half a short segment
   });
+});
+
+describe('savePayload: what an autosave sends, by who saves', () => {
+  const d = { title: 'T', dbml: 'Table a { id int }', source: { connId: 'c1' }, layout: { a: { x: 1, y: 2 } } };
+  test('the owner: title, DBML, connection link and layout', () => expect(savePayload({ ...d, isOwner: true, access: 'owner' })).toEqual({ title: 'T', dbml: d.dbml, source: { connId: 'c1' }, layout: d.layout }));
+  test('an administrator on someone else\'s diagram: never the connection link', () => expect(savePayload({ ...d, isOwner: false, access: 'admin' })).toEqual({ title: 'T', dbml: d.dbml, layout: d.layout }));
+  test('an editor, and anyone through an edit link: DBML and layout only', () => {
+    expect(savePayload({ ...d, isOwner: false, access: 'edit' })).toEqual({ dbml: d.dbml, layout: d.layout });
+    expect(savePayload({ ...d, isOwner: true, access: 'owner' }, true)).toEqual({ dbml: d.dbml, layout: d.layout });
+  });
+  test('no layout yet is an empty one, no link is null', () => expect(savePayload({ dbml: 'x', isOwner: true })).toEqual({ title: undefined, dbml: 'x', source: null, layout: {} }));
 });

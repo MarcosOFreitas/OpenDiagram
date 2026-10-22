@@ -17,7 +17,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns, bentPath } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns, bentPath, savePayload } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote, ENGINES, engine, dbPlaceholder } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -314,11 +314,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const canEdit = !!doc && (access === 'owner' || access === 'admin' || (access === 'edit' && !!user));
   const canComment = !!doc && !!user && (access === 'owner' || access === 'admin' || access === 'comment' || access === 'edit');
   const readOnly = !canEdit;
-  // only the owner saves title and connection link; editors (granted or by link) save DBML + layout
-  const payloadOf = (d) => (shared ? { dbml: d.dbml, layout: d.layout ?? {} }
-    : d.isOwner ? { title: d.title, dbml: d.dbml, source: d.source ?? null, layout: d.layout ?? {} }
-      : d.access === 'admin' ? { title: d.title, dbml: d.dbml, layout: d.layout ?? {} } // administrators never touch the owner's connection link
-        : { dbml: d.dbml, layout: d.layout ?? {} });
+  const payloadOf = (d) => savePayload(d, shared); // only the owner saves title and connection link (diagramModel.js)
 
   const startDoc = useCallback((d, list) => {
     lastGen.current = (d.id && store(`gen:${d.id}`)) || '';

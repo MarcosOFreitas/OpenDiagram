@@ -104,6 +104,13 @@ export function bentPath(type, s, t, p) {
   return { d: out.join(' '), x: p.x, y };
 }
 
+// what an autosave sends, by who is saving: the owner saves title, DBML, connection link and layout; an administrator on someone else's
+// diagram title, DBML and layout (never the owner's connection link); an editor (a grant or an edit link: `shared`) DBML and layout only
+export const savePayload = (d, shared = false) => (shared ? { dbml: d.dbml, layout: d.layout ?? {} }
+  : d.isOwner ? { title: d.title, dbml: d.dbml, source: d.source ?? null, layout: d.layout ?? {} }
+    : d.access === 'admin' ? { title: d.title, dbml: d.dbml, layout: d.layout ?? {} }
+      : { dbml: d.dbml, layout: d.layout ?? {} });
+
 // table id -> the columns that need connection handles: every column of a reference (all of a composite one) and every column a lineage
 // arrow names. The others get none: four handles on every column made thousands of React Flow store subscribers on a big diagram.
 export function handleColumns(parsed) {
