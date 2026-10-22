@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Less memory for refreshes and agents
+
+- The server reads DBML with a lighter parser: it no longer loads the SQL parsers of every database (about 300 MB of memory) for a scheduled refresh or an agent's save. See [Hosting requirements](hosting-requirements).
+
 ## What changed between two versions
 
 - **History → Compare** now starts with the structure: a one-line summary and the changes table by table (columns and their type, nullability, default, keys, indexes, relationships, checks, enums, notes), above the text diff. See [Versions & history](versions-and-history).
