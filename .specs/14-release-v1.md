@@ -73,3 +73,21 @@ If item 7 (MySQL) hits its kill criterion, the freed sessions go to the stretch 
 ## Every item follows the loop of [13](13-feature-plan.md)
 
 Decide (`grill-me` for item 7 and anything touching security) → plan → test first → prove (`verification-before-completion`) → review (`requesting-code-review`, security invariants and UI standard as criteria) → one commit per logical change with spec, README and docs page; the author pushes.
+
+## Stress test (2026-10-22)
+
+Realistic schema from `web/stressdbml.mjs` (three schemas, a TableGroup per eight tables, enums, 5-16 columns, defaults, notes, composite and unique indexes, one or two foreign keys per table, a junction table every tenth, lineage comments, two sticky notes). `node web/stressdbml.mjs 100 > stress-100.dbml` writes one to import by hand. Measured on a laptop: the Node figures and the browser ones (`MODEL=stress SIZES=50,75,100,200 node web/benchclient.mjs`, headless Chrome) and the keystroke in a visible browser (headless Chrome never commits the deferred parse, so the script cannot measure it).
+
+| Tables | Parse (Node) | Keystroke until the diagram shows it | First draw | Frames per second while zooming (headless, no GPU) | Open Docs | Arrange "Left to right" | Other Arrange algorithms |
+|---|---|---|---|---|---|---|---|
+| 50 | 65 ms | ~190 ms | 0.7 s | 38 | 0.4 s | 88 ms | < 6 ms |
+| 75 | 90 ms | ~400 ms | 0.6 s | 27 | 0.6 s | 169 ms | < 8 ms |
+| 100 | 131 ms | ~510 ms | 0.7 s | 17 | 0.8 s | 313 ms | < 10 ms |
+| 200 | 232 ms | ~1.0 s | 1.1 s | 6 | 1.6 s | 1.4 s | < 14 ms |
+
+What to improve, by effect on a person (each starts by confirming the number in a visible browser, `performance-optimization` skill):
+
+1. **Pan and zoom** drop to 17 frames per second at 100 tables and 6 at 200. Confirm with a GPU first (headless has none); then try React Flow's `onlyRenderVisibleElements` and memoised node components.
+2. **Keystroke until the diagram updates**: the editor stays responsive (deferred parse), but the diagram lags 0.5 s at 100 tables, and the parse is only about a quarter of it: rebuilding nodes, edges and positions on every change is the rest. Profile that path before touching the parser.
+3. **Arrange "Left to right"** (dagre) grows faster than linearly: 1.4 s frozen at 200 tables. The other four algorithms stay under 15 ms.
+4. **Open Docs** grows linearly (about 8 ms a table): acceptable.
