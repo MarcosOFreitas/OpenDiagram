@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Automatic backups
+
+- Set `BACKUP_DIR=backups` and the app keeps a copy of its database per day (7 days by default, `BACKUP_KEEP_DAYS`), restorable with the same `restore` command. See [Self-hosting](self-hosting#backup-and-moving-to-another-machine).
+
 ## Fixes
 
 - The editor's find bar (`Ctrl+F`) is one row in the app's style: a match count ("2 of 12"), `Enter` / `Shift+Enter` for the next and previous match, and Replace on demand.

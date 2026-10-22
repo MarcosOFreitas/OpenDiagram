@@ -31,6 +31,8 @@ Demo databases to try the import (PostgreSQL, and Oracle with `--profile oracle`
 | `DB_HOST_POLICY` | `open` | which database hosts users may reach: `open`, `public-only` (blocks hosts that resolve to private, loopback, link-local, CGNAT or multicast addresses) or `allowlist` |
 | `DB_HOST_ALLOWLIST` | | comma-separated exact host names (no wildcards or ranges), only with `allowlist` |
 | `COOKIE_SECURE` | `0` | `1` when served over HTTPS (it is also set automatically when the proxy sends `X-Forwarded-Proto: https`) |
+| `BACKUP_DIR` | empty | A folder for daily automatic backups, inside the data volume (`backups` = `/data/backups`); empty = off. See *Backup* below. |
+| `BACKUP_KEEP_DAYS` | `7` | How many days of automatic backups are kept. |
 | `TRUST_PROXY` | `0` | `1` behind a reverse proxy, so rate limits use the real client address and the request check reads `X-Forwarded-Host` |
 
 ## Databases behind a VPN or a firewall
@@ -75,6 +77,12 @@ docker compose start app
 ```
 
 `restore` checks that the file is an OpenDiagram database and refuses while the app is running on the data (stop it first; `--force` skips that check when a crashed app left its mark). Backups stay in the volume until you delete them (`docker compose exec app sh -c 'rm /data/backup-*.db'`).
+
+**Automatic daily backups:** set `BACKUP_DIR=backups` (a folder inside the data volume, the only place the container writes) and the app writes `opendiagram-<date>.db` there once a day, at start and then every 24 hours, and deletes the ones older than `BACKUP_KEEP_DAYS` (7 by default). Each one is logged and listed in the audit log (*instance.backup*). They restore like the backups above (`restore /data/backups/opendiagram-20261022.db`). A copy in the same volume protects you from a mistake or a bad update, **not from a lost disk**: copy them off the machine regularly, for example from a daily cron job on the host:
+
+```bash
+docker compose cp app:/data/backups ./opendiagram-backups
+```
 
 ## Updating
 

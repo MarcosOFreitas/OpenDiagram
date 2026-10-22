@@ -15,6 +15,7 @@ import { assertHostAllowed } from './policy.js';
 import * as refresh from './refresh.js';
 import * as agents from './agents.js';
 import * as mcp from './mcp.js';
+import { backupDir, dailyBackup } from './backup.js';
 
 const TEST = process.env.OD_NO_LISTEN === '1'; // server/test/http.test.js: routes through app.inject, no port, no timers
 // a share-link token is a bearer secret: it never reaches the request log
@@ -420,7 +421,14 @@ app.setNotFoundHandler((req, reply) => (req.method === 'GET' && !req.url.startsW
 
 if (TEST) await app.ready();
 else {
-  const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); };
+  const backups = backupDir(); // BACKUP_DIR: a daily copy of the database (backup.js)
+  const backup = () => {
+    try {
+      const r = dailyBackup(backups, +process.env.BACKUP_KEEP_DAYS || 7);
+      if (r.made) { app.log.info({ file: r.made, removed: r.removed }, 'daily backup written'); audit.log(null, 'instance.backup', { target: r.made, detail: r.removed.length ? `${r.removed.length} older copies deleted` : '' }); }
+    } catch (e) { app.log.error(e, 'daily backup failed'); audit.log(null, 'instance.backup', { ok: false, detail: e.message }); }
+  };
+  const housekeeping = () => { audit.purge(); for (const u of admin.purgeClosed()) audit.log(null, 'auth.account_purged', { target: u.name, detail: `${u.diagrams} diagram(s) deleted after ${admin.GRACE_DAYS} days` }); if (backups) backup(); };
   housekeeping(); setInterval(housekeeping, 24 * 3600 * 1000).unref(); // the audit log keeps 180 days; closed accounts are deleted after their 7 days
   refresh.start({ resolve, generate, log: app.log }); // scheduled metadata refresh of linked diagrams
   // `cli.js restore` refuses while this mark is fresh (the app may run in another container than the CLI); removed on a clean stop

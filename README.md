@@ -94,7 +94,8 @@ docker compose start app
 | `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite) lives (Docker volume `appdata`). **Back it up.** |
 | `ALLOW_SIGNUP` | empty | Empty: the administrator decides (closed after the first account). `1` opens self-registration, `0` forces it closed. |
 | `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private, loopback and link-local addresses) or `allowlist` (+ `DB_HOST_ALLOWLIST`, comma-separated host names). |
-| `COOKIE_SECURE` / `TRUST_PROXY` | `0` | Set `1` when served over HTTPS / behind a reverse proxy. |
+| `COOKIE_SECURE` / `TRUST_PROXY` | `0` | Set `1` when served over HTTPS / behind a reverse proxy (which must keep the `Host` header or send `X-Forwarded-Host`). |
+| `BACKUP_DIR` / `BACKUP_KEEP_DAYS` | empty / `7` | Daily automatic backup of the database into a folder of the data volume (`backups`), kept that many days; copy them off the machine yourself. |
 
 ## Develop
 

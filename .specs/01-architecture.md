@@ -24,6 +24,7 @@ One Docker image: multi-stage build — Vite builds the UI into `server/public`,
 | `server/src/introspect.js` | Per-engine drivers: `schemas`, `tables`, `import`, `privileges`; TLS config; read-only session setup; table filter. |
 | `server/src/dbml.js` | Model → DBML: quoting, types, defaults (as backtick expressions), notes, composite PK/indexes, refs with actions. |
 | `server/src/store.js` | CRUD of saved connections per account; secret handling (`undefined`/`''` keep, `null` clears). |
+| `server/src/backup.js` | optional daily backup (`BACKUP_DIR`, `BACKUP_KEEP_DAYS`): `VACUUM INTO` one file per day from the housekeeping of `index.js`, old ones deleted |
 | `server/src/db.js`, `auth.js`, `admin.js`, `diagrams.js`, `policy.js` | SQLite schema and migrations; accounts + sessions + throttling + settings; users, groups, settings and the last-administrator guard; diagrams, versions, grants, links and comments with access levels; outbound host policy. See [09](09-accounts-sharing.md). |
 | `server/src/audit.js`, `presence.js`, `lineage.js`, `cli.js` | Audit log (180 days); who has a diagram open (memory only); column lineage of views read from their SQL; operator CLI (`create-admin`, `reset-password`, `list-users`, `backup`, `restore`). |
 | `web/src/App.jsx` | Workspace: parse DBML → nodes/edges, layout (dagre, compound for TableGroups), drawer tabs, refresh/auto-refresh, import/export. |

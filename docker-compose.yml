@@ -18,6 +18,8 @@ services:
       DB_HOST_ALLOWLIST: ${DB_HOST_ALLOWLIST:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      BACKUP_DIR: ${BACKUP_DIR:-}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-}
     # nothing but the data volume is written: a read-only root filesystem, and a small /tmp in memory
     read_only: true
     tmpfs: ["/tmp:size=64m"]
