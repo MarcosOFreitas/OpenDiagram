@@ -45,7 +45,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
             <option value="verify">TLS: on — verify certificate</option>
             <option value="noverify">TLS: on — do not verify (not recommended)</option>
           </select>
-          {form.tls === 'verify' && form.type === 'postgres' && <textarea className="pem" placeholder={form.hasCa ? '(CA certificate saved — paste a new PEM to replace)' : 'CA certificate (PEM) — only for a private CA'} value={form.caPem} onChange={set('caPem')} />}
+          {form.tls === 'verify' && form.type !== 'oracle' && <textarea className="pem" placeholder={form.hasCa ? '(CA certificate saved — paste a new PEM to replace)' : 'CA certificate (PEM) — only for a private CA'} value={form.caPem} onChange={set('caPem')} />}
           {form.type === 'oracle' && form.tls === 'verify' && <input placeholder="Expected server certificate DN (optional)" value={form.serverDn} onChange={set('serverDn')} />}
           <label className="chk"><input type="checkbox" checked={!!form.blockWritable} onChange={set('blockWritable')} /> Refuse to use this credential if it has write privileges (strict, recommended)</label>
           <div className="row"><button type="submit" className="primary">{form.id ? 'Save changes' : 'Register'}</button><button type="button" onClick={() => { setForm(BLANK); setOpen(false); }}>Cancel</button></div>

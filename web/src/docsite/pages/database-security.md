@@ -26,7 +26,7 @@ Prefer a **dedicated read-only user**. To refuse risky credentials altogether, t
 | **on, verify certificate** | validates the certificate chain and the host name |
 | **on, do not verify** | PostgreSQL: encrypts but does not check the certificate (not recommended). Oracle: skips only the host-name check; the chain is still validated |
 
-- **PostgreSQL, private or self-signed CA**: paste its PEM in the **CA certificate** field.
+- **PostgreSQL or MySQL, private or self-signed CA** (an RDS or other cloud CA bundle, a company CA): paste its PEM in the **CA certificate** field, shown with *verify certificate*.
 - **Oracle** is reached through a **connection string over TLS** (TCPS): host, port, service name and the TLS mode. **Wallets are not supported.** The server certificate is always validated against the certificate authorities that the **server** (the OpenDiagram process) trusts; there is no per-connection CA for Oracle. For a private CA, the administrator mounts the PEM file into the `app` service in `docker-compose.yml` and sets `NODE_EXTRA_CA_CERTS` to its path there (the shipped value is for the demo certificate); `.env` does not pass this variable.
 - **Oracle TLS modes:** *verify* checks the chain **and** that the certificate matches the host name; the optional **expected server certificate DN** (for example `CN=db.example.com`) replaces the host-name check with that DN. *Do not verify* skips only the name check: the chain is still validated, so a self-signed or unknown CA is still refused.
 - **Oracle Autonomous Database without wallet** works with *on, verify certificate*, using the host, the TLS port (usually 1522) and the service name.
