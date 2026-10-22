@@ -1,25 +1,25 @@
 # OpenDiagram
 
-Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL / Oracle database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
+Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL, Oracle or MySQL database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
 
 **Documentation:** <http://localhost:3000/docs> once it runs (the same pages live in [`web/src/docsite/pages`](web/src/docsite/pages)). **For contributors and AI agents:** [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md), [`.specs/`](.specs/README.md). **Security:** [`SECURITY.md`](SECURITY.md).
 
 ## Features
 
 - **Live import** from PostgreSQL, Oracle and MySQL 8.0+ (MariaDB 10.6+ best effort): tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, check constraints, partitioning (method and key), enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
-- **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL and Oracle (TCPS) with certificate verification and a custom CA.
+- **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL, MySQL and Oracle (TCPS) with certificate verification and a custom CA.
 - **Keep metadata fresh**: manual refresh or an automatic interval (every 5 minutes at the least, run by the server even with no page open); your TableGroups and layout survive a refresh.
 - **MCP connector for AI clients**: separate agent accounts created by administrators, bearer tokens, tools to list, read, comment on and edit only the diagrams shared with them; an agent never sees a connection or a credential; every call is audited.
 - **DBML editor** (CodeMirror 6): highlighting, autocomplete, inline parser errors, color swatches with a picker, search and replace.
 - **Diagram** (React Flow): five auto-arrange algorithms, a Tables panel (search, hide, saved views, detail levels), TableGroups with colors, draggable relationship labels, sticky notes, light and dark theme.
 - **Data lineage**: dashed arrows from source tables to the views built from them, down to the column (read from the view's SQL), or written by hand in the DBML.
 - **Generated documentation** (dbdocs-style): a browsable, searchable *Docs* view with your own comments (stored only in the app), a changelog from the named versions, and export as one standalone `.html` or Markdown.
-- **Versions and history**: every change is kept, versions can be named, compared and restored; two people saving at once get an edit-conflict dialog instead of silent overwrites; avatars show who has the diagram open.
+- **Versions and history**: every change is kept, versions can be named, compared (the structure, table by table, then the text) and restored; a refresh says what it changed in the structure, and the diagram list marks what others changed since you last opened it; two people saving at once get an edit-conflict dialog instead of silent overwrites; avatars show who has the diagram open.
 - **Accounts, groups and sharing**: e-mail + password; the **first account is the administrator** and creates the others; flat groups; private diagrams; share with people, groups or links (view / comment / edit, optional link password). Administrators can **register a shared database connection** that members use without seeing its credential; every use is written to an **audit log** that can be filtered by person, target and type of operation.
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Oracle, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - Ships as **one Docker image with SQLite storage**; no external services.
 
-> Status: working and tested, pre-1.0. Read [Security](#security) before exposing it beyond your own machine or network. What is planned and what is deliberately not done is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md).
+> Status: **1.0, feature-complete.** There is no promised support: issues and pull requests are welcome and read on a best-effort basis, and forks are encouraged (Apache-2.0). What was not tested is listed in the [release notes](web/src/docsite/pages/release-notes.md). Read [Security](#security) before exposing it beyond your own machine or network. What is planned and what is deliberately not done is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md).
 
 ## Quick start
 
@@ -45,7 +45,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle
 
 Uncommenting `COMPOSE_PATH_SEPARATOR` and `COMPOSE_FILE` in `.env` makes plain `docker compose ...` include the demo file; the commands below assume it.
 
-Open <http://localhost:3000> and **create the first account: it becomes the administrator**. From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups. Public sign-up stays closed unless you open it. New accounts start with a sample diagram, "Online store - sample". Alternatively create the administrator from the command line: `docker compose exec app node src/cli.js create-admin <email> <password>`.
+Open <http://localhost:3000> and **create the first account: it becomes the administrator**. From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups. Public sign-up stays closed unless you open it. An account without diagrams opens on **No diagrams yet**: start a blank diagram or a template such as "Online store - sample" (nothing is created on its own). Alternatively create the administrator from the command line: `docker compose exec app node src/cli.js create-admin <email> <password>`.
 
 The demo databases are reachable **from the app container** with these hosts:
 
@@ -125,7 +125,7 @@ In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connec
 - Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
 - The scheduled refresh runs in the server process (one instance); it skips a diagram that someone is editing and pauses after 5 failures in a row.
 - Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.
-- No e-mail verification, self-service password reset, SSO or account self-deletion yet; accounts are created by administrators (no e-mail invitations); share links are bearer secrets.
+- No e-mail at all: no verification, invitations or password reset by e-mail (a forgotten password is reset with the recovery key the person made, or by an administrator); no SSO or MFA; accounts are created by administrators; share links are bearer secrets.
 - Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS` (mount the PEM and set it on the `app` service in `docker-compose.yml`).
 
 ## Credits and disclaimer

@@ -1,6 +1,17 @@
 # Release notes
 
-OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
+## 1.0.0
+
+The first release, and the last planned one: OpenDiagram is **feature-complete**. The repository stays open (issues and pull requests are welcome and read on a best-effort basis), there is no promised support, and forks are encouraged. The image is `ghcr.io/marcosoliveira-intelicity/opendiagram:1.0.0` (amd64 and arm64). Below it, the changes that led to it, newest first, grouped by theme.
+
+**Not tested**, so try it before you rely on it:
+
+- Oracle TLS with a certificate from a real private CA (tested: the demo TLS proxy, and an OCI Autonomous Database with a public CA); Oracle wallets are not supported.
+- MySQL TLS against a real cloud endpoint, and `verify` with a private CA (tested: `off`, `noverify` and a failing `verify` against the demo server's own certificate).
+- MariaDB outside one manual try with 11.4 (it is not in the automated tests).
+- The Oracle import in the automated end-to-end run (it is tried by hand and in `roundtrip.mjs`).
+- Importing a very large schema (hundreds of tables) from a real PostgreSQL or Oracle server, the scheduled refresh with many linked diagrams, refreshes during a 150-person peak, and a server shared by several organizations.
+- Browsers other than Chrome: the automated interface audit runs in Chrome only.
 
 ## Changed since you last opened it
 

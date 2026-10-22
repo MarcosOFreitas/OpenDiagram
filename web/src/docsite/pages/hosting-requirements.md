@@ -64,6 +64,8 @@ The diagram is drawn in the browser, so large diagrams cost the **person's** mac
 | 200 | 2,400 | 1.4 s | 218 MB | 13 |
 | 400 | 4,800 | 2.3 s | 394 MB | 9 |
 
+After a pause in typing, the browser reads the whole DBML again: about **35 ms** for 30 tables (18 KB) and **220 ms** for 200 tables (115 KB), median of 15 runs of the app's own DBML parse in Node on the same PC. Drawing comes on top: in a visible Chrome window a new table showed in the diagram about 0.1 s after the keystroke at 50 tables and 0.6 s at 200.
+
 Up to about **100 tables** the diagram is smooth. Beyond that, moving and zooming get heavier: use the **View → Detail** levels (tables only), **hide** or **collapse** the tables you are not working on, and **TableGroups**, or split the model into several diagrams. A slower PC than the one above will feel it earlier.
 
 ## Disk

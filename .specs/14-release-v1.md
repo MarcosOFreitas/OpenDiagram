@@ -42,7 +42,7 @@ The riskiest item (MySQL) comes right after the foundation, with a kill criterio
 | 9 | **Done 2026-10-22** (`merge.test.js`, `refresh.test.js`, `http.test.js`, `migration.test.js`, server `dbmlParse.test.js`, `startup.test.js`, `Library.test.jsx`, `workspace.test.jsx`, `diagramModel.test.js`; `uiaudit drawer-diagrams` zero findings with a Warehouse card that has an unseen change; memory measured in a container of 1 vCPU / 512 MB: 74 MB idle, 157 MB after five refreshes of a 200-table diagram). Found on the way: the next edit of the person who refreshed (within 10 minutes) rewrote the refresh's own history entry and lost its summary; it now starts a new entry. **Code review 2026-10-22, no Critical; fixed the next day:** a person's refresh save parsed both texts before the edit check and the 409 / no-op checks, with no limit (measured on 1 vCPU / 512 MB: a save after a refresh blocked every request about 0.22 s at 30 tables, 1.6 s at 200 tables, 5-6 s near the 500 KB cap); the parse now runs only when the entry is written, at most 6 times in 10 minutes per person, then the line summary (the seventh save costs about 20 ms); tests for the badge after a scheduled refresh (an entry with no author id) and for one's own save over a newer version or a restore; `entry: 'refresh'` without `dbml` gets its own entry again, as before a022db5; `schemaDiff` inside the `try` of `structural` / `refreshSummary`; [05](05-security.md) has the new threat row. **Still to run:** the full `ci-e2e.sh` (items 8 and 9 have not run in it). Drift: a refresh that changes the structure stores a summary on its version ("+2 tables, 1 type changed"); the Library card says "changed since you last opened it" (`last_seen_version` per user and diagram) | 1.5 | `refresh.test.js` and `http.test.js` cover summary and badge; migration in `db.js` tested on an old database |
 | 10 | **Done 2026-10-22** (`pickDiagrams` and the in-card delete tested in `Library.test.jsx`; the full `uiaudit` run is pending). Library: search, sort (name / last change), filter "linked to a database" | 0.5 | `Library.test.jsx`; `uiaudit.mjs library` zero findings at 375 px and both themes |
 | **Release** ||||
-| 11 | Release: README status line, release notes, `docshots.mjs`, full `ci-e2e.sh`, `behaviorcheck` golden current, tag `v1.0.0` (the author pushes) | 1 | Release checklist below all ticked |
+| 11 | **In progress 2026-10-23** (README status line, `SECURITY.md`, release notes *1.0.0* with what was not tested, parse times; see the checklist below for what is left). Release: README status line, release notes, `docshots.mjs`, full `ci-e2e.sh`, `behaviorcheck` golden current, tag `v1.0.0` (the author pushes) | 1 | Release checklist below all ticked |
 | | **Total** | **16** | |
 
 **Cut line (if the budget runs out):** cut from the bottom of the bets, never from Wave 0 or the release item. Order of cuts: item 10, then item 9, then item 7 (kill criterion). Wave 0 + item 8 + release (about 7.5 sessions) is still a worthy v1.0.
@@ -97,14 +97,14 @@ If item 7 (MySQL) hits its kill criterion, the freed sessions go to the stretch 
 
 ## Release checklist (definition of done for v1.0)
 
-- [ ] `(cd server && npm test)` and `(cd web && npm test)` green; `npx vite build` and `node --check server/src/*.js` clean.
+- [x] `(cd server && npm test)` and `(cd web && npm test)` green; `npx vite build` and `node --check server/src/*.js` clean (2026-10-23: 224 and 331 tests; rerun on the release candidate).
 - [ ] `bash .github/ci-e2e.sh` green on the release candidate image.
 - [ ] `node web/uiaudit.mjs` zero findings on every screen; `docshots.mjs` rerun and every picture looked at.
-- [ ] Fresh install from the published image on a clean machine: first account, demo import (PostgreSQL, and MySQL if shipped), share link, backup and restore.
-- [ ] Transfer size of the first load and parse times at 30 / 200 tables recorded in *Hosting requirements*.
-- [ ] License consistent everywhere (item 1 check); `NOTICE` lists third-party licenses.
-- [ ] README, specs and docs pages match the behaviour; README says: feature-complete, no support promised, forks welcome; `SECURITY.md` says reports are read on a best-effort basis.
-- [ ] What was not tested is listed in the release notes (for example: Oracle with a real private CA, MySQL with a real cloud TLS endpoint).
+- [ ] Fresh install from the published image on a clean machine: first account, demo import (PostgreSQL, and MySQL if shipped), share link, backup and restore. (The author, after pushing the tag: the image exists only then.)
+- [x] Transfer size of the first load and parse times at 30 / 200 tables recorded in *Hosting requirements* (2026-10-23: first load 0.4 MB brotli; parse 35 / 220 ms, median of 15 runs in Node; keystroke to diagram 0.1 / 0.6 s at 50 / 200 tables).
+- [x] License consistent everywhere (item 1 check); `NOTICE` lists third-party licenses (2026-10-23: `git grep -i polyform` outside the vendored skills finds only this checklist; `NOTICE` names the main libraries, `@dbml/parse` included, and points at the lockfiles).
+- [x] README, specs and docs pages match the behaviour; README says: feature-complete, no support promised, forks welcome; `SECURITY.md` says reports are read on a best-effort basis (2026-10-23: also fixed the README's stale lines: MySQL in the intro and TLS, no sample created on its own, recovery key and account deletion exist).
+- [x] What was not tested is listed in the release notes (the *1.0.0* section of `release-notes.md`).
 
 ## Every item follows the loop of [13](13-feature-plan.md)
 

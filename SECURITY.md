@@ -6,11 +6,11 @@ OpenDiagram connects to databases and stores credentials and diagrams, so securi
 
 **Do not open a public issue.** Use GitHub's private reporting on this repository: **Security → Report a vulnerability** (a private security advisory). If that option is not available, open an issue that only says you have a security report and asks for a private channel; do not include details.
 
-Please include what you found, the version or commit, how to reproduce it, and the impact you expect. You will get an acknowledgement as soon as a maintainer can read it (this is a volunteer project: best effort, usually within a few days). Please give us a reasonable time to fix it before you disclose it, and we will credit you in the release notes unless you prefer not to be named.
+Please include what you found, the version or commit, how to reproduce it, and the impact you expect. Reports are read on a **best-effort basis**: since 1.0 the project is feature-complete and nobody is on call, so there is no promised response or fix time. Please give us a reasonable time to fix it before you disclose it, and we will credit you in the release notes unless you prefer not to be named.
 
 ## Supported versions
 
-Only the latest commit on the default branch (and the latest tagged release, once releases exist) receives fixes.
+A fix, when someone makes one, lands on the default branch and in the next tagged release (`ghcr.io/marcosoliveira-intelicity/opendiagram:<version>`); older releases are not patched. If a fix does not come, the code is Apache-2.0: a fork may carry it.
 
 ## What is in scope
 
