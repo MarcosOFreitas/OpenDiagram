@@ -21,8 +21,6 @@ Budget: about **15 sessions** (about one month, target 2026-11-20). Estimates be
 | Bets, in priority order | MySQL/MariaDB live import > migration script from a diff > PII tags | Only what fits the budget ships (see cut line). |
 | Not in v1.0 | SSO (accounts, recovery key and administrator reset are enough for self-hosting), password reset by e-mail code (needs SMTP: new config, secret and outbound connection, and the most likely source of unanswered issues; the recovery key and administrator reset cover it), public hosted instance, notifications, proposed changes, co-editing, SQL Server, in-app LLM, Web Worker parse, general API rate limit (left to the reverse proxy, documented) | Each needs ongoing operation or does not fit the budget. |
 
-**Prerequisite (owner: the author, not code):** written agreement from Intelicity that the author may relicense the code. Commits use the company e-mail and the project started for a team there. No license commit before it.
-
 ## Plan, in order
 
 The riskiest item (MySQL) comes right after the foundation, with a kill criterion, so a failure is known early and costs only the bet.
@@ -63,7 +61,6 @@ If item 7 (MySQL) hits its kill criterion, the freed sessions go to the stretch 
 
 ## Release checklist (definition of done for v1.0)
 
-- [ ] Intelicity agreement on file (author).
 - [ ] `(cd server && npm test)` and `(cd web && npm test)` green; `npx vite build` and `node --check server/src/*.js` clean.
 - [ ] `bash .github/ci-e2e.sh` green on the release candidate image.
 - [ ] `node web/uiaudit.mjs` zero findings on every screen; `docshots.mjs` rerun and every picture looked at.
