@@ -46,12 +46,12 @@ describe('AdminAudit', () => {
     expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Sign-in and accounts', 'Agent calls (MCP)', 'Shared-connection use']);
     expect(screen.queryByText('Clear filters')).toBeNull(); // the tab's own kinds are not a filter
   });
-  test('the changes tab asks for administrator actions and offers the administration areas', async () => {
+  test('the changes tab asks for administrator actions and the daily backups, and offers the administration areas', async () => {
     api.mockReset();
     await setup('changes');
-    expect(lastAudit().get('action')).toBe('admin');
+    expect(lastAudit().get('action')).toBe('admin,instance');
     expect([...screen.getByLabelText('Target').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Databases', 'Administration']);
-    expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Administrator actions']);
+    expect([...screen.getByLabelText('Type of operation').querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Administrator actions', 'Instance']);
     await userEvent.setup({ delay: null }).selectOptions(screen.getByLabelText('Type of operation'), 'admin.put,admin.patch');
     await waitFor(() => expect(lastAudit().get('action')).toBe('admin.put,admin.patch'));
   });
@@ -84,7 +84,7 @@ describe('AdminAudit', () => {
     const { user } = await setup('changes');
     await user.selectOptions(screen.getByLabelText('Target'), 'scope:groups');
     const a = screen.getByText('Download CSV');
-    expect(a.getAttribute('href')).toBe('/api/admin/audit.csv?action=admin&scope=groups');
+    expect(a.getAttribute('href')).toBe('/api/admin/audit.csv?action=admin%2Cinstance&scope=groups');
   });
   test('a full page offers Load more, which asks for the rows before the last one', async () => {
     const page = Array.from({ length: 100 }, (_, i) => ({ id: 200 - i, at: 1, actor: 'Ana', action: 'admin.post', target: '/users', ok: true }));

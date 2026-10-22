@@ -7,9 +7,9 @@ import Empty from './Empty.jsx';
 // Type filter: value = the comma-separated action prefixes the server matches; the label is also what the table shows for that action. Without a type the tab's own prefixes apply.
 const KINDS = {
   changes: {
-    base: 'admin', scopes: true, facets: ['connections'],
-    types: [['admin', 'Administrator actions', [['admin.post', 'Added'], ['admin.put,admin.patch', 'Changed'], ['admin.delete', 'Deleted']]]],
-    hint: <>Every change made in the Administration panel, kept for 180 days. It never holds a password or a request body. Sign-ins and shared-connection use are in <b>Sign-ins &amp; connections</b>.</>,
+    base: 'admin,instance', scopes: true, facets: ['connections'],
+    types: [['admin', 'Administrator actions', [['admin.post', 'Added'], ['admin.put,admin.patch', 'Changed'], ['admin.delete', 'Deleted']]], ['instance', 'Instance', [['instance.backup', 'Daily backup']]]],
+    hint: <>Every change made in the Administration panel and every daily backup (<code>BACKUP_DIR</code>), kept for 180 days. It never holds a password or a request body. Sign-ins and shared-connection use are in <b>Sign-ins &amp; connections</b>.</>,
   },
   access: {
     base: 'auth,connection,mcp', scopes: false, facets: ['connections', 'diagrams'],
