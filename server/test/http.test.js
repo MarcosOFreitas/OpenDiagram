@@ -155,6 +155,8 @@ test('a save that follows a refresh (entry "refresh") stores what changed in the
   assert.deepEqual((await summaries()).slice(0, 2), ['added c; +1 / -0 lines', 'Refresh from database: 1 table added']);
   await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable b { id int }\nTable c { id int }\n// lineage: b <- a (auto)\n', entry: 'refresh' });
   assert.equal((await summaries())[0], 'Refresh from database: +1 / -0 lines'); // nothing structural: the line summary
+  await call('PUT', `/api/diagrams/${d}`, { layout: { 'shop.a': { x: 1, y: 2 } }, entry: 'refresh' }); // no DBML to compare: still its own entry
+  assert.equal((await summaries())[0], 'Refresh from database: layout only');
 });
 
 test('Library: "changed since you last opened it" lights for changes by someone else and shows the change only to people who can edit (.specs/14, item 9)', async () => {
@@ -186,4 +188,45 @@ test('Library: "changed since you last opened it" lights for changes by someone 
   await save(bo, 'Table a { id bigint }\nTable b { id int }\nTable c { id int }\nTable e { id int }\n');
   assert.deepEqual(await card(bo), { unseen: false }); // his own save
   assert.deepEqual(await card(call), { unseen: true, summary: 'added e; +1 / -0 lines', author: 'Bo', at: 'number', count: 1 });
+});
+
+const signIn = async (name, email) => {
+  const u = await createUser({ email, password: 'long-enough-pass', name });
+  const c = (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email, password: 'long-enough-pass' } })).headers['set-cookie'].split(';')[0];
+  return Object.assign((method, url, payload) => app.inject({ method, url, payload, headers: { cookie: c } }), { id: u.id });
+};
+
+test('one\'s own save puts "changed since you last opened it" out, also over a newer version (overwrite) or by restoring one (.specs/14, item 9)', async () => {
+  const dee = await signIn('Dee', 'dee@example.com');
+  const d = (await call('POST', '/api/diagrams', { title: 'Mine', dbml: 'Table a { id int }\n' })).json().id;
+  await call('POST', `/api/diagrams/${d}/access`, { type: 'user', subjectId: dee.id, access: 'edit' });
+  const unseen = async () => (await call('GET', '/api/diagrams')).json().find((x) => x.id === d).unseen;
+  await call('GET', `/api/diagrams/${d}`); // Ana opens it
+  const dv = (await dee('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable dee { id int }\n' })).json().version;
+  assert.equal(await unseen(), true);
+  assert.equal((await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable ana { id int }\n', baseVersion: dv, overwrite: true })).statusCode, 200); // "Keep my changes"
+  assert.equal(await unseen(), false);
+  await dee('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable dee2 { id int }\n' });
+  assert.equal(await unseen(), true);
+  const first = (await call('GET', `/api/diagrams/${d}/versions`)).json().at(-1).id;
+  assert.equal((await call('POST', `/api/diagrams/${d}/versions/${first}/restore`)).statusCode, 200);
+  assert.equal(await unseen(), false);
+});
+
+test('the structural summary of a refresh save is parsed only when its entry is written, at most 6 times in 10 minutes per person, then the line summary (.specs/14, item 9)', async () => {
+  const eve = await signIn('Eve', 'eve@example.com');
+  const d = (await eve('POST', '/api/diagrams', { title: 'Budget', dbml: 'Table t0 { id int }\n' })).json().id;
+  const v = (await eve('GET', `/api/diagrams/${d}`)).json().version;
+  for (let i = 0; i < 6; i++) { // no entry is written: nothing parsed, nothing spent
+    assert.equal((await eve('PUT', `/api/diagrams/${d}`, { dbml: 'Table t0 { id int }\n', entry: 'refresh' })).statusCode, 200); // the same text
+    assert.equal((await eve('PUT', `/api/diagrams/${d}`, { dbml: `Table x${i} { id int }\n`, entry: 'refresh', baseVersion: v + 100 })).statusCode, 409);
+  }
+  let text = 'Table t0 { id int }\n';
+  const summaries = [];
+  for (let i = 1; i <= 7; i++) {
+    text += `Table t${i} { id int }\n`;
+    await eve('PUT', `/api/diagrams/${d}`, { dbml: text, entry: 'refresh' });
+    summaries.push((await eve('GET', `/api/diagrams/${d}/versions`)).json()[0].summary);
+  }
+  assert.deepEqual(summaries, [...Array(6).fill('Refresh from database: 1 table added'), 'Refresh from database: added t7; +1 / -0 lines']);
 });

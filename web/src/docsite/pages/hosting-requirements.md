@@ -37,7 +37,7 @@ Measured with a limit of 1 vCPU and 512 MB, 150 people signed in at once with th
 | 50 | 2.1 s | 1.6 s | 4.3 s |
 | 150 | 6.7 s | 5.7 s | 13.7 s |
 
-Everything after the sign-in is cheap.
+The other costly call is a **refresh from the database**: the server compares the structure of the old and the new DBML for the history entry, and nothing else is answered meanwhile (measured with 1 vCPU, a save right after a manual refresh: about 0.2 s at 30 tables, 1.6 s at 200 tables, and up to 5-6 s for a 500 KB text, the largest it compares). So each person gets at most six such comparisons in ten minutes; after that the entry counts lines (about 20 ms) and the structure is still in **History → Compare**. The scheduled refresh runs the same comparison, as the diagram's owner, at the connection's interval. Everything else after the sign-in is cheap.
 
 ## Time of the main calls
 

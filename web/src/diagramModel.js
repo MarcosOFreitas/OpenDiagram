@@ -59,10 +59,10 @@ export function keepGroups(oldDbml, newDbml) {
 export const edgeShown = (e, { hidden, lineageOn = true, hideRefs = false }) => !hidden.has(e.source) && !hidden.has(e.target) && (lineageOn || e.data.kind !== 'lineage') && (!hideRefs || e.data.kind === 'lineage');
 // the toast of a manual refresh: what changed in the structure, in the words of History -> Compare and of the history entry the server writes
 export function refreshSummary(oldDbml, newDbml) {
-  let a, b;
-  try { a = parseDbml(oldDbml); b = parseDbml(newDbml); } catch { return 'schema changed'; }
-  const changes = schemaDiff(a, b);
-  return changes.length ? summaryLine(changes) : 'no structural change';
+  try {
+    const changes = schemaDiff(parseDbml(oldDbml), parseDbml(newDbml));
+    return changes.length ? summaryLine(changes) : 'no structural change';
+  } catch { return 'schema changed'; }
 }
 
 // React Flow's node changes that may reach the nodes state. TableGroup boxes (`g:<name>`) are derived from their tables on every render

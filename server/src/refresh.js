@@ -53,7 +53,7 @@ export async function refreshOne(d, { resolve, generate, log }, now = Math.floor
     } else if (gen !== src.gen) {
       const merged = keepGroups(d.dbml, r.dbml);
       detail = structural(d.dbml, merged) ?? dg.summarize(d.dbml, merged); // the history entry and the audit say the same
-      dg.update(d.id, { dbml: merged, source: { ...src, at: r.at, gen } }, { includeSource: true, baseVersion: d.version, actor: ACTOR, separate: true, reason: dg.REFRESH, summary: detail });
+      dg.update(d.id, { dbml: merged, source: { ...src, at: r.at, gen } }, { includeSource: true, baseVersion: d.version, actor: ACTOR, separate: true, reason: dg.REFRESH, summary: () => detail });
     }
     record(d.id, true, null, now);
     if (conn.shared) audit.log(ACTOR, 'connection.refresh', { target: conn.name, connectionId: conn.id, diagramId: d.id, detail: `scheduled: ${detail}${gone}` });

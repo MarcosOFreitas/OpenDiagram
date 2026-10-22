@@ -294,20 +294,23 @@ app.get('/api/diagrams/:id', (req) => {
   return d.role === 'owner' && d.source ? { ...d, refresh: refresh.stateOf(d.id) } : d; // refresh: last scheduled run / error / paused, for the owner
 });
 const baseVersion = (b) => { if (b?.baseVersion === undefined) return undefined; if (!Number.isInteger(b.baseVersion)) throw bad('baseVersion must be an integer'); return b.baseVersion; }; // the version the client last saw; a stale one is answered with 409
-// overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh, and its entry says what changed in the structure (merge.js). Both get their own history entry
-const saveOpts = async (req, before) => {
-  const refreshed = req.body?.entry === 'refresh' && typeof req.body?.dbml === 'string';
-  if (refreshed) await loadParser();
-  return { baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || refreshed, reason: refreshed ? dg.REFRESH : '', summary: refreshed ? structural(before, req.body.dbml) : null };
+// overwrite: the person chose to replace a newer version; entry 'refresh': the save follows a metadata refresh. Both get their own history entry.
+// A refresh's entry says what changed in the structure (merge.js structural). Parsing blocks the server (about 1.5 s for 200 tables on one vCPU),
+// so it runs only when the entry is written (not for a 409 or a save that changes nothing) and at most 6 times in 10 minutes per person: then the line summary
+const saveOpts = async (req) => {
+  const refreshed = req.body?.entry === 'refresh';
+  if (refreshed && typeof req.body?.dbml === 'string') await loadParser();
+  const summary = refreshed ? (before, after) => (before !== after && agents.withinRate(`summary:${req.user.id}`, 6, 600_000) ? structural(before, after) : null) : null;
+  return { baseVersion: baseVersion(req.body), actor: req.user, separate: req.body?.overwrite === true || refreshed, reason: refreshed ? dg.REFRESH : '', summary };
 };
 app.put('/api/diagrams/:id', async (req) => {
   const d = dg.getForUser(req.user, req.params.id);
-  const o = await saveOpts(req, d.dbml);
+  if (!can(d.role, 'edit')) throw bad('this diagram is read-only for you', 403);
+  const o = await saveOpts(req);
   let version;
   if (d.role === 'owner') version = dg.update(d.id, req.body ?? {}, { includeSource: true, ...o });
   else if (d.role === 'admin') version = dg.update(d.id, { title: req.body?.title, dbml: req.body?.dbml, layout: req.body?.layout }, o); // never the owner's connection link
-  else if (can(d.role, 'edit')) version = dg.update(d.id, { dbml: req.body?.dbml, layout: req.body?.layout }, o); // editors change content only: never title, connection link or sharing
-  else throw bad('this diagram is read-only for you', 403);
+  else version = dg.update(d.id, { dbml: req.body?.dbml, layout: req.body?.layout }, o); // editors change content only: never title, connection link or sharing
   dg.markSeen(req.user.id, d.id, version); // one's own save is seen
   return { ok: true, version };
 });
@@ -396,7 +399,7 @@ app.post('/api/shared/:token/presence', async (req) => { // visitors of a link t
 app.put('/api/shared/:token', async (req) => {
   const s = await share(req, 'edit');
   const { dbml, layout } = req.body ?? {};
-  const version = dg.update(s.diagramId, { dbml, layout }, await saveOpts(req, s.dbml)); // editors change the diagram itself, never its title, connection link or sharing
+  const version = dg.update(s.diagramId, { dbml, layout }, await saveOpts(req)); // editors change the diagram itself, never its title, connection link or sharing
   return { ok: true, version };
 });
 app.post('/api/shared/:token/comments', async (req) => dg.addComment((await share(req, 'comment')).diagramId, req.user, req.body ?? {}));

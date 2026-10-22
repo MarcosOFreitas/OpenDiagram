@@ -127,14 +127,14 @@ function snapshot(id, version, st, actor, separate = false, reason = '', summary
       .run(version, st.title, st.dbml, st.layout, summarize(rows[1].dbml, st.dbml, rows[1].layout !== st.layout), t, last.id);
   } else {
     db.prepare('insert into diagram_versions (diagram_id, version, title, dbml, layout, author_id, author, summary, created_at, saved_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, (reason ? `${reason}: ` : '') + (summary ?? summarize(last.dbml, st.dbml, last.layout !== st.layout)), t, t);
+      .run(id, version, st.title, st.dbml, st.layout, actor?.id ?? null, actor ? actor.name || actor.email : null, (reason ? `${reason}: ` : '') + (summary?.(last.dbml, st.dbml) ?? summarize(last.dbml, st.dbml, last.layout !== st.layout)), t, t);
   }
   db.prepare(`delete from diagram_versions where diagram_id = ? and label is null and id not in
     (select id from diagram_versions where diagram_id = ? and label is null order by version desc limit ?)`).run(id, id, KEEP);
 }
 
 // partial update; `source` (link to a saved connection) is only ever set by the owner.
-// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. `separate` forces its own history entry (someone chose to overwrite a newer version, or a refresh from the database); `reason` prefixes its summary, `summary` replaces the line summary (a refresh: what changed in the structure). A save that changes nothing does not bump it.
+// `baseVersion`: the version the client last saw (omitted = no check, for scripts); returns the new version. `separate` forces its own history entry (someone chose to overwrite a newer version, or a refresh from the database); `reason` prefixes its summary, `summary(before, after)` replaces the line summary when it gives a text (a refresh: what changed in the structure), called only when the entry is written. A save that changes nothing does not bump it.
 export function update(id, patch, { includeSource = false, baseVersion, actor, separate = false, reason = '', summary = null } = {}) {
   check(patch);
   const cur = db.prepare('select version, title, dbml, layout, source, updated_at from diagrams where id = ?').get(id);

@@ -66,6 +66,15 @@ test('a refresh that changes nothing structural keeps the line summary', async (
   assert.equal(dg.listVersions(id)[0].summary, 'Refresh from database: +1 / -0 lines');
 });
 
+test('a scheduled refresh lights "changed since you last opened it" for whoever opened the diagram before it (.specs/14, item 9)', async () => {
+  const id = linked(conn(5), { gen: genHash(GEN1) });
+  dg.markSeen(owner.id, id, row(id).version); // Olga opened it
+  await refreshOne(row(id), fake(GEN2), NOW);
+  const card = dg.list(owner).find((d) => d.id === id);
+  assert.equal(card.unseen, true);
+  assert.deepEqual({ ...card.lastChange, at: typeof card.lastChange.at }, { summary: 'Refresh from database: 1 table added', author: 'Scheduled refresh', at: 'number', count: 1 }); // its entry has no author id
+});
+
 test('a diagram linked before the server knew its last import only gets a baseline: manual edits stay, the next change is applied', async () => {
   const id = linked(conn(5), { dbml: `${GEN1}// my note
 ` });

@@ -52,8 +52,8 @@ const MAX_PARSE = 500_000;
 export function structural(oldDbml, newDbml) {
   const p = parser();
   if (oldDbml.length > MAX_PARSE || newDbml.length > MAX_PARSE) return null;
-  let a, b;
-  try { a = p(oldDbml); b = p(newDbml); } catch { return null; }
-  const changes = schemaDiff(a, b);
-  return changes.length ? summaryLine(changes) : null;
+  try {
+    const changes = schemaDiff(p(oldDbml), p(newDbml));
+    return changes.length ? summaryLine(changes) : null;
+  } catch { return null; } // a save must never fail for its summary: the line summary then
 }
