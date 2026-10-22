@@ -27,6 +27,11 @@ describe('table size', () => {
     expect(tableWidth({ ...T('a'), w: 333 })).toBe(333);
     expect(tableWidth({ ...T('a'), schema: 'long_schema_name', name: 'long_table_name_here_ok' })).toBeGreaterThan(220);
   });
+  test('the header has room for a view mark ("· Mat. view") next to the name: it was cut off', () => {
+    const mv = { ...T('mv_orders_by_status'), schema: 'shop' };
+    expect(tableWidth({ ...mv, viewKind: 'Mat. view' })).toBeGreaterThanOrEqual(tableWidth(mv) + 60);
+    expect(tableWidth({ ...mv, viewKind: 'View' })).toBeGreaterThan(tableWidth(mv) + 30);
+  });
   test('height: header + rows (+ indexes); collapsed or "tables" detail is the header only; explicit height wins', () => {
     expect(tableHeight(T('a', 3))).toBe(30 + 3 * ROW);
     expect(tableHeight({ ...T('a', 3), indexes: [{}, {}] })).toBe(30 + 3 * ROW + 40);
@@ -74,6 +79,17 @@ describe('manual positions', () => {
     const nodes = layout(tables, refs, new Map([['s.t1', { x: 5000, y: 7000 }]]), [], 'auto');
     expect(posOf(nodes).get('s.t1')).toEqual({ x: 5000, y: 7000 });
     expect(posOf(nodes).get('s.t0')).not.toEqual({ x: 5000, y: 7000 });
+  });
+  test('tables new to a diagram that already has places (a second import) never land on a kept table: they go below, laid out among themselves', () => {
+    // what the user saw: the MySQL import placed shop.* tables; the PostgreSQL import into the same diagram kept those places and put the new tables on top of them
+    const { tables, refs } = chain(8);
+    const kept = layout(tables.slice(0, 4), refs, null, [], 'auto'); // the places of the first import
+    const nodes = layout(tables, refs, posOf(kept), [], 'auto');
+    for (const n of kept) expect(posOf(nodes).get(n.id)).toEqual(n.position);
+    expect(overlaps(nodes)).toEqual([]);
+    const bottom = Math.max(...kept.map((n) => n.position.y + tableHeight(n.data)));
+    for (const n of nodes.slice(4)) expect(n.position.y).toBeGreaterThan(bottom);
+    expect(overlaps(nodes.slice(4))).toEqual([]);
   });
 });
 

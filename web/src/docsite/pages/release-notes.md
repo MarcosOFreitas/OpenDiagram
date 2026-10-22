@@ -5,6 +5,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 ## Fixes
 
 - An account without diagrams (a new one, or after deleting the last) shows **No diagrams yet** with a blank diagram and the templates; the sample is no longer created on its own.
+- A second import into a diagram (or new tables found by a refresh) no longer puts the new tables on top of the ones already placed: they go below them. A view's mark (**· Mat. view**) no longer cuts off the table name.
 - A relationship line whose label was dragged keeps the chosen line style (Rounded, Step, Straight) instead of turning into a curve.
 
 ## Check constraints and partitioning

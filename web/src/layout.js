@@ -4,9 +4,10 @@ import { cid, pid } from './diagramModel.js';
 
 export const PAD = 22, HEAD = 18; // a TableGroup box: padding around its tables + the title strip above them (layout and drawn box must agree)
 export const ROW = 22;
-// default width from the content: the longest column name always fits, the type gets what is left (min 220, max 480)
+// default width from the content: the longest column name always fits, the type gets what is left (min 220, max 480); the header
+// fits the name, a view mark (" · Mat. view", smaller type) and the schema
 export const tableWidth = (t) => {
-  const head = t.name.length * 7.5 + (t.schema !== 'public' ? t.schema.length * 5.5 + 12 : 0) + 44;
+  const head = t.name.length * 7.5 + (t.viewKind ? (t.viewKind.length + 3) * 6 : 0) + (t.schema !== 'public' ? t.schema.length * 5.5 + 12 : 0) + 44;
   const rows = t.fields.map((f) => f.name.length * 7 + Math.min(String(f.type || '').length, 24) * 6 + 74);
   return t.w || Math.max(220, Math.min(480, Math.round(Math.max(head, ...rows))));
 };
@@ -188,6 +189,14 @@ export function lineageRefs(tables, lineage, algo) {
 
 // algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact. lineage: edges of the data lineage that take part in the layout (empty when it is switched off)
 export function layout(tables, refs, old, groups = [], algo = 'auto', lineage = []) {
+  const kept = old ? tables.filter((t) => old.get(t.id)) : [];
+  if (kept.length && kept.length < tables.length) { // tables new to a diagram that has places (a second import, a table typed in): laid out among themselves, below the kept ones, never on top of them
+    const fresh = layout(tables.filter((t) => !old.get(t.id)), refs, null, groups, algo, lineage);
+    const x0 = Math.min(...kept.map((t) => old.get(t.id).x)), y0 = Math.max(...kept.map((t) => old.get(t.id).y + tableHeight(t))) + 80;
+    const fx = Math.min(...fresh.map((n) => n.position.x)), fy = Math.min(...fresh.map((n) => n.position.y));
+    const at = new Map(fresh.map((n) => [n.id, { x: n.position.x - fx + x0, y: n.position.y - fy + y0 }]));
+    return tables.map((t) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position: old.get(t.id) || at.get(t.id), data: t }));
+  }
   if (lineage.length) refs = [...refs, ...lineageRefs(tables, lineage, algo)];
   let pos;
   if (algo === 'lr') pos = dagrePositions(tables, refs, groups);
