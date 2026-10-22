@@ -2,7 +2,7 @@
 // the mapping of catalog rows. The demo server checks the rest (server/test-guardrails.mjs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { myConfig, myWith, myGrantWarnings, myColumn, myTableRow } from '../src/introspect.js';
+import { myConfig, myWith, myGrantWarnings, myColumn, myTableRow, myExpr, myPartition } from '../src/introspect.js';
 
 const conn = { type: 'mysql', host: 'db.example.com', port: '', database: '', user: 'u', password: 'p', tls: 'off' };
 
@@ -84,6 +84,26 @@ test('tables: a view is marked once (MySQL fills TABLE_COMMENT with "VIEW" for e
   assert.equal(v.view, 'select `o`.`id` AS `id` from `shop`.`orders` `o`'); // the DDL keeps MySQL's own text
   const t = myTableRow({ s: 'shop', n: 'orders', t: 'BASE TABLE', cm: 'Orders' });
   assert.deepEqual([t.comment, t.view, t.viewKind], ['Orders', null, null]);
+});
+
+test('check clauses: outer parentheses, backticks around plain names and charset introducers go; quoted text stays', () => {
+  assert.equal(myExpr('(`price` >= 0)'), 'price >= 0');
+  assert.equal(myExpr("(`status` in (_utf8mb4'new',_utf8mb4'paid'))"), "status in ('new','paid')");
+  assert.equal(myExpr('((`a` > 0) and (`b` > 0))'), '(a > 0) and (b > 0)');
+  assert.equal(myExpr('(`a` > 0) and (`b` > 0)'), '(a > 0) and (b > 0)'); // MariaDB: no outer parentheses; these do not enclose the whole
+  assert.equal(myExpr('`my col` > 0'), '"my col" > 0');
+  assert.equal(myExpr("(`n` <> _utf8mb4'it\\'s `x`')"), "n <> 'it\\'s `x`'");
+  assert.equal(myExpr('(`a_b` > 0)'), 'a_b > 0');
+  // MySQL 8.4 escapes the quotes of CHECK_CONSTRAINTS.CHECK_CLAUSE as for a string literal (seen on demo-mysql); SHOW CREATE TABLE does not
+  assert.equal(myExpr("(`kind` in (_latin1\\'click\\',_latin1\\'view\\'))"), "kind in ('click','view')");
+  assert.equal(myExpr("(`n` <> _utf8mb4\\'it\\\\\\'s\\')"), "n <> 'it\\'s'");
+});
+
+test('partitioning: the method and the key expression, columns without backticks; nothing for a plain table', () => {
+  assert.equal(myPartition({ m: 'RANGE', e: 'year(`created_at`)' }), 'RANGE (year(created_at))');
+  assert.equal(myPartition({ m: 'RANGE COLUMNS', e: '`a`,`b`' }), 'RANGE COLUMNS (a,b)');
+  assert.equal(myPartition({ m: 'KEY', e: null }), 'KEY'); // KEY () = the primary key
+  assert.equal(myPartition({ m: null, e: null }), null);
 });
 
 test('MariaDB: no max_execution_time, so the 30 s limit is set with max_statement_time (seconds); the session stays read-only', async () => {

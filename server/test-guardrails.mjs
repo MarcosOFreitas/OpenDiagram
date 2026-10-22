@@ -58,6 +58,9 @@ check('lineage: sources outside the picked tables are dropped', /<- shop\.orders
 check('A1 sequence note (serial sequences skipped)', r.dbml.includes('Note "shop.invoice_seq" {') && !r.dbml.includes('Note "shop.customers_id_seq"'));
 check('A1 sequence used by a column default goes into the note of its table', r.dbml.includes("Table shop.tickets [note: '''\nSEQUENCES\nshop.ticket_seq (id): bigint") && !r.dbml.includes('Note "shop.ticket_seq"'));
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
+// check constraints and partitioning (.specs/14-release-v1.md, item 7b)
+check('7b table check with its name; a domain check stays out', r.dbml.includes("checks {\n    `price >= 0::numeric` [name: 'products_price_check']\n  }") && r.dbml.includes("[name: 'events_kind_check']") && !/value > 0/.test(r.dbml), (r.dbml.match(/ {2}checks \{[^}]*\}/g) || []).join(' | '));
+check('7b partitioned table: method and key in its note; a partition has no such line', r.dbml.includes("Table shop.events [note: '''\nPARTITIONED BY RANGE (created_at)\n'''] {") && r.dbml.includes('Table shop.events_2026 {'), (r.dbml.match(/Table shop\.events[^{]*\{/g) || []).join(' | '));
 r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('list tables flags views', r.tables.filter((t) => t.view).length === 2, JSON.stringify(r.tables.filter((t) => t.view).map((t) => t.name)));
 
@@ -151,6 +154,9 @@ check('mysql enum column -> DBML enum', /Enum shop\.orders_status \{\n {2}new\n 
 check('mysql auto increment, unsigned type, default and relationship', /id "int unsigned" \[pk, increment\]/.test(r.dbml ?? '') && /default: `'new'`/.test(r.dbml ?? '') && /Ref[^\n]*shop\.orders\.customer_id > shop\.customers\.id \[delete: cascade\]/.test(r.dbml ?? ''), (r.dbml ?? '').slice(0, 200));
 check('mysql view marked once in its note', /Table shop\.v_order_totals \[note: '''\nVIEW\n'''\]/.test(r.dbml ?? ''), (r.dbml ?? '').match(/Table shop\.v_order_totals[^}]*?'''\]/)?.[0]);
 check('mysql view column lineage', /lineage\(auto\): shop\.v_order_totals\.name <- shop\.customers\.name/.test(r.dbml ?? ''));
+const myChecks = ((r.dbml ?? '').match(/ {2}checks \{[^}]*\}/g) || []).join(' | ');
+check('mysql 7b checks keep their names, read as plain SQL; a NOT ENFORCED one is left out', ["`price >= 0` [name: 'products_price_check']", "`qty >= 0` [name: 'events_chk_1']", "`kind in ('click','view')` [name: 'events_kind_check']"].every((x) => myChecks.includes(x)) && !myChecks.includes('events_qty_soft'), myChecks);
+check('mysql 7b partitioned table: method and key in its note', (r.dbml ?? '').includes("Table shop.events [note: '''\nPARTITIONED BY RANGE (year(created_at))\n'''] {"), (r.dbml ?? '').match(/Table shop\.events[^{]*\{/)?.[0]);
 const asRoot = await post('import', { ...my('root', 'demo'), schemas: ['shop'] }); // MySQL shows triggers only to an account with the TRIGGER privilege, so not to a read-only one
 check('mysql trigger in its table note (root)', /TRIGGERS\ntrg_orders_touch/.test(asRoot.dbml ?? ''), asRoot.error);
 r = await post('tables', { ...my('reader', 'reader'), schemas: ['shop'] });

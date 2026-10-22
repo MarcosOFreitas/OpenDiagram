@@ -9,7 +9,7 @@ const tn = (t) => `${id(t.schema)}.${id(t.name)}`;
 export const ACTION = { a: 'no action', r: 'restrict', c: 'cascade', n: 'set null', d: 'set default' };
 
 // DBML has no view/trigger/sequence: a view is a Table whose note holds `VIEW` / `MATERIALIZED VIEW` (the UI marks it "· View") and, with `ddl`, the full
-// CREATE statement that builds it; without `ddl` only the structure (columns, types, indexes) is written. Triggers go in their table's note; so does a sequence that a table
+// CREATE statement that builds it; without `ddl` only the structure (columns, types, indexes) is written. Partitioning (method and key) is a `PARTITIONED BY` line of the note. Triggers go in their table's note; so does a sequence that a table
 // uses (a column default, a trigger): a `SEQUENCES` section. A sequence that none of the imported tables uses is a standalone Note
 
 export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] }, { ddl = false } = {}) {
@@ -23,10 +23,10 @@ export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] 
   const loose = sequences.filter((q) => !(q.usedBy ?? []).some((u) => tableKeys.has(`${u.schema}.${u.name}`)));
   for (const t of tables) {
     const single = t.pk.length === 1 ? t.pk[0] : null;
-    const parts = [t.comment, t.view != null && `${t.viewKind || 'VIEW'}${ddl ? `\nCREATE ${t.viewKind || 'VIEW'} ${tn(t)} AS\n${t.view.trim().replace(/;?$/, ';')}` : ''}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
+    const parts = [t.comment, t.partition && `PARTITIONED BY ${t.partition}`, t.view != null &&`${t.viewKind || 'VIEW'}${ddl ? `\nCREATE ${t.viewKind || 'VIEW'} ${tn(t)} AS\n${t.view.trim().replace(/;?$/, ';')}` : ''}`, t.triggers?.length && `TRIGGERS\n${t.triggers.map((g) => `${g.name}: ${g.def}`).join('\n')}`].filter(Boolean);
     const seqs = seqOf.get(`${t.schema}.${t.name}`) ?? [];
     if (seqs.length) parts.push(`SEQUENCES\n${seqs.join('\n')}`);
-    const note = parts.length ? (parts.length === 1 && t.view == null && !t.triggers?.length && !seqs.length ? str(t.comment) : mstr(parts.join('\n\n'))) : '';
+    const note = parts.length ? (parts.length === 1 && parts[0] === t.comment ? str(t.comment) : mstr(parts.join('\n\n'))) : '';
     const attrs = [note && `note: ${note}`].filter(Boolean);
     out.push(`Table ${tn(t)}${attrs.length ? ` [${attrs.join(', ')}]` : ''} {`);
     for (const c of t.columns) {
@@ -46,6 +46,7 @@ export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] 
       idx.push(`    ${cols.length > 1 ? `(${cols.join(', ')})` : cols[0]} [${s.join(', ')}]`);
     }
     if (idx.length) out.push('', '  indexes {', ...idx, '  }');
+    if (t.checks?.length) out.push('', '  checks {', ...t.checks.map((k) => `    ${expr(k.expr)} [name: ${str(k.name)}]`), '  }'); // table form only: a column check has no name
     out.push('}', '');
   }
   for (const r of refs) {

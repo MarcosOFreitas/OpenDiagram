@@ -45,9 +45,11 @@ Press **Import N schema(s) → diagram**. The DBML appears in the editor and the
 - **Enums** (PostgreSQL) as `Enum` blocks.
 - **Sequences** (those that are not owned by a column, as a serial or identity column owns its own). A sequence that a table **uses** goes into the **note of that table**, in a `SEQUENCES` section (PostgreSQL: a column whose `DEFAULT` calls `nextval`, with the column named; Oracle: a trigger on the table, or a default, that reads `seq.NEXTVAL`). A sequence that none of the imported tables uses stays a standalone `Note`. Sequences used only inside functions or procedures cannot be linked: the catalog does not say which table they belong to.
 - **Triggers** as text in the note of their table.
+- **Check constraints** in a `checks { }` block of their table, each with its name (`` `price >= 0` [name: 'products_price_check'] ``), and listed under **Checks** in the [documentation](documentation). Only checks the database enforces are read: Oracle's disabled checks and MySQL's `NOT ENFORCED` ones are left out, and so are Oracle's `NOT NULL` checks (the column already says `not null`) and the checks of PostgreSQL domains. PostgreSQL rewrites the expression in its own form (`kind in ('a', 'b')` comes back as `kind = ANY (ARRAY['a'::text, 'b'::text])`).
+- **Partitioning** as one line in the note of the partitioned table: `PARTITIONED BY RANGE (created_at)`, the method and the key only, not the list of partitions. In PostgreSQL each partition is a table of its own and is imported as one.
 - Multi-line comments are kept (they are written as multi-line notes).
 
-Not imported yet: check constraints, partitions, functions and procedures.
+Not imported: functions and procedures, the bounds of each partition.
 
 ## Keep it fresh
 

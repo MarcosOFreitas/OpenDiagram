@@ -224,6 +224,8 @@ await run('canvas-table-selected', async () => { await go('/', { local: D }); aw
 await run('newer-version-bar', async () => { await go('/', { local: D }); await ev(`H.w(500)`); await admin.call('PUT', `/api/diagrams/${shop}`, { dbml: SAMPLE + '\n// edited elsewhere\n' }); await sleep(9000); }, { vps: ['desktop'] });
 // 6. docs view
 await run('docs-view', async () => { await go('/', { local: D }); await ev(`H.click('Docs', H.q('.mode'))`); }, { vps: ['desktop', 'phone'], kb: false });
+// the live import of demo-pg: check constraints (the Checks list) and a partitioned table (its note)
+await run('docs-view-checks', async () => { await go('/', { local: { lastDiagram: lin, tablesPanel: '0' } }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); const s = [...document.querySelectorAll('.dx-sub')].find((e) => e.textContent === 'Checks'); if (!s) throw new Error('no Checks list'); s.scrollIntoView({ block: 'center' }); })()`); }, { vps: ['desktop', 'phone'], kb: false });
 await run('docs-view-changelog-comments', async () => { await go('/', { local: D }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); await H.click('Changelog', H.q('.dx-nav')); await H.w(600); const c = H.q('.dx-main .cmt-in, .dx-main [class*="cmt"] textarea, .dx-main .cmt'); c?.click(); await H.w(400); })()`); }, { vps: ['desktop'] });
 await run('docs-view-collapsed', async () => { await go('/', { local: D }); await ev(`(async () => { await H.click('Docs', H.q('.mode')); await H.w(700); await H.click('Collapse all', H.q('.dx-nav')); await H.w(400); })()`); }, { vps: ['desktop'] });
 // 7. administration

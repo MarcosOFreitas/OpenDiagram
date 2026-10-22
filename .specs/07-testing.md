@@ -15,7 +15,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 
 | Area | File | What it pins down |
 |------|------|-------------------|
-| server | `dbml.test.js` | model to DBML: pk, quoting, refs, views with and without the full DDL, enums, lineage, sequences; triple quotes cannot escape a note |
+| server | `dbml.test.js` | model to DBML: pk, quoting, refs, views with and without the full DDL, enums, lineage, sequences, check constraints (a named `checks` block) and the `PARTITIONED BY` line; triple quotes cannot escape a note |
 | server | `policy.test.js` | SSRF policy: private/CGNAT/link-local ranges, allowlist, public-only |
 | server | `audit.test.js` | every filter of the audit log, paging, facets, CSV formula guard, retention |
 | server | `store.test.js` | secrets encrypted at rest and never listed, shared connection access by user and by group, what members may see |
@@ -25,7 +25,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `http.test.js` | the real routes through `app.inject` (`OD_NO_LISTEN=1` makes `index.js` build the app without a port or timers): session required except health, the cross-origin guard, `baseVersion` (stale = 409, not an integer = 400), prototype-name access = 400, `{ error }` shape. New route behaviour is tried here first, not only by the Docker e2e scripts |
 | server | `cli.test.js` | `cli.js` as a separate process: `backup` copies the database (dated name by default, never overwrites), `restore` brings it back, refuses a file that is not an OpenDiagram database (current data untouched) and refuses while the server's 30-second mark is fresh unless `--force` |
 | server | `startup.test.js` | starting the server (importing `index.js`) does not load `@dbml/core` (about 330 MB of memory); `loadParser()` does. A resolve hook in a child process sees every import |
-| server | `mysql.test.js` | the MySQL driver without a server: connection options (`disableEval`, no `LOCAL_FILES`, no multiple statements, timeouts, TLS modes, optional database), the read-only session order and rollback on failure, the privilege allowlist on real `SHOW GRANTS` lines (root, writer, reader, `EXECUTE`, table and column grants, LIKE patterns, roles), column mapping (enum, defaults, `AUTO_INCREMENT`), a view's comment, and MariaDB's statement limit and default values |
+| server | `mysql.test.js` | the MySQL driver without a server: connection options (`disableEval`, no `LOCAL_FILES`, no multiple statements, timeouts, TLS modes, optional database), the read-only session order and rollback on failure, the privilege allowlist on real `SHOW GRANTS` lines (root, writer, reader, `EXECUTE`, table and column grants, LIKE patterns, roles), column mapping (enum, defaults, `AUTO_INCREMENT`), a view's comment, MariaDB's statement limit and default values, and `myExpr` / `myPartition` (check clauses and partition keys as plain SQL, MySQL 8.4's escaped quotes) |
 | server | `static.test.js` | the built UI: hashed `/assets` files are cached for a year as immutable and sent pre-compressed (brotli, then gzip, plain without `Accept-Encoding`, `Vary: accept-encoding`); `index.html` and the SPA fallback are `no-cache` (`OD_PUBLIC_DIR` points at a throw-away folder) |
 | server | `mcp.test.js` | agents (member, no sign-in, hidden, not promotable), tokens (hash only, expiry, revoke, disabled, switched off), the protocol, every tool at each access level, "cannot see = does not exist", stale version, invalid DBML, the history entry, group grants, **no connection data in any output**, audit without content, rate limit |
 | server | `recovery.test.js` | the recovery key: needs the password, shown once, any spelling works once, same answer for every failure, limits per address and per e-mail, a new key replaces the old, an administrator reset voids it |
@@ -33,7 +33,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `diagrams.test.js` | `roleFor`, grants, 404 for other accounts' diagrams, version conflicts (409), history, summaries |
 | server | `auth.test.js` | password rules, login throttling, sessions and cookies, sign-up policy |
 | server | `admin.test.js` | last-administrator guard, groups, settings, directory search |
-| server | `introspect.test.js` | catalog rows to the neutral model (the part that needs no database) |
+| server | `introspect.test.js` | catalog rows to the neutral model (the part that needs no database): checks and partitioning on their table, Oracle's system `NOT NULL` checks skipped |
 | web | `useConnect.test.js` | the Database drawer flow: list reloads when the drawer opens or Administration closes, a shared connection is never saved and imports by its own id, schemas for a connection that has none, Full DDL follows the diagram link, save/delete/reset |
 | web | `precompress.test.js` | the build step `web/precompress.js` writes `.br` and `.gz` that decompress to the original, for text files of 1 KB or more only (not images) |
 | web | `layout.test.js` | every layout algorithm: finite positions, no overlapping tables, deterministic, group boxes never overlap, flow direction (left to right, pipeline, lineage), manual positions kept |
@@ -44,7 +44,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `AccountSecurity.test.jsx` | Account sessions (End, sign out the others) and the delete-account form (password, wrong password, cancel) |
 | web | `handles.test.js` | `handleColumns`: column handles only for the columns a reference (all of a composite one, self and inline references, quoted names) or a lineage arrow names; `edgesOf` + `handleColumns` on every template and the 50/100/200-table stress schemas: every handle an edge asks for exists. Checked once in a browser too: 2,028 drawn edges of 5 diagrams x 4 display modes had the same SVG path before and after, with no React Flow handle error |
 | web | `diagramModel.test.js` | DBML to diagram data, TableGroups kept on refresh, change summary, view kind, `nodeChanges` (the measurements of the derived TableGroup boxes never reach the nodes state: they caused a render loop; `benchclient.mjs` reports `idleReactCommitsPerSecond`, about 1 instead of 45) |
-| web | `docsModel.test.js`, `templates.test.js` | generated documentation and Markdown; every starter template parses and documents |
+| web | `docsModel.test.js`, `templates.test.js` | generated documentation and Markdown (with the Checks list); every starter template parses and documents |
 | web | `api.test.js`, `historyDiff.test.js`, `Menu.test.jsx`, `AdminAudit.test.jsx` | fetch wrapper and storage guards, line diff, menu dismissal, audit filters sent to the server |
 | web | `Library.test.jsx`, `a11y.test.jsx` | `pickDiagrams` (search by title or owner, sort, linked only), the search box from 9 diagrams on, delete asked in the card with the focus on Cancel; the Diagrams list is reachable by keyboard (Tab + Enter opens, once), delete buttons name the diagram, the open one is `aria-current` and says so in words; `press()` makes a non-button focusable and Enter/Space-operable |
 
@@ -72,7 +72,7 @@ To run the unit tests before every commit: `git config core.hooksPath .githooks`
 
 - The rest of the `Workspace` component (autosave, presence, conflict dialog) is covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts only. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
 - The e2e job has run only through its script on a laptop, not yet on GitHub: check the Actions tab after the first push. Chrome there is started with `--no-sandbox` (when `CI` is set).
-- Database drivers (`pgWith`, Oracle, the MySQL catalog queries) need a real database, see `test-guardrails.mjs` (its MySQL part against `demo-mysql`: privileges of root / writer / reader, strict mode, the picker, enum, increment, defaults, relationship, the view and its lineage, the trigger as root, an `INSERT` refused inside the read-only session as root, TLS `noverify` and a failing `verify`).
+- Database drivers (`pgWith`, Oracle, the MySQL catalog queries) need a real database, see `test-guardrails.mjs` (its MySQL part against `demo-mysql`: privileges of root / writer / reader, strict mode, the picker, enum, increment, defaults, relationship, the view and its lineage, the trigger as root, an `INSERT` refused inside the read-only session as root, TLS `noverify` and a failing `verify`; for PostgreSQL and MySQL also the check constraints and the `PARTITIONED BY` line, item 7b). The Oracle checks and partitioning were tried by hand against the Oracle demo only.
 - Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code.
 
 ## Setup

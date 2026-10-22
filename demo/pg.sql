@@ -50,3 +50,10 @@ create trigger trg_orders_touch before insert on shop.orders for each row execut
 
 -- multi-line comment: must not break the generated DBML
 comment on column shop.products.sku is E'Stock keeping unit:\n1 = internal;\n2 = supplier';
+
+-- check constraints and partitioning: a table check, a partitioned table (only the parent gets the PARTITIONED BY line) and a domain whose check stays out
+alter table shop.products add constraint products_price_check check (price >= 0);
+create domain shop.positive_int as int check (value > 0);
+create table shop.events (id bigint not null, kind text not null, created_at date not null,
+  constraint events_kind_check check (kind in ('click', 'view'))) partition by range (created_at);
+create table shop.events_2026 partition of shop.events for values from ('2026-01-01') to ('2027-01-01');

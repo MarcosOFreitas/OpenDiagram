@@ -8,10 +8,11 @@ const key = (s, n) => `${s}.${n}`;
 
 // views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists.
 // `seqUse` = [{ seq: {schema, name}, table: {schema, name}, column? }]: which table (and column) uses a sequence (a column default, or a trigger); only tables of this import count.
-export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = [], seqUse = []) {
+// `checkRows` = [{ schema, table, name, expr }]; a table row may carry `partition` (method and key, e.g. `RANGE (created_at)`).
+export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows = [], enums = [], sequences = [], lineageRows = [], seqUse = [], checkRows = []) {
   const tables = new Map();
   const sqlOf = new Map(); // the SQL the lineage parser reads: a driver may give a standard-SQL copy of the view text (MySQL backticks)
-  for (const r of tableRows) { tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, columns: [], pk: [], indexes: [], triggers: [] }); if (r.lineageSql) sqlOf.set(key(r.schema, r.name), r.lineageSql); }
+  for (const r of tableRows) { tables.set(key(r.schema, r.name), { schema: r.schema, name: r.name, comment: r.comment, view: r.view ?? null, viewKind: r.viewKind ?? null, partition: r.partition ?? null, columns: [], pk: [], indexes: [], triggers: [], checks: [] }); if (r.lineageSql) sqlOf.set(key(r.schema, r.name), r.lineageSql); }
   for (const r of colRows) tables.get(key(r.schema, r.table))?.columns.push(r.col);
   for (const r of pkRows) tables.get(key(r.schema, r.table))?.pk.push(...r.cols);
   for (const r of idxRows) {
@@ -21,6 +22,7 @@ export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows =
     if (!samePk) t.indexes.push({ name: r.name, unique: r.unique, type: r.type, columns: r.columns });
   }
   for (const r of trigRows) tables.get(key(r.schema, r.table))?.triggers.push({ name: r.name, def: r.def });
+  for (const r of checkRows) tables.get(key(r.schema, r.table))?.checks.push({ name: r.name, expr: r.expr });
   const refs = fkRows.filter((r) => tables.has(key(r.from.schema, r.from.name)) && tables.has(key(r.to.schema, r.to.name)));
   // data lineage: which tables (and the columns of them) a view / materialized view is built from. Only between tables of this import.
   const lin = new Map();
@@ -77,7 +79,8 @@ const pgTables = (c, schemas) => pgWith(c, async (cl) =>
 
 const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   const q = async (sql) => (await cl.query(sql, [schemas])).rows;
-  const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment, case when c.relkind in ('v','m') then pg_get_viewdef(c.oid,true) end view, case c.relkind when 'v' then 'VIEW' when 'm' then 'MATERIALIZED VIEW' end "viewKind"
+  const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment, case when c.relkind in ('v','m') then pg_get_viewdef(c.oid,true) end view, case c.relkind when 'v' then 'VIEW' when 'm' then 'MATERIALIZED VIEW' end "viewKind",
+      case when c.relkind = 'p' then pg_get_partkeydef(c.oid) end partition
     from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2`);
   const colRows = (await q(`select n.nspname schema, c.relname "table", a.attname, format_type(a.atttypid,a.atttypmod) type, a.attnotnull nn, pg_get_expr(d.adbin,d.adrelid) def, col_description(c.oid,a.attnum) cmt
     from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
@@ -126,7 +129,10 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
     join pg_attribute a on a.attrelid=ad.adrelid and a.attnum=ad.adnum
     where d.classid='pg_attrdef'::regclass and d.refclassid='pg_class'::regclass and sn.nspname = any($1) order by 1,2,3,4,5`))
     .map((r) => ({ seq: { schema: r.seq_schema, name: r.seq_name }, table: { schema: r.tschema, name: r.table }, column: r.col }));
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage, seqUse);
+  // check constraints of tables; a domain's check has no table (conrelid 0) and stays out
+  const checkRows = await q(`select n.nspname schema, c.relname "table", con.conname name, pg_get_expr(con.conbin, con.conrelid, true) expr
+    from pg_constraint con join pg_class c on c.oid=con.conrelid join pg_namespace n on n.oid=c.relnamespace where con.contype = 'c' and n.nspname = any($1) order by 1,2,3`);
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage, seqUse, checkRows);
 });
 
 // ---------- Oracle (thin mode, no Instant Client) ----------
@@ -166,6 +172,9 @@ const oraTables = (c, schemas) => oraWith(c, async (conn) => {
     and t.nested='NO' and t.secondary='N' and t.table_name not like 'BIN$%' and t.table_name not like 'MLOG$\\_%' escape '\\' and t.table_name not like 'RUPD$\\_%' escape '\\'
     union all select v.owner, v.view_name, 1 from all_views v where v.owner in (${inl}) order by 1,2`, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows.map((r) => ({ ...r, view: !!r.view }));
 });
+
+export const oraNotNull = (s) => /^"[^"]+" IS NOT NULL$/i.test(String(s ?? '').trim());
+const partLine = (method, cols) => (method ? (cols ? `${method} (${cols})` : method) : null); // method and key only: no partition list
 
 function oraType(r) {
   const t = r.DATA_TYPE;
@@ -239,7 +248,13 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
       const t = trigTable.get(key(r.OWNER, r.NAME));
       return t ? [{ seq, table: { schema: t.schema, name: t.table } }] : [];
     });
-  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences, lineage, seqUse);
+  const part = new Map((await q(`select p.owner, p.table_name, p.partitioning_type, (select listagg(k.column_name, ', ') within group (order by k.column_position) from all_part_key_columns k
+    where k.owner=p.owner and k.name=p.table_name and k.object_type='TABLE') cols from all_part_tables p where p.owner in (@IN)`)).map((r) => [key(r.OWNER, r.TABLE_NAME), partLine(r.PARTITIONING_TYPE, r.COLS)]));
+  for (const t of tableRows) t.partition = part.get(key(t.schema, t.name));
+  // enabled check constraints; the NOT NULL of a column is one too, already written as `not null`
+  const checkRows = (await q(`select owner, table_name, constraint_name, search_condition_vc from all_constraints where owner in (@IN) and constraint_type = 'C' and status = 'ENABLED' order by 1,2,3`))
+    .filter((r) => !oraNotNull(r.SEARCH_CONDITION_VC)).map((r) => ({ schema: r.OWNER, table: r.TABLE_NAME, name: r.CONSTRAINT_NAME, expr: r.SEARCH_CONDITION_VC }));
+  return assemble(tableRows, colRows, pkRows, fkRows, [...idx.values()], trigRows, [], sequences, lineage, seqUse, checkRows);
 });
 
 // guardrail 2: detect credentials that can do more than read metadata. Returns [{level, message}]
@@ -358,6 +373,30 @@ export function myColumn(r, { mariadb = false } = {}) { // MariaDB writes COLUMN
   return { schema: r.TABLE_SCHEMA, table: r.TABLE_NAME, col, enum: en };
 }
 
+// a MySQL expression from the catalog (a check clause, a partition key) -> plain SQL: plain names lose their backticks (others get double quotes), charset
+// introducers (_utf8mb4'x') go, parentheses that enclose the whole go; string literals are kept as they are.
+export function myExpr(text) {
+  let s = String(text ?? '').trim();
+  if (s.includes("\\'") && !/(^|[^\\])'/.test(s)) s = s.replace(/\\(.)/g, '$1'); // MySQL's CHECK_CLAUSE escapes every quote (\'): undo it
+  let out = '', depth = 0, wraps = s[0] === '(';
+  for (let i = 0; i < s.length;) {
+    const ch = s[i];
+    if (ch === "'") { let j = i + 1; while (j < s.length && !(s[j] === "'" && s[j + 1] !== "'")) j += s[j] === '\\' || s[j] === "'" ? 2 : 1; out += s.slice(i, j + 1); i = j + 1; continue; }
+    if (ch === '`') {
+      let j = i + 1, n = '';
+      while (j < s.length && !(s[j] === '`' && s[j + 1] !== '`')) { n += s[j]; j += s[j] === '`' ? 2 : 1; }
+      out += /^[A-Za-z_]\w*$/.test(n) ? n : `"${n.replaceAll('"', '""')}"`; i = j + 1; continue;
+    }
+    const intro = ch === '_' && !/[\w"`]/.test(s[i - 1] ?? '') && /^_[a-z0-9]+(?=')/i.exec(s.slice(i));
+    if (intro) { i += intro[0].length; continue; }
+    if (ch === '(') depth++;
+    if (ch === ')' && --depth === 0 && i < s.length - 1) wraps = false;
+    out += ch; i++;
+  }
+  return wraps ? out.slice(1, -1).trim() : out;
+}
+export const myPartition = (r) => partLine(r.m, r.e && myExpr(r.e));
+
 const MY_SYSTEM = ['mysql', 'sys', 'information_schema', 'performance_schema'];
 // one information_schema.TABLES row (s, n, t = TABLE_TYPE, cm = TABLE_COMMENT) -> the neutral table; MySQL writes "VIEW" as the comment of every view.
 // The lineage parser reads standard SQL, so it gets a copy of the view text with backticks as double quotes; the DDL keeps MySQL's own text.
@@ -407,7 +446,18 @@ const myImport = (c, schemas) => myWith(c, async (cn) => {
     lineage = (await q('SELECT VIEW_SCHEMA AS vs, VIEW_NAME AS vn, TABLE_SCHEMA AS ts, TABLE_NAME AS tn FROM information_schema.VIEW_TABLE_USAGE WHERE VIEW_SCHEMA IN (?)'))
       .map((r) => ({ target: { schema: r.vs, name: r.vn }, source: { schema: r.ts, name: r.tn }, columns: [] }));
   } catch { /* not available */ }
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, [], lineage, []);
+  const part = new Map((await q('SELECT DISTINCT TABLE_SCHEMA AS s, TABLE_NAME AS n, PARTITION_METHOD AS m, PARTITION_EXPRESSION AS e FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA IN (?) AND PARTITION_METHOD IS NOT NULL'))
+    .map((r) => [key(r.s, r.n), myPartition(r)]));
+  for (const t of tableRows) t.partition = part.get(key(t.schema, t.name));
+  let checks = []; // enforced checks: MySQL 8.0.16+ (names unique per database); MariaDB names them per table and has TABLE_NAME in CHECK_CONSTRAINTS
+  try {
+    checks = await q(mariadb ? 'SELECT CONSTRAINT_SCHEMA AS s, TABLE_NAME AS t, CONSTRAINT_NAME AS n, CHECK_CLAUSE AS e FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN (?) ORDER BY 1, 2, 3'
+      : `SELECT tc.TABLE_SCHEMA AS s, tc.TABLE_NAME AS t, tc.CONSTRAINT_NAME AS n, cc.CHECK_CLAUSE AS e FROM information_schema.TABLE_CONSTRAINTS tc
+        JOIN information_schema.CHECK_CONSTRAINTS cc ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+        WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.ENFORCED = 'YES' AND tc.TABLE_SCHEMA IN (?) ORDER BY 1, 2, 3`);
+  } catch { /* before 8.0.16 */ }
+  const checkRows = checks.map((r) => ({ schema: r.s, table: r.t, name: r.n, expr: myExpr(r.e) }));
+  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, [], lineage, [], checkRows);
 });
 
 async function myPrivileges(c, schemas) {

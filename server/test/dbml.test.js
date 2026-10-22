@@ -59,6 +59,19 @@ test('table comment, triggers and view share one note; a plain comment is a sing
   assert.match(out, /Table shop\.u \[note: 'plain'\]/);
 });
 
+test('check constraints go into a checks block after the indexes, each with its name; an expression is one line', () => {
+  const t = table('items', [col('qty'), col('kind', 'text')], { indexes: [{ name: 'ix_kind', columns: ['kind'] }], checks: [{ name: 'items_qty_check', expr: 'qty >= 0' }, { name: 'chk two', expr: "kind in ('a', 'b')\n  and qty < 10" }] });
+  const out = toDbml({ tables: [t, table('plain', [col('a')])], refs: [] });
+  assert.match(out, /\[name: 'ix_kind'\]\n {2}\}\n\n {2}checks \{\n {4}`qty >= 0` \[name: 'items_qty_check'\]\n {4}`kind in \('a', 'b'\) and qty < 10` \[name: 'chk two'\]\n {2}\}\n\}/);
+  assert.equal(out.match(/checks \{/g).length, 1); // no empty block for a table without checks
+});
+
+test('partitioning is one line of the table note, after the comment; without a comment the note is that line', () => {
+  const out = toDbml({ tables: [table('events', [col('a')], { comment: 'Events', partition: 'RANGE (created_at)' }), table('logs', [col('a')], { partition: 'HASH (a)' })], refs: [] });
+  assert.match(out, /Table shop\.events \[note: '''\nEvents\n\nPARTITIONED BY RANGE \(created_at\)\n'''\]/);
+  assert.match(out, /Table shop\.logs \[note: '''\nPARTITIONED BY HASH \(a\)\n'''\]/);
+});
+
 test('enums are written first and columns of that type reference them unquoted', () => {
   const out = toDbml({ enums: [{ schema: 'shop', name: 'mood', values: ['happy', 'very sad'] }], tables: [table('t', [col('m', 'shop.mood')])], refs: [] });
   assert.ok(out.indexOf('Enum shop.mood') < out.indexOf('Table shop.t'));

@@ -40,3 +40,13 @@ create or replace trigger trg_tickets_bi before insert on tickets for each row b
 /
 create or replace trigger trg_orders_bi before insert on orders for each row begin null; end;
 /
+
+-- check constraints and partitioning: a named check, a NOT NULL (a system check, left out), a disabled check (left out) and a partitioned table
+alter table order_items add constraint ck_items_qty check (qty > 0);
+create table events (
+  id number(10) not null,
+  kind varchar2(10) not null,
+  created_at date not null,
+  constraint ck_events_kind check (kind in ('click', 'view')),
+  constraint ck_events_soft check (id < 100) disable
+) partition by range (created_at) (partition p2026 values less than (to_date('2027-01-01', 'YYYY-MM-DD')), partition pmax values less than (maxvalue));

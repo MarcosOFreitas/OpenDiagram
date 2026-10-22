@@ -23,14 +23,15 @@ DB → DBML → export → re-import → compare columns/types/PK/NOT NULL/index
 
 | Source ↓ / format → | PG | MySQL | MSSQL | Oracle | JSON |
 |---------------------|----|-------|-------|--------|------|
-| Postgres demo (+ views, enum, sequence, trigger) | identical¹ | fails | fails | export only | fails |
-| Oracle demo | identical¹ | fails | identical¹ | fails² | fails |
+| Postgres demo (+ views, enum, sequence, trigger, checks, partitioned table) | identical¹⁴ | fails | fails | export only | fails |
+| Oracle demo | identical¹ | fails | identical¹ | fails²⁴ | fails |
 | MySQL demo (2026-10-22, @dbml/core 10) | differs (`serial`) | identical except two importer limits³ | fails (`unsigned`) | fails² | fails |
 
 ¹ after normalizing type aliases (`timestamp without time zone`≡`timestamp`, `character varying`≡`varchar`) and ref direction (the exporter flips endpoint order).
 
 ² measured 2026-10-22 with the PostgreSQL demo (the Oracle demo was not running): the Oracle exporter writes `CREATE USER` for each schema, which the Oracle importer of `@dbml/core` 10 rejects; the live import is not affected.
 ³ `@dbml/core`'s MySQL **importer** drops `UNSIGNED` (`int unsigned` comes back as `int`) and names an inline `ENUM(...)` `<table>_<column>_enum`; the live import keeps both (`int unsigned`, `Enum shop.orders_status`, checked by `test-guardrails.mjs`), and the export writes them correctly. Everything else (tables, columns, keys, indexes, references) is identical.
+⁴ measured 2026-10-22 with the Oracle demo running: Oracle → Oracle fails the same way as in ². Check constraints (item 7b) go through the PostgreSQL export and re-import; a column whose type is a schema-qualified PostgreSQL **domain** (`shop.positive_int`) does not: `@dbml/core`'s PostgreSQL importer reads it back as `shop.shop.positive_int`, which its own DBML parser rejects (the demo's domain is therefore used by no column).
 
 Failures are cross-dialect issues, not parser bugs: PG defaults (`nextval(...::regclass)`), `character varying`, Oracle `NUMBER`, etc. are not valid in the target dialect.
 

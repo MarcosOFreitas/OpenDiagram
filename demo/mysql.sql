@@ -48,3 +48,15 @@ CREATE USER 'writer'@'%' IDENTIFIED BY 'writer';
 GRANT SELECT, INSERT, UPDATE, DELETE ON shop.* TO 'writer'@'%';
 CREATE USER 'reader'@'%' IDENTIFIED BY 'reader';
 GRANT SELECT, SHOW VIEW ON shop.* TO 'reader'@'%';
+
+-- check constraints and partitioning: a column check (named by MySQL), a named one, one that is not enforced (left out) and a partitioned table
+ALTER TABLE products ADD CONSTRAINT products_price_check CHECK (price >= 0);
+CREATE TABLE events (
+  id BIGINT NOT NULL,
+  kind VARCHAR(10) NOT NULL,
+  created_at DATE NOT NULL,
+  qty INT NOT NULL CHECK (qty >= 0),
+  PRIMARY KEY (id, created_at),
+  CONSTRAINT events_kind_check CHECK (kind IN ('click', 'view')),
+  CONSTRAINT events_qty_soft CHECK (qty < 100) NOT ENFORCED
+) PARTITION BY RANGE (YEAR(created_at)) (PARTITION p2026 VALUES LESS THAN (2027), PARTITION pmax VALUES LESS THAN MAXVALUE);

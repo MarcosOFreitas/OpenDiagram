@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assemble } from '../src/introspect.js';
+import { assemble, oraNotNull } from '../src/introspect.js';
 
 const t = (schema, name, extra = {}) => ({ schema, name, comment: null, ...extra });
 const c = (schema, table, name) => ({ schema, table, col: { name, type: 'int', nullable: true } });
@@ -12,6 +12,21 @@ test('columns, primary keys and triggers attach to their table; rows of unknown 
   );
   assert.equal(m.tables.length, 1);
   assert.deepEqual([m.tables[0].columns.map((x) => x.name), m.tables[0].pk, m.tables[0].triggers.length], [['id'], ['id'], 1]);
+});
+
+test('check constraints attach to their table, partitioning rides on the table row; both empty for a plain table', () => {
+  const m = assemble([t('s', 'a', { partition: 'RANGE (d)' }), t('s', 'b')], [], [], [], [], [], [], [], [], [],
+    [{ schema: 's', table: 'a', name: 'a_q_check', expr: 'q > 0' }, { schema: 's', table: 'ghost', name: 'g', expr: 'x' }]);
+  const [a, b] = m.tables;
+  assert.deepEqual([a.partition, a.checks], ['RANGE (d)', [{ name: 'a_q_check', expr: 'q > 0' }]]);
+  assert.deepEqual([b.partition, b.checks], [null, []]);
+});
+
+test("Oracle: the NOT NULL of a column is a check constraint in the catalog; only that system form is skipped", () => {
+  assert.equal(oraNotNull('"QTY" IS NOT NULL'), true);
+  assert.equal(oraNotNull('"Order Id" IS NOT NULL'), true);
+  assert.equal(oraNotNull('qty IS NOT NULL'), false); // written by hand: a real check
+  assert.equal(oraNotNull('"QTY" IS NOT NULL AND "QTY" > 0'), false);
 });
 
 test('an index identical to the primary key is dropped, other indexes stay', () => {

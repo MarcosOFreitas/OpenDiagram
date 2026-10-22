@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Check constraints and partitioning
+
+- The live import (PostgreSQL, Oracle and MySQL) now reads **check constraints**, written in a `checks { }` block of the table with their names, and says how a table is **partitioned** in its note (`PARTITIONED BY RANGE (created_at)`). The generated documentation lists the checks of each table. See [Import from a database](database-import#what-is-imported).
+
 ## Import from MySQL
 
 - **More → Database → MySQL** reads a MySQL 8.0+ database live, with the same guarantees as PostgreSQL and Oracle: a read-only session, warnings for a user that can do more than read, TLS. Enum columns become DBML enums. MariaDB 10.6+ should work too (not tested regularly). See [Import from a database](database-import#mysql).

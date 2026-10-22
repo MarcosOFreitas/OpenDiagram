@@ -6,7 +6,7 @@ Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming t
 
 ## Features
 
-- **Live import** from PostgreSQL, Oracle and MySQL 8.0+ (MariaDB 10.6+ best effort): tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
+- **Live import** from PostgreSQL, Oracle and MySQL 8.0+ (MariaDB 10.6+ best effort): tables, views and materialized views, columns, types, defaults, comments, PK, FK (with `ON DELETE` / `ON UPDATE`), indexes, check constraints, partitioning (method and key), enums, sequences and triggers. A table picker chooses schemas and individual tables (search, wildcards, TableGroups).
 - **Read-only by design**: every session is opened read-only and only reads catalog metadata. Credentials with excess privileges are detected and can be refused. TLS for PostgreSQL and Oracle (TCPS) with certificate verification and a custom CA.
 - **Keep metadata fresh**: manual refresh or an automatic interval (every 5 minutes at the least, run by the server even with no page open); your TableGroups and layout survive a refresh.
 - **MCP connector for AI clients**: separate agent accounts created by administrators, bearer tokens, tools to list, read, comment on and edit only the diagrams shared with them; an agent never sees a connection or a credential; every call is audited.

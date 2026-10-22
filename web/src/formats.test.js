@@ -12,7 +12,7 @@ describe('Oracle SQL import', () => {
 
   it('reads tables, keys, indexes and comments', () => {
     const t = tables(importer.import(ddl, 'oracle'));
-    expect(t.map((x) => x.name).sort()).toEqual(['customers', 'order_items', 'orders', 'tickets']);
+    expect(t.map((x) => x.name).sort()).toEqual(['customers', 'events', 'order_items', 'orders', 'tickets']);
     expect(t.reduce((n, x) => n + x.indexes.length, 0)).toBeGreaterThan(0);
     expect(t.some((x) => x.note)).toBe(true);
   });
@@ -24,7 +24,7 @@ describe('Oracle SQL import', () => {
       'create or replace trigger trg before insert on customers for each row begin :new.id := 1; end;',
       '/',
     ].join('\n');
-    expect(tables(importer.import(`${ddl}\n${extra}`, 'oracle'))).toHaveLength(4);
+    expect(tables(importer.import(`${ddl}\n${extra}`, 'oracle'))).toHaveLength(5); // the demo's tables only
     expect(() => importer.import(`connect shop/shop\n${ddl}`, 'oracle')).toThrow();
   });
 });
