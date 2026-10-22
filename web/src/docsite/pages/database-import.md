@@ -16,7 +16,7 @@ OpenDiagram can read the structure of a **PostgreSQL**, **Oracle** or **MySQL** 
 
 ### MySQL
 
-- **MySQL 8.0 and later** are supported and tested. **MariaDB 10.6 and later** should work (same protocol and catalog) but are not tested regularly.
+- **MySQL 8.0 and later** are supported and tested. **MariaDB 10.6 and later** work too (tried with MariaDB 11.4) but are not tested regularly; with MariaDB a view lists the columns it reads from each table, not a separate table-level line.
 - The **schemas** you can tick are the databases the user can see (system databases are left out).
 - An `enum('new','paid')` column becomes a DBML **enum** named after its table and column (`shop.orders_status`), and `AUTO_INCREMENT` becomes `increment`.
 - **Triggers** are listed only when the user has the MySQL `TRIGGER` privilege, which a read-only user does not have: with a read-only user, triggers are not imported.

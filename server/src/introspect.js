@@ -296,7 +296,7 @@ export async function myWith(c, fn, connect = (o) => mysql.createConnection(o)) 
   const cn = await connect(myConfig(c));
   try {
     await cn.query('SET SESSION TRANSACTION READ ONLY');
-    await cn.query('SET SESSION max_execution_time = 30000');
+    try { await cn.query('SET SESSION max_execution_time = 30000'); } catch { await cn.query('SET SESSION max_statement_time = 30'); } // MariaDB: max_statement_time, in seconds
     await cn.query('START TRANSACTION READ ONLY');
     return await fn(cn);
   } finally {
@@ -344,7 +344,7 @@ export function myGrantWarnings(lines, schemas) {
 
 // one information_schema.COLUMNS row -> the neutral column; an enum column also gives a DBML enum named after its table and column
 const MY_TEXT = /char|text|enum|set|date|time|year|blob|binary|json/;
-export function myColumn(r) {
+export function myColumn(r, { mariadb = false } = {}) { // MariaDB writes COLUMN_DEFAULT differently: literals quoted, expressions bare, NULL as text
   let type = r.COLUMN_TYPE, en = null;
   if (r.DATA_TYPE === 'enum') {
     const values = [...r.COLUMN_TYPE.slice(5, -1).matchAll(/'((?:[^']|'')*)'/g)].map((x) => x[1].replace(/''/g, "'"));
@@ -352,7 +352,7 @@ export function myColumn(r) {
     type = `${en.schema}.${en.name}`;
   }
   const d = r.COLUMN_DEFAULT;
-  const def = d == null ? undefined : /DEFAULT_GENERATED/i.test(r.EXTRA || '') ? d : MY_TEXT.test(r.DATA_TYPE) ? `'${String(d).replace(/'/g, "''")}'` : String(d);
+  const def = d == null || (mariadb && d === 'NULL') ? undefined : mariadb || /DEFAULT_GENERATED/i.test(r.EXTRA || '') ? String(d) : MY_TEXT.test(r.DATA_TYPE) ? `'${String(d).replace(/'/g, "''")}'` : String(d);
   const col = { name: r.COLUMN_NAME, type, nullable: r.IS_NULLABLE === 'YES', default: def, comment: r.COLUMN_COMMENT || undefined };
   if (/auto_increment/i.test(r.EXTRA || '')) col.increment = true;
   return { schema: r.TABLE_SCHEMA, table: r.TABLE_NAME, col, enum: en };
@@ -379,9 +379,10 @@ const myImport = (c, schemas) => myWith(c, async (cn) => {
   const views = new Map((await q('SELECT TABLE_SCHEMA AS s, TABLE_NAME AS n, VIEW_DEFINITION AS d FROM information_schema.VIEWS WHERE TABLE_SCHEMA IN (?)')).map((r) => [key(r.s, r.n), r.d ?? '']));
   const tableRows = (await q('SELECT TABLE_SCHEMA AS s, TABLE_NAME AS n, TABLE_TYPE AS t, TABLE_COMMENT AS cm FROM information_schema.TABLES WHERE TABLE_SCHEMA IN (?) ORDER BY 1, 2'))
     .map((r) => myTableRow(r, r.t === 'VIEW' ? views.get(key(r.s, r.n)) ?? '' : undefined));
+  const mariadb = /mariadb/i.test(Object.values((await myRows(cn, 'SELECT VERSION() AS v'))[0] ?? {})[0] ?? '');
   const enums = [], colRows = [];
   for (const r of await q('SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?) ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION')) {
-    const m = myColumn(r);
+    const m = myColumn(r, { mariadb });
     colRows.push({ schema: m.schema, table: m.table, col: m.col });
     if (m.enum) enums.push(m.enum);
   }
@@ -394,8 +395,10 @@ const myImport = (c, schemas) => myWith(c, async (cn) => {
     name: g[0].c, from: { schema: g[0].s, name: g[0].t, columns: g.map((r) => r.col) }, to: { schema: g[0].rs, name: g[0].rt, columns: g.map((r) => r.rc) },
     onDelete: g[0].del?.toLowerCase(), onUpdate: g[0].up?.toLowerCase(),
   }));
-  const idx = await q(`SELECT TABLE_SCHEMA AS s, TABLE_NAME AS t, INDEX_NAME AS c, NON_UNIQUE AS nu, INDEX_TYPE AS ty, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) AS col
-    FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND INDEX_NAME <> 'PRIMARY' ORDER BY 1, 2, 3, SEQ_IN_INDEX`);
+  const idxSql = (col) => `SELECT TABLE_SCHEMA AS s, TABLE_NAME AS t, INDEX_NAME AS c, NON_UNIQUE AS nu, INDEX_TYPE AS ty, ${col} AS col
+    FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN (?) AND INDEX_NAME <> 'PRIMARY' ORDER BY 1, 2, 3, SEQ_IN_INDEX`;
+  let idx; // functional indexes (EXPRESSION) exist from MySQL 8.0.13; MariaDB has neither them nor the column
+  try { idx = await q(idxSql("COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')'))")); } catch { idx = await q(idxSql('COLUMN_NAME')); }
   const idxRows = group(idx).map((g) => ({ schema: g[0].s, table: g[0].t, name: g[0].c, unique: Number(g[0].nu) === 0, type: String(g[0].ty).toLowerCase(), columns: g.map((r) => r.col) }));
   const trigRows = (await q('SELECT EVENT_OBJECT_SCHEMA AS s, EVENT_OBJECT_TABLE AS t, TRIGGER_NAME AS n, ACTION_TIMING AS ti, EVENT_MANIPULATION AS ev, ACTION_STATEMENT AS st FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA IN (?) ORDER BY 1, 2, 3'))
     .map((r) => ({ schema: r.s, table: r.t, name: r.n, def: `${r.ti} ${r.ev} FOR EACH ROW ${r.st}` })); // shown only to an account with the TRIGGER privilege

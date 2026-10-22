@@ -85,3 +85,21 @@ test('tables: a view is marked once (MySQL fills TABLE_COMMENT with "VIEW" for e
   const t = myTableRow({ s: 'shop', n: 'orders', t: 'BASE TABLE', cm: 'Orders' });
   assert.deepEqual([t.comment, t.view, t.viewKind], ['Orders', null, null]);
 });
+
+test('MariaDB: no max_execution_time, so the 30 s limit is set with max_statement_time (seconds); the session stays read-only', async () => {
+  const sent = [];
+  const connect = async () => ({ query: async (sql) => { sent.push(sql); if (/max_execution_time/.test(sql)) throw new Error("Unknown system variable 'max_execution_time'"); return [[]]; }, end: async () => {} });
+  await myWith(conn, async (c) => { await c.query('select 1'); }, connect);
+  assert.deepEqual(sent, ['SET SESSION TRANSACTION READ ONLY', 'SET SESSION max_execution_time = 30000', 'SET SESSION max_statement_time = 30', 'START TRANSACTION READ ONLY', 'select 1', 'ROLLBACK']);
+});
+
+test('MariaDB defaults: literals already quoted, expressions bare, the text NULL for no default', () => {
+  const row = (o) => ({ TABLE_SCHEMA: 'shop', TABLE_NAME: 'orders', IS_NULLABLE: 'YES', EXTRA: '', COLUMN_COMMENT: '', COLUMN_NAME: 'c', DATA_TYPE: 'varchar', COLUMN_TYPE: 'varchar(20)', ...o });
+  const maria = { mariadb: true };
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: "'new'" }), maria).col.default, "'new'");
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: "'it''s'" }), maria).col.default, "'it''s'");
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: 'current_timestamp()', DATA_TYPE: 'timestamp', COLUMN_TYPE: 'timestamp' }), maria).col.default, 'current_timestamp()');
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: '0.00', DATA_TYPE: 'decimal', COLUMN_TYPE: 'decimal(12,2)' }), maria).col.default, '0.00');
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: 'NULL' }), maria).col.default, undefined);
+  assert.equal(myColumn(row({ COLUMN_DEFAULT: "'NULL'" }), maria).col.default, "'NULL'"); // the string 'NULL' is a real default
+});
