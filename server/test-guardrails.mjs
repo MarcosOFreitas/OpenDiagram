@@ -60,9 +60,10 @@ check('A1 sequence used by a column default goes into the note of its table', r.
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
 // check constraints and partitioning (.specs/14-release-v1.md, item 7b)
 check('7b table check with its name; a domain check stays out', r.dbml.includes("checks {\n    `price >= 0::numeric` [name: 'products_price_check']\n  }") && r.dbml.includes("[name: 'events_kind_check']") && !/value > 0/.test(r.dbml), (r.dbml.match(/ {2}checks \{[^}]*\}/g) || []).join(' | '));
-check('7b partitioned table: method and key in its note; a partition has no such line', r.dbml.includes("Table shop.events [note: '''\nPARTITIONED BY RANGE (created_at)\n'''] {") && r.dbml.includes('Table shop.events_2026 {'), (r.dbml.match(/Table shop\.events[^{]*\{/g) || []).join(' | '));
+check('7b partitioned table: method and key in its note; its partitions are not imported (they repeat the parent)', r.dbml.includes("Table shop.events [note: '''\nPARTITIONED BY RANGE (created_at)\n'''] {") && !r.dbml.includes('events_2026'), (r.dbml.match(/Table shop\.events[^{]*\{/g) || []).join(' | '));
 r = await post('tables', { ...pg('reader', 'reader'), schemas: ['shop'] });
 check('list tables flags views', r.tables.filter((t) => t.view).length === 2, JSON.stringify(r.tables.filter((t) => t.view).map((t) => t.name)));
+check('list tables leaves out partitions (the parent stands for them)', r.tables.some((t) => t.name === 'events') && !r.tables.some((t) => t.name === 'events_2026'), JSON.stringify(r.tables.map((t) => t.name)));
 
 check('multi-line comment becomes a triple-quoted note', r2.dbml.includes(`note: '''
 Stock keeping unit:

@@ -119,3 +119,10 @@ test('database errors in plain words, the original kept in brackets, as a 502; e
   assert.equal(explainDbError(own, c), own);
   assert.equal(own.message, 'invalid host or service name');
 });
+
+test('a PostgreSQL partition is not a table of the diagram (its parent says PARTITIONED BY): a stored selection that names one does not report it missing', () => {
+  const m = { tables: [{ schema: 'shop', name: 'events', columns: [] }, { schema: 'shop', name: 'orders', columns: [] }], refs: [], lineage: [], partitions: ['shop.events_2026'] };
+  const out = filterModel(m, ['shop.events', 'shop.events_2026', 'shop.gone']);
+  assert.deepEqual(out.tables.map((t) => t.name), ['events']);
+  assert.deepEqual(out.missing, ['shop.gone']);
+});

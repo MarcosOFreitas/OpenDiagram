@@ -75,13 +75,13 @@ const pgSchemas = (c) => pgWith(c, async (cl) =>
   (await cl.query(`select nspname from pg_namespace where nspname not like 'pg\\_%' and nspname <> 'information_schema' order by 1`)).rows.map((r) => r.nspname));
 
 const pgTables = (c, schemas) => pgWith(c, async (cl) =>
-  (await cl.query(`select n.nspname schema, c.relname name, c.relkind in ('v','m') "view" from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2`, [schemas])).rows);
+  (await cl.query(`select n.nspname schema, c.relname name, c.relkind in ('v','m') "view" from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and not c.relispartition and n.nspname = any($1) order by 1,2`, [schemas])).rows);
 
 const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   const q = async (sql) => (await cl.query(sql, [schemas])).rows;
   const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment, case when c.relkind in ('v','m') then pg_get_viewdef(c.oid,true) end view, case c.relkind when 'v' then 'VIEW' when 'm' then 'MATERIALIZED VIEW' end "viewKind",
       case when c.relkind = 'p' then pg_get_partkeydef(c.oid) end partition
-    from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2`);
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and not c.relispartition and n.nspname = any($1) order by 1,2`); // a partition repeats its parent, which says PARTITIONED BY
   const colRows = (await q(`select n.nspname schema, c.relname "table", a.attname, format_type(a.atttypid,a.atttypmod) type, a.attnotnull nn, pg_get_expr(d.adbin,d.adrelid) def, col_description(c.oid,a.attnum) cmt
     from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
     left join pg_attrdef d on d.adrelid=c.oid and d.adnum=a.attnum
@@ -132,7 +132,8 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   // check constraints of tables; a domain's check has no table (conrelid 0) and stays out
   const checkRows = await q(`select n.nspname schema, c.relname "table", con.conname name, pg_get_expr(con.conbin, con.conrelid, true) expr
     from pg_constraint con join pg_class c on c.oid=con.conrelid join pg_namespace n on n.oid=c.relnamespace where con.contype = 'c' and n.nspname = any($1) order by 1,2,3`);
-  return assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage, seqUse, checkRows);
+  const partitions = (await q(`select n.nspname || '.' || c.relname name from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relispartition and n.nspname = any($1)`)).map((r) => r.name);
+  return { ...assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows, enums, sequences, lineage, seqUse, checkRows), partitions };
 });
 
 // ---------- Oracle (thin mode, no Instant Client) ----------
@@ -499,13 +500,15 @@ export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas).cat
 export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas).catch(plainly(c));
 // `tables` is the stored selection: [] or missing = every table, otherwise exactly those (`schema.name`, or the plain name). Never more than asked for.
 // `m.missing` = the asked-for tables the database does not have (any more): the caller says so instead of silently importing fewer.
+// `m.partitions` (PostgreSQL, `schema.name`) are never imported: a stored selection that names one (from before they were hidden) is not "missing".
 export function filterModel(m, tables) {
   m.missing = [];
   if (tables?.length) {
     const want = new Set(tables.map((t) => t.toLowerCase()));
     m.tables = m.tables.filter((t) => want.has(t.name.toLowerCase()) || want.has(`${t.schema}.${t.name}`.toLowerCase())); // plain name or schema.name
     const found = new Set(m.tables.flatMap((t) => [t.name.toLowerCase(), `${t.schema}.${t.name}`.toLowerCase()]));
-    m.missing = tables.filter((t) => !found.has(t.toLowerCase()));
+    const parts = new Set((m.partitions ?? []).flatMap((p) => [p.toLowerCase(), p.split('.').slice(1).join('.').toLowerCase()]));
+    m.missing = tables.filter((t) => !found.has(t.toLowerCase()) && !parts.has(t.toLowerCase()));
     const have = new Set(m.tables.map((t) => key(t.schema, t.name)));
     m.refs = m.refs.filter((r) => have.has(key(r.from.schema, r.from.name)) && have.has(key(r.to.schema, r.to.name)));
     m.lineage = (m.lineage ?? []).filter((l) => have.has(key(l.target.schema, l.target.name)))
