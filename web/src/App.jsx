@@ -17,7 +17,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges, edgesOf, handleColumns } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -30,7 +30,7 @@ const VIEW0 = { edgeType: 'default', hiRefs: false, hideRefs: false, algo: 'auto
 
 
 function TableNode({ data: t, selected }) {
-  const fk = new Set(t.fkCols);
+  const fk = new Set(t.fkCols), hc = t.hCols || new Set(); // hc: the columns an edge can connect to (handleColumns); the others get no handle
   const rows = shownFields(t), natural = 32 + rows.length * ROW + (t.hideIndexes ? 0 : t.indexes.length * 20); // height without a manual size
   const onResize = (_, p) => t.onSize(t.id, { w: Math.round(p.width), h: t.h || Math.abs(p.height - natural) > 4 ? Math.round(p.height) : undefined }); // a width-only drag keeps the height automatic
   return (
@@ -43,7 +43,7 @@ function TableNode({ data: t, selected }) {
         <Handle type="target" position={Position.Left} id="lt" className="hdl" /><Handle type="target" position={Position.Right} id="ltr" className="hdl" />{/* table-level data lineage */}
         {t.detail !== 'tables' && <button className="tbl-t nodrag" title={t.collapsed ? 'Expand' : 'Collapse'} aria-label={t.collapsed ? 'Expand table' : 'Collapse table'} onClick={(e) => { e.stopPropagation(); t.onToggle(t.id); }}>{t.collapsed ? '▸' : '▾'}</button>}
         <span className="tbl-n">{t.name}{t.viewKind && <em className="tbl-kind"> · {t.viewKind}</em>}</span>{t.schema !== 'public' && <small>{t.schema}</small>}
-        {(t.collapsed ? t.fields : t.fields.filter((f) => !rows.includes(f))).map((f) => ( // columns that are not drawn (collapsed table, keys-only level) keep their relationship lines: connect them to the header
+        {(t.collapsed ? t.fields : t.fields.filter((f) => !rows.includes(f))).filter((f) => hc.has(f.name)).map((f) => ( // columns that are not drawn (collapsed table, keys-only level) keep their relationship lines: connect them to the header
           <span key={f.name} style={{ display: 'contents' }}>
             <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
             <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
@@ -55,15 +55,17 @@ function TableNode({ data: t, selected }) {
       {!t.collapsed && <div className="tbl-body">
       {rows.map((f) => (
         <div key={f.name} className="tbl-c" title={`${f.name}: ${f.type}${f.note ? ` — ${f.note}` : ''}`}>
-          <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />
+          {hc.has(f.name) && <Handle type="target" position={Position.Left} id={`t:${f.name}`} className="hdl" />}
           <span className="nm">
             {f.pk ? <i className="ic pk" title="primary key"><Ic n="key" s={11} /></i> : fk.has(f.name) ? <i className="ic fk" title="foreign key"><Ic n="link" s={11} /></i> : <i className="ic" />}
             <span className="nmt">{f.name}</span>{f.note && <i className="ic note" title={f.note}><Ic n="edit" s={10} /></i>}
           </span>
           <span className="ty"><span className="tyt">{!t.hideTypes && f.type}</span>{(f.notNull || f.pk) && <b className="nn">NN</b>}</span>
-          <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
-          <Handle type="source" position={Position.Left} id={`sl:${f.name}`} className="hdl" />
-          <Handle type="target" position={Position.Right} id={`tr:${f.name}`} className="hdl" />
+          {hc.has(f.name) && <>
+            <Handle type="source" position={Position.Right} id={`s:${f.name}`} className="hdl" />
+            <Handle type="source" position={Position.Left} id={`sl:${f.name}`} className="hdl" />
+            <Handle type="target" position={Position.Right} id={`tr:${f.name}`} className="hdl" />
+          </>}
         </div>
       ))}
       {!t.hideIndexes && t.indexes.map((i, n) => <div key={n} className="tbl-i">{i.pk ? 'PK' : i.unique ? 'UQ' : 'IX'} ({i.cols.join(', ')}){i.name ? ` · ${i.name}` : ''}</div>)}
@@ -457,7 +459,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     parsed.refs.forEach((r) => (fkCols[cid(r)] ||= []).push(...r.child.fieldNames));
     const keyCols = {};
     parsed.refs.forEach((r) => { (keyCols[cid(r)] ||= []).push(...r.child.fieldNames); (keyCols[pid(r)] ||= []).push(...r.parent.fieldNames); });
-    const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [] }));
+    const hCols = handleColumns(parsed); // only these columns get connection handles
+    const tables = parsed.tables.map((t) => ({ ...t, fkCols: fkCols[t.id] || [], keyCols: keyCols[t.id] || [], hCols: hCols.get(t.id) || new Set() }));
     setNodes((old) => {
       const pos = new Map([...Object.entries(layoutRef.current), ...old.map((n) => [n.id, n.position])]);
       const tn = layout(tables, parsed.refs, pos, parsed.groups, 'auto', view.lineage !== false ? parsed.lineage || [] : []);
@@ -465,13 +468,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       const notes = (parsed.notes || []).filter(isSticky).map((nt, i) => ({ id: `n:${nt.name}`, type: 'note', position: pos.get(`n:${nt.name}`) || { x: x0 + (i % 4) * 250, y: y0 + Math.floor(i / 4) * 170 }, data: { id: `n:${nt.name}`, name: nt.name, text: nt.text } }));
       return [...tn, ...notes];
     });
-    setEdges(parsed.refs.map((r) => ({
-      id: r.id, source: cid(r), sourceHandle: `s:${r.child.fieldNames[0]}`,
-      target: pid(r), targetHandle: `t:${r.parent.fieldNames[0]}`,
-      label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0], name: r.name || '' },
-    })).concat((parsed.lineage || []).flatMap((l) => (l.maps.length // column mappings: one arrow per column pair; otherwise one table-level arrow
-      ? l.maps.map((m, i) => ({ id: `${l.id}#${i}`, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: [m.s], tCols: [m.t], manual: l.manual, name: '' } }))
-      : [{ id: l.id, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: l.sCols, tCols: l.tCols, manual: l.manual, name: '' } }]))));
+    setEdges(edgesOf(parsed));
     const key = parsed.tables.map((t) => t.id).sort().join('|');
     if (key !== idsKey.current) { idsKey.current = key; const fit = () => fitView({ padding: 0.2, maxZoom: 1, duration: 250 }); setTimeout(fit, 80); setTimeout(fit, 600); } // 2nd pass: nodes are not measured yet right after a document switch
   }, [parsed, doc]); // eslint-disable-line react-hooks/exhaustive-deps -- `doc` too: two diagrams with identical DBML must still rebuild the canvas after a switch

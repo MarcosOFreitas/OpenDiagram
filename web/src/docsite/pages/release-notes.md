@@ -4,7 +4,7 @@ OpenDiagram does not use version numbers yet; changes are listed from newest to 
 
 ## Smoother large diagrams
 
-- A diagram with table groups no longer keeps the browser busy while nothing happens, and moving around the canvas no longer redraws the whole page: with 100 tables zooming went from about 13 to about 50 frames per second, and an idle page from 20 to the screen's full rate.
+- A diagram with table groups no longer keeps the browser busy while nothing happens, and moving around the canvas no longer redraws the whole page: with 100 tables zooming went from about 13 to about 80 frames per second, an idle page from 20 to the screen's full rate, and the diagram follows a keystroke in about a quarter of a second instead of half a second.
 
 ## Finding diagrams
 

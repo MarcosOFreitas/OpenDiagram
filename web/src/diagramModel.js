@@ -72,3 +72,23 @@ export function diffSummary(oldDbml, newDbml) {
 // (App.jsx `shown`): their measurements must not reach the state. Even ignored, they made applyNodeChanges return a new array, so new boxes
 // were built and measured again: a render loop of ~45 commits a second with the diagram idle. App.jsx skips the call when nothing is left
 export const nodeChanges = (changes) => changes.filter((c) => !(c.type === 'dimensions' && c.id.startsWith('g:')));
+
+// the canvas edges of a parsed diagram: one per reference, and the data lineage arrows (column mappings: one arrow per column pair;
+// otherwise one table-level arrow). App.jsx adds the handle side and the styles when it draws them.
+export const edgesOf = (parsed) => parsed.refs.map((r) => ({
+  id: r.id, source: cid(r), sourceHandle: `s:${r.child.fieldNames[0]}`,
+  target: pid(r), targetHandle: `t:${r.parent.fieldNames[0]}`,
+  label: `${r.child.relation}:${r.parent.relation}`, data: { sf: r.child.fieldNames[0], tf: r.parent.fieldNames[0], name: r.name || '' },
+})).concat((parsed.lineage || []).flatMap((l) => (l.maps.length
+  ? l.maps.map((m, i) => ({ id: `${l.id}#${i}`, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: [m.s], tCols: [m.t], manual: l.manual, name: '' } }))
+  : [{ id: l.id, source: l.source, target: l.target, label: '', data: { kind: 'lineage', sCols: l.sCols, tCols: l.tCols, manual: l.manual, name: '' } }])));
+
+// table id -> the columns that need connection handles: every column of a reference (all of a composite one) and every column a lineage
+// arrow names. The others get none: four handles on every column made thousands of React Flow store subscribers on a big diagram.
+export function handleColumns(parsed) {
+  const out = new Map();
+  const add = (table, names) => { if (!out.has(table)) out.set(table, new Set()); names.forEach((n) => out.get(table).add(n)); };
+  parsed.refs.forEach((r) => { add(cid(r), r.child.fieldNames); add(pid(r), r.parent.fieldNames); });
+  (parsed.lineage || []).forEach((l) => { add(l.source, [...l.sCols, ...l.maps.map((m) => m.s)]); add(l.target, [...l.tCols, ...l.maps.map((m) => m.t)]); });
+  return out;
+}
