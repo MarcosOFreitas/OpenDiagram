@@ -706,7 +706,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   );
   const themeBtn = <button className="tbtn ic theme-btn" onClick={toggleTheme} aria-label={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} title={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}><Ic n={view.theme === 'dark' ? 'sun' : 'moon'} /></button>;
   const accountMenu = (home) => (user // home: no diagram is open, so no drawer for Account & password
-    ? <Menu title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
+    ? <Menu title={`${user.name} · ${user.email}`} label={`Account menu, ${user.name || user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
       items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, ...(home ? [] : [{ key: 'account', label: 'Account & password', onClick: () => setDrawer('account') }]),
         ...(user.role === 'admin' ? [{ key: 'admin', label: 'Administration', hint: 'users, groups, settings', onClick: () => setShowAdmin(true) }] : []),
         { sep: true }, { key: 'out', label: 'Sign out', danger: true, onClick: onLogout }]} />

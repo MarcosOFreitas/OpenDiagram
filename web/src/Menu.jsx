@@ -10,14 +10,15 @@ export function useDismiss(open, close, inside) {
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-// small dropdown used in the top bar: items = [{ key, label, hint?, on?, onClick } | { sep: true } | { header: 'text' }]
-export default function Menu({ trigger, items, active, title }) {
+// small dropdown used in the top bar: items = [{ key, label, hint?, on?, onClick } | { sep: true } | { header: 'text' }];
+// `label`: the spoken name of a trigger whose content says too little (the account avatar is one letter)
+export default function Menu({ trigger, items, active, title, label }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useDismiss(open, () => setOpen(false), (t) => ref.current?.contains(t));
   return (
     <div className="menu" ref={ref}>
-      <button className={`tbtn ${active || open ? 'on' : ''}`} title={title} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{trigger}<span className="caret">▾</span></button>
+      <button className={`tbtn ${active || open ? 'on' : ''}`} title={title} aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{trigger}<span className="caret">▾</span></button>
       {open && (
         <div className="menu-pop right" role="menu">
           {items.map((it, i) => it.sep ? <hr key={i} />
