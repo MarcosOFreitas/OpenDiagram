@@ -29,7 +29,7 @@
 - [x] Self-service password recovery without e-mail: a recovery key the person keeps (hash only, single use, rate-limited, audited).
 - [x] MCP connector for AI clients ([09](09-accounts-sharing.md)): separate agent accounts created by administrators, bearer tokens (hash only, shown once, expiry, revocation) valid only on `/mcp`, access only through the usual grants, no connection or credential ever returned, text marked as untrusted, every call audited, per-token rate limit, Origin check.
 - [ ] MFA/SSO. Not planned: e-mail verification and e-mail password reset (no SMTP).
-- [ ] Dependency scan in CI; container runs as non-root; read-only filesystem except `/data`.
+- [ ] Dependency scan in CI; [x] container runs as non-root (user `node`, 2026-10-21); [ ] read-only filesystem except `/data`.
 - [ ] Privacy notice: only schema metadata is read; no table data leaves the database.
 
 ## Reporting

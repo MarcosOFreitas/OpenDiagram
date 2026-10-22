@@ -61,7 +61,7 @@ async function resolve(b, user) {
 // a failed check is itself a warning: never silently treat "could not verify" as "safe"
 const checkPrivileges = (c, schemas) => privilegeWarnings(c, schemas).catch((e) => [`could not verify privileges (${String(e.message).split('\n')[0]})`]);
 
-app.get('/api/health', () => ({ ok: true }));
+app.get('/api/health', () => (db.prepare('select 1').get(), { ok: true })); // also proves the database answers: the container HEALTHCHECK calls it
 
 // ---------- accounts
 const where = (req) => `${auth.agentOf(req.headers['user-agent'])} · ${req.ip}`; // what the audit log and the session list say about the device

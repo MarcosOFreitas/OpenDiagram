@@ -1,9 +1,14 @@
 // SQLite (node:sqlite, built in: no native dependency) in DATA_DIR/app.db
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { accessSync, constants, mkdirSync } from 'node:fs';
 
 export const DIR = process.env.DATA_DIR || './data';
 mkdirSync(DIR, { recursive: true });
+// the image runs as the unprivileged user `node`; a volume created by an older image (which ran as root) is not writable until it is handed over
+try { accessSync(DIR, constants.W_OK); } catch {
+  throw new Error(`${DIR} is not writable by this process (uid ${process.getuid?.()}). A data volume from an older image belongs to root: run once
+  docker compose run --rm --user root --entrypoint chown app -R node:node /data`);
+}
 
 export const db = new DatabaseSync(`${DIR}/app.db`);
 db.exec(`

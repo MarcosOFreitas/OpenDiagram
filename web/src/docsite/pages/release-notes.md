@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Safer container
+
+- The container runs as the unprivileged user `node` and reports its health to Docker. **Updating an existing installation:** hand the data volume over once, see [Self-hosting](self-hosting) (*Updating*).
+- Every tag `v*` publishes the image for amd64 and arm64 (ARM servers and Apple Silicon included).
+
 ## Faster first load
 
 - The server sends the app's files compressed (brotli or gzip, about 1.6 MB instead of 16 MB) and the browser keeps them until the next update, so opening OpenDiagram again downloads almost nothing.
