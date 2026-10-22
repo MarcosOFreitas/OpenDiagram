@@ -29,6 +29,17 @@ function Trash({ d, title = 'Delete diagram', asking, onAsk, onDelete }) {
   );
 }
 
+// a new diagram: blank or from a template; in the Diagrams tab and on the screen of an account without diagrams
+export const CreateOptions = ({ templates = [], onCreate }) => (<>
+  <button className="primary" onClick={() => onCreate()}>+ New blank diagram</button>
+  {templates.length > 0 && <h4>Start from a template</h4>}
+  {templates.map((t) => (
+    <div key={t.id} className="card act">
+      <Open onClick={() => onCreate(t.id)}><Text title={t.name}><small>{t.description}</small></Text><small>+ create</small></Open>
+    </div>
+  ))}
+</>);
+
 // "Diagrams" tab: my diagrams (autosave) and the ones other people shared with me (directly or through a group)
 export default function Library({ diagrams, currentId, isAdmin, templates = [], onOpen, onCreate, onDelete }) {
   const [q, setQ] = useState('');
@@ -43,13 +54,7 @@ export default function Library({ diagrams, currentId, isAdmin, templates = [], 
   const trash = (d, title) => <Trash d={d} title={title} asking={asking === d.id} onAsk={setAsking} onDelete={onDelete} />;
   return (
     <div className="dbody">
-      <button className="primary" onClick={() => onCreate()}>+ New blank diagram</button>
-      {templates.length > 0 && <h4>Start from a template</h4>}
-      {templates.map((t) => (
-        <div key={t.id} className="card act">
-          <Open onClick={() => onCreate(t.id)}><Text title={t.name}><small>{t.description}</small></Text><small>+ create</small></Open>
-        </div>
-      ))}
+      <CreateOptions templates={templates} onCreate={onCreate} />
       {tools && (
         <div className="lib-tools">
           <input type="search" placeholder="Search by name or owner" aria-label="Search diagrams" value={q} onChange={(e) => setQ(e.target.value)} />

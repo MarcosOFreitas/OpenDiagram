@@ -153,6 +153,12 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .savestate.saving { color: #fcd34d; } .savestate.error { color: #fca5a5; }
 .chip-access { font-size: 11px; padding: 3px 9px; border-radius: 10px; background: #1d2c4a; color: #9fb7e8; white-space: nowrap; }
 .splash { height: 100%; display: grid; place-items: center; color: #6b7280; }
+/* an account without diagrams (App.jsx `empty`): the create options of the Diagrams tab on a centred card */
+.home { flex: 1; overflow: auto; background: var(--bg); padding: 48px 16px; }
+.home-card { max-width: 440px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: visible; }
+.home-card h2 { margin: 0; font-size: 18px; }
+.shell[data-theme="dark"] .home-card { background: #111826; color: #dbe3f1; }
+@media (max-width: 720px) { .home { padding: 16px; } .home-top .tbtn.theme-btn { display: inline-grid; } } /* no More menu here: the theme button stays */
 .auth-wrap { min-height: 100%; display: grid; place-items: center; background: #0b1220; padding: 20px; }
 .auth-card { width: 100%; max-width: 360px; background: #fff; border-radius: 14px; padding: 26px; display: flex; flex-direction: column; gap: 11px; box-shadow: 0 20px 60px rgba(0, 0, 0, .4); }
 .auth-card h2 { margin: 4px 0 0; font-size: 18px; }

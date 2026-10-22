@@ -48,6 +48,9 @@ await leaver.call('POST', '/api/auth/password', { current: 'Leaver-temp-pass-0',
 await leaver.call('POST', '/api/diagrams', { title: 'Quarterly reporting model', dbml: SAMPLE });
 await leaver.call('DELETE', '/api/auth/account', { password: 'Leaver-audit-pass-1' });
 await new Api(BASE).call('POST', '/api/auth/login', { email: 'nobody@example.com', password: 'wrong-password-1' }).catch(() => {}); // a failed sign-in for the log
+// a member without any diagram: the app shows the create options instead of making a sample
+await admin.call('POST', '/api/admin/users', { email: 'nora@example.com', name: 'Nora Lima', password: 'Nora-temp-pass-0' });
+{ const nora = new Api(BASE); await nora.call('POST', '/api/auth/login', { email: 'nora@example.com', password: 'Nora-temp-pass-0' }); await nora.call('POST', '/api/auth/password', { current: 'Nora-temp-pass-0', next: 'Nora-audit-pass-1' }); }
 // a diagram linked to a connection whose scheduled refresh failed 5 times (there is no API for that state: it is written into the instance's database)
 const conn = await admin.call('POST', '/api/connections', { name: 'audit-db', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off', refreshMinutes: 5 });
 const failing = (await admin.call('POST', '/api/diagrams', { title: 'Refresh error' })).id;
@@ -113,7 +116,7 @@ let theme = 'light';
 const go = async (path, { as = 'admin', local = {}, base = BASE } = {}) => {
   await cdp('Network.clearBrowserCookies');
   await cdp('Page.navigate', { url: base + '/' }); await sleep(500);
-  const who = { admin: [EMAIL, PASS], maya: ['maya@example.com', 'Maya-audit-pass-1'], temp: ['temp@example.com', 'Temp-pass-0000'] }[as];
+  const who = { admin: [EMAIL, PASS], maya: ['maya@example.com', 'Maya-audit-pass-1'], temp: ['temp@example.com', 'Temp-pass-0000'], nora: ['nora@example.com', 'Nora-audit-pass-1'] }[as];
   await ev(`(async () => { localStorage.clear(); ${who ? `const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ${JSON.stringify(who[0])}, password: ${JSON.stringify(who[1])} }) }); if (!r.ok) throw new Error('login ' + r.status);` : ''} localStorage.setItem('view', JSON.stringify({ theme: ${JSON.stringify(theme)}, grid: true })); for (const [k, v] of Object.entries(${JSON.stringify(local)})) localStorage.setItem(k, v); })()`);
   await cdp('Page.navigate', { url: base + path }); await sleep(2200);
   await ev(AUDIT);
@@ -179,6 +182,7 @@ const fillConn = (extra = '') => ev(`(async () => { await H.more('Database'); co
 // 1. signed out / first run / forced password change
 await run('login', () => go('/', { as: null }), { vps: ['desktop', 'phone'], kb: true });
 await run('login-recover', async () => { await go('/', { as: null }); await ev(`H.click('Forgot your password?')`); }, { vps: ['desktop', 'phone'], kb: true });
+await run('home-empty', () => go('/', { as: 'nora' }), { vps: ['desktop', 'phone'], kb: true });
 if (EMPTY && ONLY.includes('first-run')) await run('first-run', () => go('/', { as: null, base: EMPTY }), { vps: ['desktop', 'phone'], kb: true });
 await run('forced-password-change', () => go('/', { as: 'temp' }), { vps: ['desktop', 'phone'], kb: true });
 // 2. main screen, menus

@@ -46,6 +46,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `diagramModel.test.js` | DBML to diagram data, TableGroups kept on refresh, change summary, view kind, `bentPath` (a line whose label was dragged keeps the chosen style: Rounded and Step stay square, the label stays on the line), `nodeChanges` (the measurements of the derived TableGroup boxes never reach the nodes state: they caused a render loop; `benchclient.mjs` reports `idleReactCommitsPerSecond`, about 1 instead of 45) |
 | web | `docsModel.test.js`, `templates.test.js` | generated documentation and Markdown (with the Checks list); every starter template parses and documents |
 | web | `api.test.js`, `historyDiff.test.js`, `Menu.test.jsx`, `AdminAudit.test.jsx` | fetch wrapper and storage guards, line diff, menu dismissal, audit filters sent to the server |
+| web | `emptyHome.test.jsx` | the whole `App` with a stubbed API: an account without diagrams gets the create options and no `POST /api/diagrams` (the sample used to be created behind its back); `uiaudit.mjs home-empty` audits the screen |
 | web | `Library.test.jsx`, `a11y.test.jsx` | `pickDiagrams` (search by title or owner, sort, linked only), the search box from 9 diagrams on, delete asked in the card with the focus on Cancel; the Diagrams list is reachable by keyboard (Tab + Enter opens, once), delete buttons name the diagram, the open one is `aria-current` and says so in words; `press()` makes a non-button focusable and Enter/Space-operable |
 
 ### Rules
@@ -105,7 +106,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 ## Manual UI checklist (browser)
 
 - Fresh volume: first screen offers to create the administrator; afterwards public sign-up is closed. Admin → create user (temporary password shown once) → sign in as that user: forced password change → workspace. Admin → groups → add member → share a diagram with the group → the member sees it under *Shared with me* with the right permission.
-- First sign-in of a new account → the sample "Online store - sample" diagram exists (8 tables, 10 refs, 3 groups); *Start from a template* creates another; switching between two diagrams with identical DBML still draws the canvas → edit → `Saved`; reload keeps content and table positions.
+- First sign-in of a new account → **No diagrams yet** with *New blank diagram* and the templates, nothing created; choosing the sample gives "Online store - sample" (8 tables, 10 refs, 3 groups); deleting the last diagram comes back to that screen; *Start from a template* creates another; switching between two diagrams with identical DBML still draws the canvas → edit → `Saved`; reload keeps content and table positions.
 - Share: give a person and a group each a level; and create view/comment/edit links; open each in a private window: read-only editor for view/comment, comments visible, Log in prompt; after signing up the permission chip changes and comment/edit work; owner downgrade/revoke takes effect.
 - Import from demo-pg via the drawer → 4+ tables, edges visible, toast shown.
 - Test with `writer` → amber warning banner; with `reader` → none.

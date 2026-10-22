@@ -13,7 +13,7 @@ Everything **autosaves** a moment after you change it ("Saved" appears next to t
 
 ## Your first diagram
 
-Every new account starts with a sample, **Online store - sample**. To start from scratch use **More → Diagrams → New blank diagram**. It starts with a tiny users/posts example: select everything (`Ctrl+A`) and replace it with:
+An account without diagrams opens on **No diagrams yet**: choose **New blank diagram** or a template, such as the sample **Online store — sample**. Nothing is created until you choose, and the same screen comes back when you delete your last diagram. Later, **More → Diagrams** creates more. A blank diagram starts with a tiny users/posts example: select everything (`Ctrl+A`) and replace it with:
 
 ```dbml
 Table users {

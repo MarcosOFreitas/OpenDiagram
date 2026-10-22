@@ -2,6 +2,11 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Fixes
+
+- An account without diagrams (a new one, or after deleting the last) shows **No diagrams yet** with a blank diagram and the templates; the sample is no longer created on its own.
+- A relationship line whose label was dragged keeps the chosen line style (Rounded, Step, Straight) instead of turning into a curve.
+
 ## Check constraints and partitioning
 
 - The live import (PostgreSQL, Oracle and MySQL) now reads **check constraints**, written in a `checks { }` block of the table with their names, and says how a table is **partitioned** in its note (`PARTITIONED BY RANGE (created_at)`). The generated documentation lists the checks of each table. See [Import from a database](database-import#what-is-imported).

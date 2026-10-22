@@ -11,7 +11,7 @@ import AuthScreen, { PasswordForm } from './Auth.jsx';
 import { Sessions, RecoveryKey, DeleteAccount } from './AccountSecurity.jsx';
 import Admin from './Admin.jsx';
 import Menu, { useDismiss } from './Menu.jsx';
-import Library from './Library.jsx';
+import Library, { CreateOptions } from './Library.jsx';
 import SharePanel from './SharePanel.jsx';
 import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
@@ -171,6 +171,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
   const [conflict, setConflict] = useState(null); // { version, by, at } while a newer version exists on the server
   const [diagrams, setDiagrams] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [empty, setEmpty] = useState(false); // the account has no diagram: the create options are shown instead of a workspace
   const [editorW, setEditorW] = useState(() => Math.max(260, Math.min(1100, +store('editorW') || 380)));
   const [resizing, setResizing] = useState(false);
   const [saveState, setSaveState] = useState('saved'); // saved | saving | error
@@ -328,7 +329,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     savedRef.current = JSON.stringify(payloadOf(d));
     setNodes([]); setEdges([]);
     verRef.current = d.version ?? null; setDocVersion(d.version ?? null); setConflict(null);
-    setDoc(d); setDbml(d.dbml); setTitle(d.title); setSource(d.source ?? null); setComments(list ?? []); setSaveState('saved');
+    setDoc(d); setDbml(d.dbml); setTitle(d.title); setSource(d.source ?? null); setComments(list ?? []); setSaveState('saved'); setEmpty(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const openDiagram = useCallback(async (id) => {
     const [d, list] = await Promise.all([api(`diagrams/${id}`), api(`diagrams/${id}/comments`)]);
@@ -344,16 +345,12 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           if (!off) startDoc({ id: null, title: d.title, dbml: d.dbml, layout: d.layout, source: null, access: d.access, ownerName: d.owner, isOwner: d.isOwner }, d.comments);
           return;
         }
-        let list = await api('diagrams');
+        const list = await api('diagrams');
         let id = store('lastDiagram');
         if (!list.some((x) => x.id === id)) id = list[0]?.id;
-        if (!id) { // first sign-in: the sample shop model
-          const first = TEMPLATES[0];
-          id = (await api('diagrams', { title: first.title, dbml: first.dbml })).id;
-          list = await api('diagrams');
-        }
         if (off) return;
         setDiagrams(list);
+        if (!id) { setEmpty(true); return; } // nothing is created behind the person's back: they choose blank, the sample or a template
         try { await openDiagram(id); } catch (e) { // e.g. access to the last diagram was revoked
           const alt = list.find((x) => x.id !== id);
           if (!alt) throw e;
@@ -428,7 +425,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     try {
       await api(`diagrams/${d.id}`, undefined, 'DELETE');
       const list = await api('diagrams'); setDiagrams(list);
-      if (d.id === doc?.id) { if (list[0]) await openDiagram(list[0].id); else await newDiagram(TEMPLATES[0].id); }
+      if (d.id === doc?.id) { if (list[0]) await openDiagram(list[0].id); else { setDrawer(null); setDoc(null); setEmpty(true); } }
     } catch (e) { notify('err', errMsg(e)); }
   };
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
@@ -707,6 +704,35 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
       <input name="pw" type="password" autoFocus autoComplete="off" placeholder="Password" /><button className="primary" type="submit">Open</button>
     </form></div>
   );
+  const themeBtn = <button className="tbtn ic theme-btn" onClick={toggleTheme} aria-label={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} title={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}><Ic n={view.theme === 'dark' ? 'sun' : 'moon'} /></button>;
+  const accountMenu = (home) => (user // home: no diagram is open, so no drawer for Account & password
+    ? <Menu title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
+      items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, ...(home ? [] : [{ key: 'account', label: 'Account & password', onClick: () => setDrawer('account') }]),
+        ...(user.role === 'admin' ? [{ key: 'admin', label: 'Administration', hint: 'users, groups, settings', onClick: () => setShowAdmin(true) }] : []),
+        { sep: true }, { key: 'out', label: 'Sign out', danger: true, onClick: onLogout }]} />
+    : <button className="tbtn on" onClick={onLogin}>Log in</button>);
+  const overlays = (<>
+    {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
+    {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
+  </>);
+  if (!doc && empty) return (
+    <div className="shell" data-theme={view.theme}>
+      <header className="top home-top">
+        <div className="brand"><Logo /> {org || 'OpenDiagram'}</div>
+        <div className="grow" />
+        {themeBtn}
+        {accountMenu(true)}
+      </header>
+      <main className="home">
+        <section className="home-card dbody" aria-labelledby="home-h">
+          <h2 id="home-h">No diagrams yet</h2>
+          <small className="hint">Start with a blank diagram, the sample or a template.</small>
+          <CreateOptions templates={TEMPLATES} onCreate={newDiagram} />
+        </section>
+      </main>
+      {overlays}
+    </div>
+  );
   if (loadErr) return <div className="auth-wrap"><div className="auth-card"><h2>Could not open this diagram</h2><div className="auth-err">{loadErr}</div><a href="/">Go to the app</a></div></div>;
   if (!doc) return <div className="splash">Loading…</div>;
 
@@ -744,13 +770,8 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           items={[...['diagrams', 'connect', 'import', 'history'].filter((k) => tabName[k]).map((k) => ({ key: k, label: tabName[k], on: drawer === k, onClick: () => setDrawer(k) })),
             ...(window.innerWidth <= 720 ? [{ sep: true }, { key: 'theme', label: view.theme === 'dark' ? 'Light theme' : 'Dark theme', onClick: toggleTheme }] : []), // phones: no room for the top-bar button
             { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
-        <button className="tbtn ic theme-btn" onClick={toggleTheme} aria-label={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} title={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}><Ic n={view.theme === 'dark' ? 'sun' : 'moon'} /></button>
-        {user
-          ? <Menu title={`${user.name} · ${user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
-            items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
-              ...(user.role === 'admin' ? [{ key: 'admin', label: 'Administration', hint: 'users, groups, settings', onClick: () => setShowAdmin(true) }] : []),
-              { sep: true }, { key: 'out', label: 'Sign out', danger: true, onClick: onLogout }]} />
-          : <button className="tbtn on" onClick={onLogin}>Log in</button>}
+        {themeBtn}
+        {accountMenu(false)}
       </header>
 
       {newer && (
@@ -964,8 +985,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         </div>
       )}
       {picker && tableList && <TablePicker items={tableList} selection={selection} imported={imported} groups={tableGroups ?? parsed.groups ?? []} ddl={fullDdl} onClose={() => setPicker(false)} onApply={({ selection: next, groups, ddl }) => { setSelection(next); setTableGroups(groups); setFullDdl(ddl); setPicker(false); }} />}
-      {showAdmin && user?.role === 'admin' && <Admin me={user} notify={notify} onClose={() => setShowAdmin(false)} onSettings={onOrg} />}
-      {toast && <div className={`toast ${toast.type}`} role={toast.type === 'err' ? 'alert' : 'status'} onClick={() => setToast(null)}>{toast.text}</div>}
+      {overlays}
     </div>
   );
 }
