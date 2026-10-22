@@ -44,3 +44,43 @@ test('a missing connection answers 404 with { error }', async () => {
   assert.equal(r.statusCode, 404);
   assert.equal(typeof r.json().error, 'string');
 });
+
+test('POST /api/connections validates the connection like the administrators\' route does', async () => {
+  const ok = { name: 'pg', type: 'postgres', host: 'db.example.com', port: 5432, database: 'd', user: 'u' };
+  for (const [what, body] of [['type', { ...ok, type: 'sqlite' }], ['name', { ...ok, name: '' }], ['host', { ...ok, host: undefined }], ['database', { ...ok, database: '' }], ['user', { ...ok, user: undefined }], ['port', { ...ok, port: 70000 }], ['port', { ...ok, port: 'abc' }], ['name', { ...ok, name: 'x'.repeat(200) }]]) {
+    const r = await call('POST', '/api/connections', body);
+    assert.equal(r.statusCode, 400, `${what}: ${JSON.stringify(body)}`);
+    assert.equal(typeof r.json().error, 'string');
+  }
+  const r = await call('POST', '/api/connections', { ...ok, port: '' });
+  assert.equal(r.statusCode, 200, r.body); // an empty port means the engine's default, as the form sends it
+});
+
+test('schemas and tables must be lists of names in /api/tables and /api/import', async () => {
+  const conn = { type: 'postgres', host: 'db.example.com', database: 'd', user: 'u' };
+  for (const url of ['/api/tables', '/api/import']) {
+    for (const schemas of ['public', [1], [{}], []]) {
+      const r = await call('POST', url, { ...conn, schemas });
+      assert.equal(r.statusCode, 400, `${url} schemas=${JSON.stringify(schemas)}`);
+    }
+  }
+  const r = await call('POST', '/api/import', { ...conn, schemas: ['public'], tables: 'orders' });
+  assert.equal(r.statusCode, 400);
+});
+
+test('a save repeated after a lost response (stale baseVersion, same content) is not a conflict', async () => {
+  const v = (await call('GET', `/api/diagrams/${id}`)).json().version;
+  const first = await call('PUT', `/api/diagrams/${id}`, { dbml: 'Table resent { id int }', baseVersion: v });
+  assert.equal(first.statusCode, 200);
+  const again = await call('PUT', `/api/diagrams/${id}`, { dbml: 'Table resent { id int }', baseVersion: v }); // the client never saw the answer
+  assert.equal(again.statusCode, 200, again.body);
+  assert.equal(again.json().version, first.json().version);
+  assert.equal((await call('PUT', `/api/diagrams/${id}`, { dbml: 'Table other { id int }', baseVersion: v })).statusCode, 409); // different content still conflicts
+});
+
+test('request logs never carry a share-link token', async () => {
+  const { maskUrl } = await import('../src/index.js');
+  assert.equal(maskUrl('/s/AbC123_-xyz'), '/s/***');
+  assert.equal(maskUrl('/api/shared/AbC123_-xyz/comments/7?x=1'), '/api/shared/***/comments/7?x=1');
+  assert.equal(maskUrl('/api/diagrams/42'), '/api/diagrams/42');
+});

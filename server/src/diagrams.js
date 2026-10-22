@@ -118,13 +118,14 @@ export function update(id, patch, { includeSource = false, baseVersion, actor, s
   check(patch);
   const cur = db.prepare('select version, title, dbml, layout, source, updated_at from diagrams where id = ?').get(id);
   if (!cur) throw bad('diagram not found', 404);
-  if (baseVersion !== undefined && baseVersion !== cur.version) throw conflict(cur.version);
   const next = { title: cur.title, dbml: cur.dbml, layout: cur.layout, source: cur.source };
   if (patch.title !== undefined) next.title = patch.title.trim();
   if (patch.dbml !== undefined) next.dbml = patch.dbml;
   if (patch.layout !== undefined) next.layout = JSON.stringify(patch.layout);
   if (includeSource && patch.source !== undefined) next.source = JSON.stringify(patch.source);
+  // nothing changes: the current version, even with a stale baseVersion (a save repeated because its answer was lost is not a conflict)
   if (next.title === cur.title && next.dbml === cur.dbml && next.layout === cur.layout && next.source === cur.source) return cur.version;
+  if (baseVersion !== undefined && baseVersion !== cur.version) throw conflict(cur.version);
   const version = cur.version + 1;
   db.prepare('update diagrams set title = ?, dbml = ?, layout = ?, source = ?, version = ?, updated_at = ? where id = ?').run(next.title, next.dbml, next.layout, next.source, version, now(), id);
   if (next.title !== cur.title || next.dbml !== cur.dbml || next.layout !== cur.layout) snapshot(id, version, { ...next, before: cur }, actor, separate, reason);

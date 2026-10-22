@@ -17,7 +17,12 @@ import * as agents from './agents.js';
 import * as mcp from './mcp.js';
 
 const TEST = process.env.OD_NO_LISTEN === '1'; // server/test/http.test.js: routes through app.inject, no port, no timers
-export const app = Fastify({ logger: !TEST, bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1' });
+// a share-link token is a bearer secret: it never reaches the request log
+export const maskUrl = (url) => String(url).replace(/^\/(s|api\/shared)\/[^/?#]+/, '/$1/***');
+export const app = Fastify({
+  logger: !TEST && { serializers: { req: (r) => ({ method: r.method, url: maskUrl(r.url), host: r.host, remoteAddress: r.ip, remotePort: r.socket?.remotePort }) } },
+  bodyLimit: 3 * 1024 * 1024, trustProxy: process.env.TRUST_PROXY === '1',
+});
 const bad = (msg, statusCode = 400) => Object.assign(new Error(msg), { statusCode });
 
 // accept an empty body with Content-Type: application/json (DELETE/logout from fetch clients) instead of failing with 400
@@ -48,6 +53,16 @@ app.addHook('onSend', async (_req, reply) => {
 
 // saved connection (if `id`) overlaid with the draft fields from the form; empty values keep the stored ones
 const assertType = (t) => { if (!['postgres', 'oracle'].includes(t)) throw bad('type must be postgres or oracle'); };
+// a connection as the form sends it, for a person's own and for an administrator's shared one; an empty port is the engine's default
+function validConn(b) {
+  assertType(b.type);
+  if (!['name', 'host', 'database', 'user'].every((k) => typeof b[k] === 'string' && b[k].trim())) throw bad('name, host, database and user are required');
+  if (b.name.length > 80) throw bad('the connection name can have 80 characters at most');
+  const port = b.port === '' || b.port == null ? (b.type === 'oracle' ? 1521 : 5432) : Number(b.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw bad('port must be a number from 1 to 65535');
+  return { ...b, port };
+}
+const nameList = (v) => { if (!Array.isArray(v) || !v.length || !v.every((s) => typeof s === 'string' && s)) throw bad('select at least one schema'); return v; };
 async function resolve(b, user) {
   const saved = b.id ? store.getForUse(user, b.id) : {};
   if (b.id && !saved) throw bad('connection not found', 404);
@@ -184,9 +199,7 @@ app.addHook('onResponse', async (req, reply) => {
 app.get('/api/admin/connections', (req) => { adminOnly(req); return store.listShared(); });
 app.post('/api/admin/connections', async (req) => {
   adminOnly(req);
-  const b = req.body ?? {};
-  assertType(b.type);
-  if (!b.name || !b.host || !b.database || !b.user) throw bad('name, host, database and user are required');
+  const b = validConn(req.body ?? {});
   await assertHostAllowed(b.host);
   return { id: store.upsert(req.user.id, b, { shared: true }) };
 });
@@ -204,7 +217,11 @@ app.get('/api/directory/groups', () => admin.directoryGroups());
 
 // ---------- saved connections (private to the account)
 app.get('/api/connections', (req) => store.listFor(req.user)); // own + shared ones the account may use
-app.post('/api/connections', (req) => ({ id: store.upsert(req.user.id, req.body ?? {}) }));
+app.post('/api/connections', async (req) => {
+  const b = validConn(req.body ?? {});
+  await assertHostAllowed(b.host);
+  return { id: store.upsert(req.user.id, b) };
+});
 app.delete('/api/connections/:id', (req) => (store.remove(req.user.id, req.params.id), { ok: true }));
 
 // test + list schemas; also reports credentials that can do more than read metadata
@@ -228,14 +245,14 @@ app.post('/api/schemas', async (req) => {
   });
 });
 app.post('/api/tables', async (req) => {
-  const { schemas } = req.body ?? {};
-  if (!schemas?.length) throw bad('select at least one schema');
+  const schemas = nameList(req.body?.schemas);
   const c = await resolve(req.body, req.user);
   return audited(req, c, 'tables', (r) => `${schemas.join(', ')}: ${r.tables.length} tables listed`, async () => ({ tables: await listTables(c, schemas) }));
 });
 app.post('/api/import', async (req) => {
-  const { schemas, tables, ddl } = req.body ?? {};
-  if (!schemas?.length) throw bad('select at least one schema');
+  const { tables, ddl } = req.body ?? {};
+  const schemas = nameList(req.body?.schemas);
+  if (tables !== undefined && tables !== null && !(Array.isArray(tables) && tables.every((t) => typeof t === 'string'))) throw bad('tables must be a list of table names'); // an empty list means "all tables" (.specs/12-table-selection.md)
   const c = await resolve(req.body, req.user);
   const refreshing = req.body?.purpose === 'refresh';
   const out = await audited(req, c, refreshing ? 'refresh' : 'import', (r) => `${schemas.join(', ')}: ${r.tables} tables, ${r.refs} refs`, () => generate(c, { schemas, tables, ddl }));
