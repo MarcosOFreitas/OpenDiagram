@@ -108,3 +108,8 @@ test('an auto-increment column (MySQL AUTO_INCREMENT) is written with increment,
   assert.match(out, /id "int unsigned" \[pk, increment\]/);
   assert.doesNotMatch(out, /n int \[[^\]]*increment/);
 });
+
+test('a partial index carries its WHERE as the index note', () => {
+  const out = toDbml({ tables: [table('t', [col('email', 'text')], { indexes: [{ name: 'uq_active', unique: true, columns: ['email'], where: "(active AND (kind = 'a'::text))" }] })], refs: [] });
+  assert.ok(out.includes("email [unique, name: 'uq_active', note: 'WHERE (active AND (kind = \\'a\\'::text))']"), out);
+});

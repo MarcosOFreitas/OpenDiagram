@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assemble, oraNotNull, explainDbError } from '../src/introspect.js';
+import { assemble, oraNotNull, explainDbError, pgColumn, oraColumn } from '../src/introspect.js';
 
 const t = (schema, name, extra = {}) => ({ schema, name, comment: null, ...extra });
 const c = (schema, table, name) => ({ schema, table, col: { name, type: 'int', nullable: true } });
@@ -125,4 +125,43 @@ test('a PostgreSQL partition is not a table of the diagram (its parent says PART
   const out = filterModel(m, ['shop.events', 'shop.events_2026', 'shop.gone']);
   assert.deepEqual(out.tables.map((t) => t.name), ['events']);
   assert.deepEqual(out.missing, ['shop.gone']);
+});
+
+test('PostgreSQL columns: serial and identity are increment (no nextval default); a generated column says so in its note, not as a default', () => {
+  const r = (o) => ({ schema: 's', table: 't', attname: 'c', type: 'integer', nn: true, def: null, cmt: null, ident: '', gen: '', owned: false, ...o });
+  assert.deepEqual(pgColumn(r({ def: "nextval('s.t_c_seq'::regclass)", owned: true })), { name: 'c', type: 'integer', nullable: false, default: undefined, comment: undefined, increment: true });
+  assert.equal(pgColumn(r({ def: "nextval('s.other_seq'::regclass)", owned: false })).default, "nextval('s.other_seq'::regclass)"); // a sequence the column does not own stays a default
+  assert.equal(pgColumn(r({ ident: 'd' })).increment, true);
+  assert.equal(pgColumn(r({ ident: 'a' })).increment, true);
+  const g = pgColumn(r({ gen: 's', def: 'price * qty', cmt: 'Total' }));
+  assert.deepEqual([g.default, g.comment, g.increment], [undefined, 'Total\nGENERATED ALWAYS AS (price * qty) STORED', undefined]);
+  assert.deepEqual(pgColumn(r({ def: '0' })), { name: 'c', type: 'integer', nullable: false, default: '0', comment: undefined });
+});
+
+test('Oracle columns: identity is increment (no sequence default); a virtual column says so in its note', () => {
+  const r = (o) => ({ COLUMN_NAME: 'C', DATA_TYPE: 'NUMBER', DATA_PRECISION: 10, DATA_SCALE: 0, NULLABLE: 'N', DATA_DEFAULT: null, COMMENTS: null, IDENTITY_COLUMN: 'NO', VIRTUAL_COLUMN: 'NO', ...o });
+  const id = oraColumn(r({ IDENTITY_COLUMN: 'YES', DATA_DEFAULT: '"SHOP"."ISEQ$$_7301".nextval' }));
+  assert.deepEqual([id.increment, id.default], [true, undefined]);
+  const v = oraColumn(r({ VIRTUAL_COLUMN: 'YES', DATA_DEFAULT: '"PRICE"*"QTY" ', COMMENTS: 'Total' }));
+  assert.deepEqual([v.default, v.comment], [undefined, 'Total\nGENERATED ALWAYS AS ("PRICE"*"QTY") VIRTUAL']);
+  assert.equal(oraColumn(r({ DATA_DEFAULT: "'new' " })).default, "'new'");
+});
+
+test('a partial index keeps its WHERE (assemble passes it on)', () => {
+  const m = assemble([t('s', 'a')], [], [], [], [{ schema: 's', table: 'a', name: 'ix', unique: true, type: 'btree', columns: ['email'], where: 'active' }]);
+  assert.equal(m.tables[0].indexes[0].where, 'active');
+});
+
+test('a partial unique index on the primary-key columns is not the primary key: it is kept (seen on the demo)', () => {
+  const m = assemble([t('s', 'a')], [], [{ schema: 's', table: 'a', cols: ['id'] }], [], [
+    { schema: 's', table: 'a', name: 'a_pkey_copy', unique: true, type: 'btree', columns: ['id'] },
+    { schema: 's', table: 'a', name: 'one_unpaid', unique: true, type: 'btree', columns: ['id'], where: 'NOT paid' },
+  ]);
+  assert.deepEqual(m.tables[0].indexes.map((i) => i.name), ['one_unpaid']);
+});
+
+test('a generated expression that PostgreSQL wraps in parentheses is not wrapped twice', () => {
+  const r = { schema: 's', table: 't', attname: 'gross', type: 'numeric(10,2)', nn: false, def: '(net + vat)', cmt: null, ident: '', gen: 's', owned: false };
+  assert.equal(pgColumn(r).comment, 'GENERATED ALWAYS AS (net + vat) STORED');
+  assert.equal(pgColumn({ ...r, def: '(a + 1) * (b + 1)' }).comment, 'GENERATED ALWAYS AS ((a + 1) * (b + 1)) STORED');
 });

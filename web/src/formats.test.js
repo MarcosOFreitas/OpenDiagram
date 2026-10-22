@@ -7,8 +7,9 @@ import { importer, Parser } from '@dbml/core';
 const tables = (dbml) => new Parser().parse(dbml, 'dbmlv2').schemas.flatMap((s) => s.tables);
 
 describe('Oracle SQL import', () => {
-  // the DDL statements of the demo schema (the file is a SQL*Plus script: its `connect` lines and system grants are not plain DDL)
-  const ddl = (readFileSync(new URL('../../demo/oracle.sql', import.meta.url), 'utf8').match(/(create table|alter table|create (unique )?index|comment on)[\s\S]*?;/gi) || []).join('\n');
+  // the DDL statements of the demo schema (the file is a SQL*Plus script: its `connect` lines and system grants are not plain DDL);
+  // the table with a virtual column is left out: @dbml/core's Oracle importer cannot read `generated always as (...) virtual` (.specs/04)
+  const ddl = (readFileSync(new URL('../../demo/oracle.sql', import.meta.url), 'utf8').match(/(create table|alter table|create (unique )?index|comment on)[\s\S]*?;/gi) || []).filter((s) => !/\bvirtual\b/i.test(s)).join('\n');
 
   it('reads tables, keys, indexes and comments', () => {
     const t = tables(importer.import(ddl, 'oracle'));

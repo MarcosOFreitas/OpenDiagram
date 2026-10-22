@@ -42,7 +42,7 @@ export function toDbml({ tables, refs, enums = [], sequences = [], lineage = [] 
     if (t.pk.length > 1) idx.push(`    (${t.pk.map(id).join(', ')}) [pk]`);
     for (const i of t.indexes) {
       const cols = i.columns.map(col);
-      const s = [i.unique && 'unique', `name: ${str(i.name)}`, ['hash', 'btree'].includes(i.type?.toLowerCase()) && `type: ${i.type.toLowerCase()}`].filter(Boolean);
+      const s = [i.unique && 'unique', `name: ${str(i.name)}`, ['hash', 'btree'].includes(i.type?.toLowerCase()) && `type: ${i.type.toLowerCase()}`, i.where && `note: ${str(`WHERE ${i.where}`)}`].filter(Boolean); // where: a partial index
       idx.push(`    ${cols.length > 1 ? `(${cols.join(', ')})` : cols[0]} [${s.join(', ')}]`);
     }
     if (idx.length) out.push('', '  indexes {', ...idx, '  }');

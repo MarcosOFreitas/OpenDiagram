@@ -40,6 +40,9 @@ Press **Import N schema(s) → diagram**. The DBML appears in the editor and the
 ## What is imported
 
 - **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE`; `ON UPDATE` for PostgreSQL) and indexes.
+- **Auto-numbered columns** as `increment`: PostgreSQL `serial` and identity columns, Oracle identity columns, MySQL `AUTO_INCREMENT` (the sequence behind them is not written as a default).
+- **Generated (computed) columns** with their expression in the column note, `GENERATED ALWAYS AS (net + vat) STORED` (or `VIRTUAL`), not as a default.
+- **Partial indexes** (PostgreSQL) with their condition as the index note, `WHERE NOT paid`.
 - **Views and materialized views**: drawn as tables with a **· View** / **· Mat. view** mark, with their resulting structure (columns, types, indexes). By default the SQL is **not** kept; tick **Full DDL of views** in the table picker to add the `CREATE VIEW` / `CREATE MATERIALIZED VIEW … AS …` statement to the table note. The choice is remembered for the refresh. In Oracle a materialized view also exists as a same-name table: it is shown once, as a view.
 - **Data lineage** of views and materialized views (which tables they are built from, and which source column each output column comes from) as `// lineage(auto):` comment lines. See [Data lineage](data-lineage).
 - **Enums** (PostgreSQL) as `Enum` blocks.

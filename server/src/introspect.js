@@ -5,6 +5,21 @@ import { ACTION } from './dbml.js';
 import { viewColumnLineage } from './lineage.js';
 
 const key = (s, n) => `${s}.${n}`;
+// an expression without the parentheses that enclose all of it (PostgreSQL writes `(net + vat)`), so a note does not double them
+export function unwrap(s) {
+  s = String(s ?? '').trim();
+  if (s[0] !== '(') return s;
+  let depth = 0, quoted = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "'") quoted = !quoted;
+    else if (!quoted && ch === '(') depth++;
+    else if (!quoted && ch === ')' && --depth === 0 && i < s.length - 1) return s;
+  }
+  return s.slice(1, -1).trim();
+}
+// a generated column is not a default: its expression goes to the column note, after the comment
+const genNote = (comment, expr, kind) => [comment, expr && `GENERATED ALWAYS AS (${unwrap(expr)}) ${kind}`].filter(Boolean).join('\n') || undefined;
 
 // views are tables with a `view` flag (definition text); triggers hang off their table/view; enums and sequences are separate lists.
 // `seqUse` = [{ seq: {schema, name}, table: {schema, name}, column? }]: which table (and column) uses a sequence (a column default, or a trigger); only tables of this import count.
@@ -18,8 +33,8 @@ export function assemble(tableRows, colRows, pkRows, fkRows, idxRows, trigRows =
   for (const r of idxRows) {
     const t = tables.get(key(r.schema, r.table));
     if (!t) continue;
-    const samePk = r.unique && t.pk.length === r.columns.length && r.columns.every((c, i) => c === t.pk[i]);
-    if (!samePk) t.indexes.push({ name: r.name, unique: r.unique, type: r.type, columns: r.columns });
+    const samePk = r.unique && !r.where && t.pk.length === r.columns.length && r.columns.every((c, i) => c === t.pk[i]); // a partial one is not the key
+    if (!samePk) t.indexes.push({ name: r.name, unique: r.unique, type: r.type, columns: r.columns, ...(r.where ? { where: r.where } : {}) }); // where: a partial index's condition
   }
   for (const r of trigRows) tables.get(key(r.schema, r.table))?.triggers.push({ name: r.name, def: r.def });
   for (const r of checkRows) tables.get(key(r.schema, r.table))?.checks.push({ name: r.name, expr: r.expr });
@@ -77,16 +92,27 @@ const pgSchemas = (c) => pgWith(c, async (cl) =>
 const pgTables = (c, schemas) => pgWith(c, async (cl) =>
   (await cl.query(`select n.nspname schema, c.relname name, c.relkind in ('v','m') "view" from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and not c.relispartition and n.nspname = any($1) order by 1,2`, [schemas])).rows);
 
+// one pg_attribute row -> the neutral column: serial (a default on a sequence the column owns) and identity columns are `increment`
+export function pgColumn(r) {
+  const generated = r.gen === 's', serial = !!r.owned && /^nextval\(/i.test(r.def ?? '');
+  const col = { name: r.attname, type: r.type, nullable: !r.nn, default: generated || serial ? undefined : r.def, comment: genNote(r.cmt, generated && r.def, 'STORED') };
+  if (serial || r.ident === 'a' || r.ident === 'd') col.increment = true;
+  return col;
+}
+
 const pgImport = (c, schemas) => pgWith(c, async (cl) => {
   const q = async (sql) => (await cl.query(sql, [schemas])).rows;
   const tableRows = await q(`select n.nspname schema, c.relname name, obj_description(c.oid) comment, case when c.relkind in ('v','m') then pg_get_viewdef(c.oid,true) end view, case c.relkind when 'v' then 'VIEW' when 'm' then 'MATERIALIZED VIEW' end "viewKind",
       case when c.relkind = 'p' then pg_get_partkeydef(c.oid) end partition
     from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p','v','m') and not c.relispartition and n.nspname = any($1) order by 1,2`); // a partition repeats its parent, which says PARTITIONED BY
-  const colRows = (await q(`select n.nspname schema, c.relname "table", a.attname, format_type(a.atttypid,a.atttypmod) type, a.attnotnull nn, pg_get_expr(d.adbin,d.adrelid) def, col_description(c.oid,a.attnum) cmt
+  // attgenerated (PostgreSQL 12+) read through to_jsonb so an 11 still answers; owned = a sequence that belongs to the column (serial, identity)
+  const colRows = (await q(`select n.nspname schema, c.relname "table", a.attname, format_type(a.atttypid,a.atttypmod) type, a.attnotnull nn, pg_get_expr(d.adbin,d.adrelid) def, col_description(c.oid,a.attnum) cmt,
+      a.attidentity::text ident, to_jsonb(a) ->> 'attgenerated' gen,
+      exists (select 1 from pg_depend dep where dep.refobjid = c.oid and dep.refobjsubid = a.attnum and dep.classid = 'pg_class'::regclass and dep.deptype in ('a','i')) owned
     from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_attribute a on a.attrelid=c.oid and a.attnum>0 and not a.attisdropped
     left join pg_attrdef d on d.adrelid=c.oid and d.adnum=a.attnum
     where c.relkind in ('r','p','v','m') and n.nspname = any($1) order by 1,2,a.attnum`))
-    .map((r) => ({ schema: r.schema, table: r.table, col: { name: r.attname, type: r.type, nullable: !r.nn, default: r.def, comment: r.cmt } }));
+    .map((r) => ({ schema: r.schema, table: r.table, col: pgColumn(r) }));
   const cons = await q(`select n.nspname schema, c.relname "table", con.conname, con.contype, con.confupdtype, con.confdeltype,
       (select array_agg(a.attname::text order by k.ord) from unnest(con.conkey) with ordinality k(n,ord) join pg_attribute a on a.attrelid=con.conrelid and a.attnum=k.n) cols,
       fn.nspname fschema, fc.relname ftable,
@@ -99,12 +125,12 @@ const pgImport = (c, schemas) => pgWith(c, async (cl) => {
     name: r.conname, from: { schema: r.schema, name: r.table, columns: r.cols }, to: { schema: r.fschema, name: r.ftable, columns: r.fcols },
     onDelete: ACTION[r.confdeltype], onUpdate: ACTION[r.confupdtype],
   }));
-  const idxRows = (await q(`select n.nspname schema, t.relname "table", i.relname name, ix.indisunique uq, am.amname type,
+  const idxRows = (await q(`select n.nspname schema, t.relname "table", i.relname name, ix.indisunique uq, am.amname type, pg_get_expr(ix.indpred, ix.indrelid, true) pred,
       (select array_agg(pg_get_indexdef(ix.indexrelid,k,true) order by k) from generate_series(1,ix.indnkeyatts) k) cols
     from pg_index ix join pg_class i on i.oid=ix.indexrelid join pg_class t on t.oid=ix.indrelid
     join pg_namespace n on n.oid=t.relnamespace join pg_am am on am.oid=i.relam
     where n.nspname = any($1) and t.relkind in ('r','p','m') and not ix.indisprimary order by 1,2,3`))
-    .map((r) => ({ schema: r.schema, table: r.table, name: r.name, unique: r.uq, type: r.type, columns: r.cols }));
+    .map((r) => ({ schema: r.schema, table: r.table, name: r.name, unique: r.uq, type: r.type, columns: r.cols, where: r.pred }));
   const trigRows = await q(`select n.nspname schema, c.relname "table", t.tgname name, pg_get_triggerdef(t.oid,true) def
     from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and n.nspname = any($1) order by 1,2,3`);
   const enums = await q(`select n.nspname schema, t.typname name, array_agg(e.enumlabel::text order by e.enumsortorder) "values"
@@ -185,6 +211,14 @@ function oraType(r) {
   return t;
 }
 
+// one ALL_TAB_COLS row -> the neutral column: an identity column is `increment` (its ISEQ$$ default dropped), a virtual one says so in its note
+export function oraColumn(r) {
+  const def = r.DATA_DEFAULT == null ? null : String(r.DATA_DEFAULT).trim(), virtual = r.VIRTUAL_COLUMN === 'YES', identity = r.IDENTITY_COLUMN === 'YES';
+  const col = { name: r.COLUMN_NAME, type: oraType(r), nullable: r.NULLABLE === 'Y', default: virtual || identity ? undefined : def, comment: genNote(r.COMMENTS, virtual && def, 'VIRTUAL') };
+  if (identity) col.increment = true;
+  return col;
+}
+
 const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   const [binds, inl] = inBinds(schemas);
   const q = async (sql) => (await conn.execute(sql.replaceAll('@IN', inl), binds, { outFormat: oracledb.OUT_FORMAT_OBJECT })).rows;
@@ -196,11 +230,11 @@ const oraImport = (c, schemas) => oraWith(c, async (conn) => {
   for (const t of tableRows) if (mv.has(`${t.schema}.${t.name}`)) { t.view = mv.get(`${t.schema}.${t.name}`) ?? ''; t.viewKind = 'MATERIALIZED VIEW'; }
   tableRows.push(...await q(`select v.owner "schema", v.view_name "name", c.comments "comment", v.text_vc "view", 'VIEW' "viewKind" from all_views v
     left join all_tab_comments c on c.owner=v.owner and c.table_name=v.view_name and c.table_type='VIEW' where v.owner in (@IN) order by 1,2`));
-  const colRows = (await q(`select c.owner, c.table_name, c.column_name, c.data_type, c.data_length, c.char_length, c.data_precision, c.data_scale, c.nullable, c.data_default, cm.comments
+  const colRows = (await q(`select c.owner, c.table_name, c.column_name, c.data_type, c.data_length, c.char_length, c.data_precision, c.data_scale, c.nullable, c.data_default, cm.comments, c.identity_column, c.virtual_column
     from all_tab_cols c
     left join all_col_comments cm on cm.owner=c.owner and cm.table_name=c.table_name and cm.column_name=c.column_name
     where c.owner in (@IN) and c.hidden_column='NO' and (c.owner, c.table_name) in (select owner, table_name from all_tables union all select owner, view_name from all_views) order by c.owner,c.table_name,c.column_id`))
-    .map((r) => ({ schema: r.OWNER, table: r.TABLE_NAME, col: { name: r.COLUMN_NAME, type: oraType(r), nullable: r.NULLABLE === 'Y', default: r.DATA_DEFAULT, comment: r.COMMENTS } }));
+    .map((r) => ({ schema: r.OWNER, table: r.TABLE_NAME, col: oraColumn(r) }));
   const cons = await q(`select c.owner, c.table_name, c.constraint_name, c.constraint_type, c.delete_rule, cc.column_name, cc.position,
       rc.owner r_owner, rc.table_name r_table, rcc.column_name r_column
     from all_constraints c join all_cons_columns cc on cc.owner=c.owner and cc.constraint_name=c.constraint_name
@@ -367,9 +401,9 @@ export function myColumn(r, { mariadb = false } = {}) { // MariaDB writes COLUMN
     en = { schema: r.TABLE_SCHEMA, name: `${r.TABLE_NAME}_${r.COLUMN_NAME}`, values };
     type = `${en.schema}.${en.name}`;
   }
-  const d = r.COLUMN_DEFAULT;
-  const def = d == null || (mariadb && d === 'NULL') ? undefined : mariadb || /DEFAULT_GENERATED/i.test(r.EXTRA || '') ? String(d) : MY_TEXT.test(r.DATA_TYPE) ? `'${String(d).replace(/'/g, "''")}'` : String(d);
-  const col = { name: r.COLUMN_NAME, type, nullable: r.IS_NULLABLE === 'YES', default: def, comment: r.COLUMN_COMMENT || undefined };
+  const d = r.COLUMN_DEFAULT, gen = /\b(VIRTUAL|STORED) GENERATED\b/i.exec(r.EXTRA || ''); // a generated column (not DEFAULT_GENERATED: a default expression)
+  const def = gen || d == null || (mariadb && d === 'NULL') ? undefined : mariadb || /DEFAULT_GENERATED/i.test(r.EXTRA || '') ? String(d) : MY_TEXT.test(r.DATA_TYPE) ? `'${String(d).replace(/'/g, "''")}'` : String(d);
+  const col = { name: r.COLUMN_NAME, type, nullable: r.IS_NULLABLE === 'YES', default: def, comment: genNote(r.COLUMN_COMMENT || undefined, gen && myExpr(r.GENERATION_EXPRESSION), gen?.[1].toUpperCase()) };
   if (/auto_increment/i.test(r.EXTRA || '')) col.increment = true;
   return { schema: r.TABLE_SCHEMA, table: r.TABLE_NAME, col, enum: en };
 }
@@ -421,7 +455,7 @@ const myImport = (c, schemas) => myWith(c, async (cn) => {
     .map((r) => myTableRow(r, r.t === 'VIEW' ? views.get(key(r.s, r.n)) ?? '' : undefined));
   const mariadb = /mariadb/i.test(Object.values((await myRows(cn, 'SELECT VERSION() AS v'))[0] ?? {})[0] ?? '');
   const enums = [], colRows = [];
-  for (const r of await q('SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?) ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION')) {
+  for (const r of await q('SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT, GENERATION_EXPRESSION FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN (?) ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION')) {
     const m = myColumn(r, { mariadb });
     colRows.push({ schema: m.schema, table: m.table, col: m.col });
     if (m.enum) enums.push(m.enum);

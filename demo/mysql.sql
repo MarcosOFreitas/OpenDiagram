@@ -60,3 +60,12 @@ CREATE TABLE events (
   CONSTRAINT events_kind_check CHECK (kind IN ('click', 'view')),
   CONSTRAINT events_qty_soft CHECK (qty < 100) NOT ENFORCED
 ) PARTITION BY RANGE (YEAR(created_at)) (PARTITION p2026 VALUES LESS THAN (2027), PARTITION pmax VALUES LESS THAN MAXVALUE);
+
+-- generated columns: their expression goes to the column note
+CREATE TABLE invoices (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  net DECIMAL(10,2) NOT NULL,
+  vat DECIMAL(10,2) NOT NULL,
+  gross DECIMAL(10,2) AS (net + vat) STORED,
+  label VARCHAR(40) AS (CONCAT('NET ', net)) VIRTUAL
+);

@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Richer import
+
+- Auto-numbered columns (PostgreSQL serial and identity, Oracle identity) come as `increment`, generated columns with their expression in the column note, PostgreSQL partial indexes with their `WHERE`. PostgreSQL partitions are no longer listed or imported: their parent says how it is partitioned.
+
 ## Automatic backups
 
 - Set `BACKUP_DIR=backups` and the app keeps a copy of its database per day (7 days by default, `BACKUP_KEEP_DAYS`), restorable with the same `restore` command. See [Self-hosting](self-hosting#backup-and-moving-to-another-machine).

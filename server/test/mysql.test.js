@@ -123,3 +123,11 @@ test('MariaDB defaults: literals already quoted, expressions bare, the text NULL
   assert.equal(myColumn(row({ COLUMN_DEFAULT: 'NULL' }), maria).col.default, undefined);
   assert.equal(myColumn(row({ COLUMN_DEFAULT: "'NULL'" }), maria).col.default, "'NULL'"); // the string 'NULL' is a real default
 });
+
+test('generated columns: the expression goes to the note (plain SQL), no default', () => {
+  const row = (o) => ({ TABLE_SCHEMA: 'shop', TABLE_NAME: 'items', IS_NULLABLE: 'YES', COLUMN_DEFAULT: null, EXTRA: '', COLUMN_COMMENT: '', COLUMN_NAME: 'total', DATA_TYPE: 'decimal', COLUMN_TYPE: 'decimal(12,2)', GENERATION_EXPRESSION: '', ...o });
+  const s = myColumn(row({ EXTRA: 'STORED GENERATED', GENERATION_EXPRESSION: '(`price` * `qty`)', COLUMN_COMMENT: 'line total' })).col;
+  assert.deepEqual([s.default, s.comment], [undefined, 'line total\nGENERATED ALWAYS AS (price * qty) STORED']);
+  assert.equal(myColumn(row({ EXTRA: 'VIRTUAL GENERATED', GENERATION_EXPRESSION: '`price` * 2' })).col.comment, 'GENERATED ALWAYS AS (price * 2) VIRTUAL');
+  assert.equal(myColumn(row({ EXTRA: 'DEFAULT_GENERATED', COLUMN_DEFAULT: 'CURRENT_TIMESTAMP', DATA_TYPE: 'timestamp', COLUMN_TYPE: 'timestamp' })).col.comment, undefined); // a default expression is not a generated column
+});
