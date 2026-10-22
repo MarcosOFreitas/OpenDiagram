@@ -55,6 +55,21 @@ The riskiest item (MySQL) comes right after the foundation, with a kill criterio
 
 If item 7 (MySQL) hits its kill criterion, the freed sessions go to the stretch list in this order.
 
+**Item 7 decisions (grill-me, 2026-10-22):**
+
+1. **Versions:** MySQL 8.0+ supported and tested (demo: MySQL 8.4 LTS); MariaDB 10.6+ best effort, tried once by hand and documented as such (not in CI).
+2. **Database = schema:** the *Database* field is optional for MySQL (it only sets the session default; `validConn` accepts it empty for `type: 'mysql'` only); the schema picker lists the databases the user can see, without `mysql`, `sys`, `information_schema`, `performance_schema`.
+3. **Read-only in layers:** `SET SESSION TRANSACTION READ ONLY`, every use inside `START TRANSACTION READ ONLY` ... `ROLLBACK`, `max_execution_time = 30000`, `connectTimeout` 8 s; only `information_schema` and `SHOW`. `test-guardrails.mjs` proves an `INSERT` fails inside the session, as root too.
+4. **Privileges:** allowlist (`USAGE`, `SELECT`, `SHOW VIEW`, `SHOW DATABASES`) over `SHOW GRANTS FOR CURRENT_USER() USING` the active roles, on the global scope, the selected databases and their tables; anything else (`EXECUTE` included) is a warning naming privilege and scope; a failed check is `could not verify privileges (...)`; `blockWritable` blocks as for the other engines.
+5. **TLS:** the three existing modes; tested against the auto-generated certificate of the demo: `off` connects, `noverify` connects encrypted, `verify` fails on the name. No own certificate for the demo.
+6. **Imported:** tables, columns (type as MySQL writes it), defaults, comments, PK, FK with actions, indexes, views with their definition, triggers in the table note, `AUTO_INCREMENT` -> `[increment]`, each `enum(...)` column -> a DBML `Enum schema.table_column`. View lineage: the existing parser after replacing backticks with double quotes; a view it cannot read has no lineage.
+7. **UI:** a third *MySQL* choice in the Database drawer (default port 3306) and in the shared-connection form; `uiaudit` screen `drawer-database-mysql`, both themes, 375 px.
+8. **Demo and tests:** `demo-mysql` (MySQL 8.4, root / writer / reader) in the default set of `docker-compose.demo.yml`; driver unit tests; `test-guardrails.mjs`; the [12](12-table-selection.md) rules (the shared `filterModel`); `roundtrip.mjs` MySQL -> MySQL identical.
+9. **Security:** [05](05-security.md) revised first (read-only layers, privilege allowlist, a rogue server: `disableEval: true`, no `infileStreamFactory` and `flags: ['-LOCAL_FILES']`, `multipleStatements` off); hosts through `assertHostAllowed`; nothing changes for a member, a share-link visitor or an agent.
+10. Out of scope: SQL Server, MariaDB in CI, an own TLS certificate for the demo, functions and procedures.
+
+**Item 7b (after item 7, about 1 session, all three engines):** check constraints in the native DBML syntax (column `[check: ...]`, table `checks { ... [name: ...] }`; `@dbml/core` 10 parses them and exports `CHECK` to PostgreSQL, MySQL and Oracle), skipping Oracle's `IS NOT NULL` system checks and PostgreSQL domain checks; partitioning as one line in the table note (`PARTITIONED BY RANGE (created_at)`), method and key columns only.
+
 **Kill criterion for item 7:** if after 2 sessions the read-only session and the privilege warnings are not green on `demo-mysql`, stop, keep the work on a branch, and move MySQL back to [13](13-feature-plan.md) for forks.
 
 **Open design decision for item 8/9:** the diff runs in the browser (History) and in the server (scheduled refresh). The Docker image only copies `server/src`. Decide in item 8 between one module under `server/src/` imported by the web build (Vite `server.fs.allow`) or a module under `web/src/` copied at build time. Never two hand-kept copies.
