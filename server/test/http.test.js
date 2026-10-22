@@ -98,3 +98,12 @@ test('a MySQL connection is accepted with an empty Database (it only sets the se
   assert.equal((await call('POST', '/api/connections', { ...base, type: 'postgres', database: '' })).statusCode, 400);
   assert.equal((await call('POST', '/api/connections', { ...base, type: 'sqlserver', database: 'd' })).statusCode, 400);
 });
+
+test('history entries cannot be deleted through the API: named versions are never removed (.specs/15, M3)', async () => {
+  const d = (await call('POST', '/api/diagrams', { title: 'H', dbml: 'Table a { id int }' })).json().id;
+  assert.equal((await call('POST', `/api/diagrams/${d}/versions`, { label: 'Release 1' })).statusCode, 200);
+  const v = (await call('GET', `/api/diagrams/${d}/versions`)).json().find((x) => x.label === 'Release 1');
+  assert.ok(v);
+  assert.equal((await call('DELETE', `/api/diagrams/${d}/versions/${v.id}`)).statusCode, 404);
+  assert.ok((await call('GET', `/api/diagrams/${d}/versions`)).json().some((x) => x.id === v.id));
+});

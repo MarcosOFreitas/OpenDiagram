@@ -296,7 +296,6 @@ const editable = (req) => { const d = dg.getForUser(req.user, req.params.id); if
 app.get('/api/diagrams/:id/versions', (req) => dg.listVersions(editable(req).id));
 app.get('/api/diagrams/:id/versions/:vid', (req) => dg.getVersion(editable(req).id, +req.params.vid));
 app.post('/api/diagrams/:id/versions', (req) => { dg.nameVersion(editable(req).id, req.body?.label, req.user); return { ok: true }; });
-app.delete('/api/diagrams/:id/versions/:vid', (req) => { dg.deleteVersion(editable(req).id, +req.params.vid); return { ok: true }; });
 app.post('/api/diagrams/:id/versions/:vid/restore', (req) => {
   const d = editable(req), v = dg.getVersion(d.id, +req.params.vid);
   const patch = { dbml: v.dbml, layout: v.layout, ...(d.role === 'owner' || d.role === 'admin' ? { title: v.title } : {}) }; // editors never change the title

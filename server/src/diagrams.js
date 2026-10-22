@@ -162,7 +162,6 @@ export function keepBeforeAgent(id, agent) {
   const last = db.prepare('select u.kind from diagram_versions v left join users u on u.id = v.author_id where v.diagram_id = ? order by v.version desc limit 1').get(id);
   if (last?.kind !== 'agent') nameVersion(id, 'Before agent edit', agent);
 }
-export function deleteVersion(id, vid) { db.prepare('delete from diagram_versions where diagram_id = ? and id = ?').run(id, vid); }
 
 export const remove = (actor, id) => db.prepare('delete from diagrams where id = ? and (owner_id = ? or ?)').run(id, actor.id, actor.role === 'admin' ? 1 : 0);
 
