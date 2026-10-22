@@ -120,3 +120,13 @@ test('a database that does not answer is a 502 in plain words (.specs/15, U2)', 
   assert.equal(r.statusCode, 502, r.body);
   assert.match(r.json().error, /Nothing answers on 127\.0\.0\.1:1/);
 });
+
+test('connection fields of the wrong type are a 400, not a crash in the encryption (.specs/15, M5)', async () => {
+  const conn = { name: 'c', type: 'postgres', host: 'db.example.com', port: 5432, database: 'd', user: 'u' };
+  for (const [k, v] of [['password', 123], ['caPem', { pem: 1 }], ['serverDn', ['x']], ['tls', 'maybe']]) {
+    const r = await call('POST', '/api/connections', { ...conn, [k]: v });
+    assert.equal(r.statusCode, 400, `${k}: ${r.body}`);
+    assert.match(r.json().error, new RegExp(k === 'tls' ? 'tls must be' : `${k} must be text`));
+  }
+  assert.equal((await call('POST', '/api/schemas', { ...conn, password: 5 })).statusCode, 400);
+});

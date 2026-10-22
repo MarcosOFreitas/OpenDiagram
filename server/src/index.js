@@ -54,12 +54,17 @@ app.addHook('onSend', async (req, reply) => {
 
 // saved connection (if `id`) overlaid with the draft fields from the form; empty values keep the stored ones
 const assertType = (t) => { if (!['postgres', 'oracle', 'mysql'].includes(t)) throw bad('type must be postgres, oracle or mysql'); };
+// the text fields of a connection as a request may send them (a number or an object would reach the drivers or the encryption)
+const assertText = (b) => {
+  for (const k of ['database', 'user', 'password', 'caPem', 'serverDn', 'tls']) if (b[k] != null && typeof b[k] !== 'string') throw bad(`${k} must be text`);
+  if (b.tls && !['off', 'verify', 'noverify'].includes(b.tls)) throw bad('tls must be off, verify or noverify');
+};
 // a connection as the form sends it, for a person's own and for an administrator's shared one; an empty port is the engine's default
 function validConn(b) {
   assertType(b.type);
   const needed = b.type === 'mysql' ? ['name', 'host', 'user'] : ['name', 'host', 'database', 'user']; // a MySQL database is a schema: the field only sets the session default
   if (!needed.every((k) => typeof b[k] === 'string' && b[k].trim())) throw bad(`${needed.join(', ')} are required`);
-  if (b.database != null && typeof b.database !== 'string') throw bad('database must be text');
+  assertText(b);
   if (b.name.length > 80) throw bad('the connection name can have 80 characters at most');
   const port = b.port === '' || b.port == null ? { oracle: 1521, mysql: 3306 }[b.type] ?? 5432 : Number(b.port);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw bad('port must be a number from 1 to 65535');
@@ -67,6 +72,7 @@ function validConn(b) {
 }
 const nameList = (v) => { if (!Array.isArray(v) || !v.length || !v.every((s) => typeof s === 'string' && s)) throw bad('select at least one schema'); return v; };
 async function resolve(b, user) {
+  assertText(b);
   const saved = b.id ? store.getForUse(user, b.id) : {};
   if (b.id && !saved) throw bad('connection not found', 404);
   const draft = saved.shared ? {} : Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== '')); // a shared connection is used exactly as registered: a request can never point its credentials somewhere else
