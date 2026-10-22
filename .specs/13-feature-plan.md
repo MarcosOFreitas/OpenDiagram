@@ -1,6 +1,6 @@
 # 13 — Feature plan (proposal)
 
-**Status:** proposal, written 2026-10-17; nothing here is agreed yet. The next session starts with a `grill-me` pass over it (questions at the end), then the agreed items move into [`06-roadmap.md`](06-roadmap.md) and get their own spec when work starts.
+**Status:** proposal, written 2026-10-17. On 2026-10-21 the release plan [14](14-release-v1.md) took the items it ships; the rest stays here as ideas for forks. The next session starts with a `grill-me` pass over it (questions at the end), then the agreed items move into [`06-roadmap.md`](06-roadmap.md) and get their own spec when work starts.
 
 The plan follows the product's own goal ([00](00-product.md)): a diagram **generated from a live database and kept up to date**, documented, shared with a team, self-hosted with one container. Every item says who gains, the smallest useful slice, how it would be built and proved, and what it must not break. Sizes: **S** one session, **M** two or three, **L** more (split before starting).
 

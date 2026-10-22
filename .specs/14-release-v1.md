@@ -1,0 +1,75 @@
+# 14 — Release v1.0 (open source, single release)
+
+**Status:** agreed plan, written 2026-10-21. Replaces the ordering of [13](13-feature-plan.md) for the release; items of 13 not listed here stay there as ideas for forks.
+
+## Goal
+
+Ship **one** release, v1.0, that a team can install, run, upgrade-free and understand **without the author**. After v1.0 the repository stays open (issues and pull requests accepted) with no promised support; the README says "feature-complete, forks welcome".
+
+Budget: about **15 sessions** (about one month, target 2026-11-20). Estimates below are in sessions and are guesses.
+
+## Decisions (locked 2026-10-21)
+
+| Decision | Choice | Why |
+|---|---|---|
+| License | **Apache-2.0** (from PolyForm Noncommercial) | OSI open source; permissive fits a project with no maintainer; patent grant. Competitors are AGPL-3.0 (ChartDB, drawDB) or MIT (Azimutt). |
+| `@dbml/core` | **Stay on 10.x**; no Web Worker | A parse of a typical diagram (≤ 30 tables) costs ~18 ms vs ~9 ms on 3.x, below perception; `useDeferredValue` covers typing. |
+| Real performance cost | **Transfer size**: the `App` chunk is 16.3 MB raw / 2.9 MB gzip and the server sends it uncompressed, with no cache header | Measured 2026-10-21 with `npx vite build` and a search of `server/src/index.js`. |
+| After v1.0 | Open, no support; Dependabot security alerts only | The author has no time to continue. |
+| Bets, in priority order | MySQL/MariaDB live import > migration script from a diff > PII tags | Only what fits the budget ships (see cut line). |
+| Not in v1.0 | SSO (accounts, recovery key and administrator reset are enough for self-hosting), password reset by e-mail code (needs SMTP: new config, secret and outbound connection, and the most likely source of unanswered issues; the recovery key and administrator reset cover it), public hosted instance, notifications, proposed changes, co-editing, SQL Server, in-app LLM, Web Worker parse, general API rate limit (left to the reverse proxy, documented) | Each needs ongoing operation or does not fit the budget. |
+
+**Prerequisite (owner: the author, not code):** written agreement from Intelicity that the author may relicense the code. Commits use the company e-mail and the project started for a team there. No license commit before it.
+
+## Plan, in order
+
+The riskiest item (MySQL) comes right after the foundation, with a kill criterion, so a failure is known early and costs only the bet.
+
+| # | Item | Size | Done when (validation) |
+|---|---|---|---|
+| **Wave 0: foundation (required for the release)** ||||
+| 1 | Relicense to Apache-2.0: `LICENSE` (+ `NOTICE`), both `package.json`, README, `license.md` docs page, release notes | 0.5 | `git grep -i polyform` finds only the historical note in the README and the release notes |
+| 2 | Compressed and cached assets: build step writes `.br` / `.gz` with `node:zlib`; `@fastify/static` `preCompressed: true`; `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`, `no-cache` on `index.html` | 1 | `http.test.js`: `Accept-Encoding: br` gets `Content-Encoding: br`, headers as stated; transfer size of the `App` chunk measured and written in the *Hosting requirements* page |
+| 3 | Image: `npm ci`, `USER node`, `HEALTHCHECK` on `/api/health` (which runs `select 1`), published to GHCR for `linux/amd64` and `linux/arm64` by a tag workflow | 2 | On a machine with no clone: `docker run -e APP_SECRET=… -p 3000:3000 ghcr.io/<owner>/opendiagram:1.0.0-rc.1` → health 200, container `healthy`, `docker inspect` user is not root |
+| 4 | Production compose: `docker-compose.yml` = app only (image from GHCR, `read_only: true`, `tmpfs /tmp`, restart policy); demos move to `docker-compose.demo.yml`; demo ports bound to `127.0.0.1` | 1 | `docker compose up -d` starts the app with no public demo passwords; `ci-e2e.sh` runs with both files |
+| 5 | Backup / restore: `cli.js backup <file>` (`VACUUM INTO`, safe while running), `restore <file>` (refuses while the server holds the database) | 0.5 | `server/test/cli.test.js`: backup, change, restore, compare; README section rewritten |
+| 6 | CI: `npm audit --audit-level=high` step, actions pinned by SHA, release workflow (tag → image + GitHub release) | 1 | A test tag `v1.0.0-rc.1` produces the image and a draft release |
+| **Bet 1 (time-boxed: 4 sessions; kill criterion below)** ||||
+| 7 | MySQL / MariaDB live import: `grill-me` + revision of [05](05-security.md) first; driver `mysql2`; read-only session (`START TRANSACTION READ ONLY`), privilege check from `SHOW GRANTS` reported as warnings, TLS modes, `assertHostAllowed`; catalog from `information_schema`; `demo-mysql` with root / writer / reader users | 4 | `introspect` unit tests; `test-guardrails.mjs` extended (read-only enforced, warnings for root and writer, clean for reader); table picker rules of [12](12-table-selection.md) tested; `roundtrip.mjs` MySQL → MySQL identical; `uiaudit.mjs drawer-database` zero findings |
+| **Wave 1: "kept up to date" visible** ||||
+| 8 | Structural schema diff between two versions (tables, columns, types, defaults, nullability, keys, refs, indexes) in the History compare dialog, above the text diff | 2 | Pure module with unit tests from DBML pairs (rename = remove + add, type change, FK change); `uiaudit.mjs drawer-history-compare` zero findings; `versions-and-history` docs picture retaken |
+| 9 | Drift: a refresh that changes the structure stores a summary on its version ("+2 tables, 1 type changed"); the Library card says "changed since you last opened it" (`last_seen_version` per user and diagram) | 1.5 | `refresh.test.js` and `http.test.js` cover summary and badge; migration in `db.js` tested on an old database |
+| 10 | Library: search, sort (name / last change), filter "linked to a database" | 0.5 | `Library.test.jsx`; `uiaudit.mjs library` zero findings at 375 px and both themes |
+| **Release** ||||
+| 11 | Release: README status line, release notes, `docshots.mjs`, full `ci-e2e.sh`, `behaviorcheck` golden current, tag `v1.0.0` (the author pushes) | 1 | Release checklist below all ticked |
+| | **Total** | **15** | |
+
+**Cut line (if the budget runs out):** cut from the bottom of the bets, never from Wave 0 or the release item. Order of cuts: item 10, then item 9, then item 7 (kill criterion). Wave 0 + item 8 + release (about 7.5 sessions) is still a worthy v1.0.
+
+**Stretch (only if under budget), in this order:**
+
+1. **Drift webhook** (1.5 sessions, needs item 9). Administrator-only setting: one URL and one secret per instance (or per shared connection). One event only: a refresh that changed the structure. Payload: diagram id, title, version and the drift summary; never DBML, `source`, a connection or a credential (same line as invariant 7). Signed with HMAC-SHA256 in a header (`node:crypto`), sent with native `fetch`, short timeout, one retry, no queue; every delivery and failure goes to the audit log. The URL goes through a host policy like `DB_HOST_POLICY`. It is a new outbound connection: revisit [05](05-security.md) first (invariant 6). *Done when:* `http.test.js` / `refresh.test.js` check the signature, the payload fields (no forbidden ones), the policy refusal and the audit row; a local receiver gets the event in `ci-e2e.sh` or a manual check written in [07](07-testing.md).
+2. Migration `ALTER` script for PostgreSQL from the diff of item 8 (2 sessions; the app only generates the file, never runs it).
+3. PII tags on columns (2 sessions).
+
+If item 7 (MySQL) hits its kill criterion, the freed sessions go to the stretch list in this order.
+
+**Kill criterion for item 7:** if after 2 sessions the read-only session and the privilege warnings are not green on `demo-mysql`, stop, keep the work on a branch, and move MySQL back to [13](13-feature-plan.md) for forks.
+
+**Open design decision for item 8/9:** the diff runs in the browser (History) and in the server (scheduled refresh). The Docker image only copies `server/src`. Decide in item 8 between one module under `server/src/` imported by the web build (Vite `server.fs.allow`) or a module under `web/src/` copied at build time. Never two hand-kept copies.
+
+## Release checklist (definition of done for v1.0)
+
+- [ ] Intelicity agreement on file (author).
+- [ ] `(cd server && npm test)` and `(cd web && npm test)` green; `npx vite build` and `node --check server/src/*.js` clean.
+- [ ] `bash .github/ci-e2e.sh` green on the release candidate image.
+- [ ] `node web/uiaudit.mjs` zero findings on every screen; `docshots.mjs` rerun and every picture looked at.
+- [ ] Fresh install from the published image on a clean machine: first account, demo import (PostgreSQL, and MySQL if shipped), share link, backup and restore.
+- [ ] Transfer size of the first load and parse times at 30 / 200 tables recorded in *Hosting requirements*.
+- [ ] License consistent everywhere (item 1 check); `NOTICE` lists third-party licenses.
+- [ ] README, specs and docs pages match the behaviour; README says: feature-complete, no support promised, forks welcome; `SECURITY.md` says reports are read on a best-effort basis.
+- [ ] What was not tested is listed in the release notes (for example: Oracle with a real private CA, MySQL with a real cloud TLS endpoint).
+
+## Every item follows the loop of [13](13-feature-plan.md)
+
+Decide (`grill-me` for item 7 and anything touching security) → plan → test first → prove (`verification-before-completion`) → review (`requesting-code-review`, security invariants and UI standard as criteria) → one commit per logical change with spec, README and docs page; the author pushes.

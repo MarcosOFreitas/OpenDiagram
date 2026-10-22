@@ -4,6 +4,8 @@ Status of what exists and what is planned. Move an item to its own numbered spec
 
 ## Planned (in this order)
 
+**The v1.0 release plan is [14-release-v1.md](14-release-v1.md) and wins over this list.**
+
 1. ~~**API tokens, CLI and an MCP connector.**~~ The MCP connector is done (see [09](09-accounts-sharing.md)); a CLI and general API tokens are not planned for now. The original plan: an agent user whose permissions per diagram and group are the existing grants; every use goes into the audit log; diagram text is untrusted input for the agent. Re-read [05](05-security.md) first: this widens the exposure of the API.
 2. ~~**Server-side scheduled refresh.**~~ Done (see [03](03-connections-import.md)); the original plan: Diagrams live on the server, so a refresh can run without an open page. Plan: one job in the server process, every minute, over the connections that are due; minimum interval 5 min with jitter; skip a diagram while someone is editing it (presence); the result is saved as a "Refresh from database" history entry; port `keepGroups` (groups, positions, hand-written lineage) to the server; show last run and last error on the connection; the browser timer goes away; a lock row in SQLite only if the app ever runs on more than one instance. It needs the audit log (done) and an explicit connection owner.
 3. ~~**Account hardening.**~~ Done without e-mail (see [09](09-accounts-sharing.md)): sessions, session policy, link expiry, account self-closing with a 7-day grace, sign-in events in their own audit tab. Self-service "forgot password" without SMTP is a recovery key the person keeps.
