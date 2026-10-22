@@ -360,6 +360,10 @@ code { background: #eef2f9; padding: 1px 4px; border-radius: 4px; }
 .card.hist { align-items: flex-start; } .card.hist button { padding: 4px 9px; font-size: 12px; } .hist-sum { color: #4b5563; } .chip { margin-left: 8px; }
 .diff { flex: 1; overflow: auto; padding: 10px 14px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .dl { display: flex; gap: 8px; white-space: pre; } .dl > span { width: 12px; flex: none; color: #6b7280; } .dl.add { background: #e6f6ec; } .dl.del { background: #fde8e8; }
+/* the structural diff above the text diff (History → Compare): text in the body font, lines that wrap, changes inside a table indented */
+.diff h4 { margin: 4px 0 6px; font: 600 11px/1.4 Inter, system-ui, -apple-system, Segoe UI, sans-serif; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.sdiff { margin-bottom: 14px; } .sdiff-sum { margin: 0 0 6px; font: 13px/1.5 Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
+.sdiff .dl { white-space: pre-wrap; overflow-wrap: anywhere; } .sdiff .dl.in { padding-left: 20px; }
 .hist-legend { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; } .hist-legend .dl { padding: 0 8px; border-radius: 4px; }
 
 /* data lineage: tables that feed (violet) / are fed by (teal) the selected table */

@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ago, errMsg } from './api.js';
+import { parseDbml } from './dbmlParse.js';
+import { schemaDiff, diffLines, summaryLine } from '../../server/src/schemaDiff.js'; // shared with the server (item 9, an ALTER script)
+
+const MAX_LINES = 300;
+// the structural diff of two DBML texts, or why it cannot be made (a side that does not parse: the text diff is still shown)
+export function structure(oldText, nowText, name) {
+  const parsed = (t) => { try { return parseDbml(t); } catch { return null; } };
+  const a = parsed(oldText), b = parsed(nowText);
+  if (!a || !b) return { error: `The structure is not compared: ${!a ? name : 'the current text'} has DBML errors.` };
+  const changes = schemaDiff(a, b);
+  return { summary: summaryLine(changes), lines: diffLines(changes) };
+}
 
 // line diff between two texts (LCS between the common prefix and suffix); null when it would be too heavy
 export function lineDiff(a, b) {
@@ -40,7 +52,7 @@ export default function History({ diagramId, version, dbml, notify, onRestored }
   const act = async (fn) => { setBusy(true); try { await fn(); } catch (e) { notify('err', errMsg(e)); } finally { setBusy(false); } };
   const saveName = () => act(async () => { await api(`diagrams/${diagramId}/versions`, { label: name }); setName(''); await load(); notify('ok', 'Version named'); });
   const restore = (v) => { if (window.confirm(`Restore "${v.label || `version ${v.version}`}"? The current content is kept in History.`)) act(async () => { await api(`diagrams/${diagramId}/versions/${v.id}/restore`, {}); await onRestored(); notify('ok', 'Version restored'); }); };
-  const compare = (v) => act(async () => { const full = await api(`diagrams/${diagramId}/versions/${v.id}`); setDiff({ v, lines: lineDiff(full.dbml, dbml) }); });
+  const compare = (v) => act(async () => { const full = await api(`diagrams/${diagramId}/versions/${v.id}`); setDiff({ v, lines: lineDiff(full.dbml, dbml), structure: structure(full.dbml, dbml, v.label || `version ${v.version}`) }); });
 
   return (
     <div className="dbody">
@@ -69,6 +81,15 @@ export default function History({ diagramId, version, dbml, notify, onRestored }
           <div className="admin-card conflict wide" role="dialog" aria-label="Compare versions">
             <div className="admin-head"><h2>{diff.v.label || `Version ${diff.v.version}`} → now</h2><span className="grow" /><button className="x" onClick={() => setDiff(null)} title="Close" aria-label="Close">✕</button></div>
             <div className="diff">
+              <div className="sdiff">
+                <h4>Structure</h4>
+                {diff.structure.error ? <p className="hint">{diff.structure.error}</p> : <>
+                  <p className="sdiff-sum">{diff.structure.summary}</p>
+                  {diff.structure.lines.slice(0, MAX_LINES).map((l, i) => <div key={i} className={`dl ${l.op === '+' ? 'add' : l.op === '-' ? 'del' : ''} ${l.depth ? 'in' : ''}`}><span>{l.op}</span><code>{l.text}</code></div>)}
+                  {diff.structure.lines.length > MAX_LINES && <p className="hint">…and {diff.structure.lines.length - MAX_LINES} more</p>}
+                </>}
+              </div>
+              <h4>Text</h4>
               {diff.lines === null && <p className="hint">Too many differences to show here. Restore the version or export it to compare elsewhere.</p>}
               {diff.lines && !diff.lines.some((l) => l.k !== ' ') && <p className="hint">The DBML is identical (only the layout or title differ).</p>}
               {diff.lines && withContext(diff.lines).map((l, i) => <div key={i} className={`dl ${l.k === '+' ? 'add' : l.k === '-' ? 'del' : ''}`}><span>{l.k === '+' || l.k === '-' ? l.k : ''}</span><code>{l.t}</code></div>)}

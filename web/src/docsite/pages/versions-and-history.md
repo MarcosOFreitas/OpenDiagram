@@ -38,7 +38,9 @@ Open **More → History** (people who can **edit**, administrators and the owner
 - Changes by the **same person within 10 minutes** are grouped in one entry, so typing does not create hundreds.
 - Every **refresh from the database** that changes something is saved as its own entry (summary starting with *Refresh from database*), never merged with your edits, so you can compare or restore the state before and after it.
 - **Name this version** (for example *Release 1*) puts a name on the current state. Named versions are **never removed**; the unnamed ones keep the latest 60.
-- **Compare** shows the DBML lines that changed between that version and now (`-` only in the old version, `+` added since).
+- **Compare** shows what changed between that version and now. First the **structure**: one line such as *1 table added, 2 tables changed*, then the changes table by table (`+` added, `-` removed, `~` changed: a column's type, `not null`, default, unique or auto-increment, the primary key, indexes, relationships and their actions, checks, enum values, and "note changed" for notes). A renamed table or column shows as one removed and one added. Groups, colours, positions, sticky notes and lineage comments are not structure. Below it, the **text**: the DBML lines that changed (`-` only in the old version, `+` added since). If one side has DBML errors, only the text is compared.
+
+![History → Compare: the structure (columns added to customers and addresses) above the text diff.](history-compare.jpg)
 - **Restore** makes that version the current one. It is saved as a **new version**, so what you had before is still in the history and you can undo a restore.
 
 The same list appears as the **Changelog** at the top of the [Docs view](generated-documentation) for people who can edit; the HTML and Markdown exports include only the named versions.

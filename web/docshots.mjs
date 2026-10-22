@@ -91,6 +91,9 @@ try {
   }
   if (want('share-panel')) { await go('/', dg); await ev(`H.click('Share', document.querySelector('header.top'))`); await sleep(500); await shot('share-panel'); }
   if (want('history-drawer')) { await go('/', dg); await ev(`H.more('History')`); await sleep(900); await shot('history-drawer'); }
+  if (want('history-compare')) { // the oldest version against now: the structure (columns added) above the text diff
+    await go('/', dg); await ev(`(async () => { await H.more('History'); await H.w(600); const b = [...document.querySelector('.drawer.open').querySelectorAll('button')].filter((x) => x.textContent === 'Compare').pop(); b.click(); await H.w(900); })()`); await shot('history-compare');
+  }
   if (want('connection-form') || want('table-picker') || want('table-picker-groups')) {
     await go('/', dg);
     await ev(`(async () => { await H.more('Database'); const f = (p) => document.querySelector('.drawer [placeholder^="' + p + '"]');

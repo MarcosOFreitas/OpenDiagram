@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## What changed between two versions
+
+- **History → Compare** now starts with the structure: a one-line summary and the changes table by table (columns and their type, nullability, default, keys, indexes, relationships, checks, enums, notes), above the text diff. See [Versions & history](versions-and-history).
+
 ## Faster first visit
 
 - The first visit downloads about 0.4 MB instead of 1.6 MB: the SQL import and export tools, most of the old download, now load only when someone imports or exports SQL.

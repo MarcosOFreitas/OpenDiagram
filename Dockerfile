@@ -4,7 +4,9 @@ WORKDIR /w
 COPY web/package.json web/package-lock.json ./web/
 RUN cd web && npm ci
 COPY web ./web
-RUN mkdir server && cd web && npm run build
+# the web bundles this one server module (the structural diff of History, shared with the server)
+COPY server/src/schemaDiff.js ./server/src/schemaDiff.js
+RUN cd web && npm run build
 
 FROM node:24-slim
 WORKDIR /app
