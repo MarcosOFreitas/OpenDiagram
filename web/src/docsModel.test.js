@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, test, expect } from 'vitest';
 import { Parser } from '@dbml/core';
-import { buildModel, toMarkdown, ordered, commentMap, slug, tid, display, constraints, linkCols } from './docsModel.js';
+import { buildModel, toMarkdown, ordered, commentMap, slug, tid, display, constraints, linkCols, enumId, enumLabel } from './docsModel.js';
 import { lineageEdges } from './lineage.js';
 
 const DBML = `
@@ -106,4 +106,19 @@ describe('toMarkdown', () => {
     expect(toMarkdown(model(t), 'T')).toContain('a \\| b');
   });
   test('does not throw without comments or changelog', () => expect(() => toMarkdown(model(), 'T')).not.toThrow());
+});
+
+describe('enums of the same name in different schemas', () => {
+  const T = 'Enum sales.status {\n  a\n}\nEnum ops.status {\n  b\n}\nEnum status {\n  c\n}\nTable t {\n  id int\n}\n';
+  test('each gets its own anchor and a label with its schema; one in public keeps the old anchor', () => {
+    const m = model(T);
+    expect(new Set(m.enums.map(enumId)).size).toBe(3);
+    expect(m.enums.map(enumLabel).sort()).toEqual(['ops.status', 'sales.status', 'status']);
+    expect(m.enums.map(enumId)).toContain('t_enum_status');
+  });
+  test('the Markdown export names the schema', () => {
+    const md = toMarkdown(model(T));
+    expect(md).toContain('### sales.status');
+    expect(md).toContain('### ops.status');
+  });
 });

@@ -1,7 +1,7 @@
 // Generated database documentation (dbdocs-style): used live in the app and as a standalone HTML export.
 import { useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { slug, display, constraints, ordered, linkCols, commentMap } from './docsModel.js';
+import { slug, display, constraints, ordered, linkCols, commentMap, enumId, enumLabel } from './docsModel.js';
 import { press } from './a11y.js';
 
 export const docsCss = `
@@ -240,7 +240,7 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set(), chan
             <ul>{s.tables.map((t) => <li key={t.id} data-s={`${t.name} ${t.schema} ${t.fields.map((f) => f.name).join(' ')}`.toLowerCase()}><a href={`#${slug(t.id)}`}><i className="dot" style={s.color ? { background: s.color } : undefined} />{display(t)}</a></li>)}</ul>
           </div>
         ))}
-        {model.enums.length > 0 && <><h4>Enums</h4><ul>{model.enums.map((e) => <li key={e.name} data-s={`${e.name} enum`.toLowerCase()}><a href={`#${slug(`enum_${e.name}`)}`}>{e.name}</a></li>)}</ul></>}
+        {model.enums.length > 0 && <><h4>Enums</h4><ul>{model.enums.map((e) => <li key={enumId(e)} data-s={`${enumLabel(e)} enum`.toLowerCase()}><a href={`#${enumId(e)}`}>{enumLabel(e)}</a></li>)}</ul></>}
       </nav>
       <main className="dx-main">
         <div>
@@ -284,8 +284,8 @@ export function DocsPage({ model, title, theme, ctx, collapsed = new Set(), chan
           {changelog.length > 0 && <Changelog items={changelog} />}
           {sections.map((s) => s.tables.map((t) => <Table key={`${s.title}.${t.id}`} model={model} t={t} collapsed={collapsed} ctx={ctx} />))}
           {model.enums.map((e) => (
-            <details key={e.name} className="dx-table" id={slug(`enum_${e.name}`)} open={!collapsed.has(slug(`enum_${e.name}`))}>
-              <summary><h2>{e.name}</h2><span className="dx-schema">enum</span><span className="count">{e.values.length} values</span></summary>
+            <details key={enumId(e)} className="dx-table" id={enumId(e)} open={!collapsed.has(enumId(e))}>
+              <summary><h2>{enumLabel(e)}</h2><span className="dx-schema">enum</span><span className="count">{e.values.length} values</span></summary>
               <div className="dx-body">
                 {e.note && <p className="note">{e.note}</p>}
                 <ul className="plain">{e.values.map((v) => <li key={v.name}><code>{v.name}</code>{v.note && <span className="note"> — {v.note}</span>}</li>)}</ul>

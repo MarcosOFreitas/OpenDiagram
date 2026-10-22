@@ -1,5 +1,8 @@
 // Parsed DBML (@dbml/core Database) -> plain documentation model, plus Markdown rendering.
 export const slug = (s) => `t_${String(s).replace(/\W+/g, '_')}`;
+// an enum's name with its schema (two schemas may each have a `status`), and its anchor: one in public keeps the anchor it always had
+export const enumLabel = (e) => (e.schema && e.schema !== 'public' ? `${e.schema}.${e.name}` : e.name);
+export const enumId = (e) => slug(`enum_${enumLabel(e)}`);
 export const tid = (schema, name) => `${schema || 'public'}.${name}`;
 export function commentMap(list = []) {
   const m = new Map();
@@ -119,7 +122,7 @@ export function toMarkdown(model, title, commentList = [], changelog = []) {
   if (model.enums.length) {
     out.push('## Enums', '');
     for (const e of model.enums) {
-      out.push(`### ${e.name}`, '');
+      out.push(`### ${enumLabel(e)}`, '');
       if (e.note) out.push(e.note, '');
       e.values.forEach((v) => out.push(`- \`${v.name}\`${v.note ? ` — ${v.note}` : ''}`));
       out.push('');
