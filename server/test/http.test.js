@@ -3,7 +3,7 @@ process.env.OD_NO_LISTEN = '1'; // index.js builds the app and stops there: rout
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createUser } from '../src/auth.js';
-const { app } = await import('../src/index.js');
+const { app, errorReply } = await import('../src/index.js');
 
 await createUser({ email: 'ana@example.com', password: 'long-enough-pass', name: 'Ana' });
 const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'ana@example.com', password: 'long-enough-pass' } });
@@ -106,4 +106,17 @@ test('history entries cannot be deleted through the API: named versions are neve
   assert.ok(v);
   assert.equal((await call('DELETE', `/api/diagrams/${d}/versions/${v.id}`)).statusCode, 404);
   assert.ok((await call('GET', `/api/diagrams/${d}/versions`)).json().some((x) => x.id === v.id));
+});
+
+test('an unexpected error answers "internal error" with the request id, never its text; errors with a status keep their message (.specs/15, S3)', () => {
+  assert.deepEqual(errorReply(new TypeError('Cannot read properties of undefined (reading \'x\')'), 'req-7'), { status: 500, body: { error: 'internal error (request req-7)' } });
+  assert.deepEqual(errorReply(Object.assign(new Error('Nothing answers on x:1'), { statusCode: 502 }), 'r'), { status: 502, body: { error: 'Nothing answers on x:1' } });
+  assert.deepEqual(errorReply(Object.assign(new Error('bad input'), { statusCode: 400 }), 'r'), { status: 400, body: { error: 'bad input' } });
+  assert.deepEqual(errorReply(Object.assign(new Error('stale'), { statusCode: 409, code: 'conflict', version: 3 }), 'r').body, { error: 'stale', code: 'conflict', version: 3 });
+});
+
+test('a database that does not answer is a 502 in plain words (.specs/15, U2)', async () => {
+  const r = await call('POST', '/api/schemas', { type: 'postgres', host: '127.0.0.1', port: 1, database: 'd', user: 'u', password: 'p' });
+  assert.equal(r.statusCode, 502, r.body);
+  assert.match(r.json().error, /Nothing answers on 127\.0\.0\.1:1/);
 });

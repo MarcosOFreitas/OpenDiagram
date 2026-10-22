@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assemble, oraNotNull } from '../src/introspect.js';
+import { assemble, oraNotNull, explainDbError } from '../src/introspect.js';
 
 const t = (schema, name, extra = {}) => ({ schema, name, comment: null, ...extra });
 const c = (schema, table, name) => ({ schema, table, col: { name, type: 'int', nullable: true } });
@@ -94,4 +94,28 @@ test('a chosen table the database no longer has is reported, not silently droppe
   assert.deepEqual(m.missing, ['shop.gone', 'audit.nope']);
   assert.deepEqual(filterModel(model(), ['shop.a']).missing, []);
   assert.deepEqual(filterModel(model(), []).missing, []);
+});
+
+test('database errors in plain words, the original kept in brackets, as a 502; errors that already carry a status are left alone', () => {
+  const c = { type: 'postgres', host: 'db.example.com', port: '', database: 'shop' };
+  const err = (props, message = 'driver text') => Object.assign(new Error(message), props);
+  const say = (e, conn = c) => explainDbError(e, conn).message;
+  assert.match(say(err({ code: 'ENOTFOUND' }, 'getaddrinfo ENOTFOUND db.example.com')), /^Host "db\.example\.com" was not found.*\(getaddrinfo ENOTFOUND db\.example\.com\)$/);
+  assert.match(say(err({ code: 'ECONNREFUSED' })), /Nothing answers on db\.example\.com:5432/);
+  assert.match(say(err({ code: 'ETIMEDOUT' })), /No answer from db\.example\.com:5432/);
+  assert.match(say(err({}, 'timeout expired')), /No answer from/);
+  assert.match(say(err({ code: '28P01' })), /refused the user name or password/);
+  assert.match(say(err({ code: 'ER_ACCESS_DENIED_ERROR' }), { ...c, type: 'mysql' }), /refused the user name or password/);
+  assert.match(say(err({}, 'ORA-01017: invalid credential or not authorized; logon denied'), { ...c, type: 'oracle' }), /refused the user name or password/);
+  assert.match(say(err({ code: '3D000' })), /Database "shop" does not exist/);
+  assert.match(say(err({ code: 'ER_BAD_DB_ERROR' }), { ...c, type: 'mysql' }), /Database "shop" does not exist/);
+  assert.match(say(err({}, 'NJS-518: cannot connect to Oracle Database. Service "XE" is not registered with the listener'), { ...c, type: 'oracle', database: 'XE', port: '' }), /service "XE"/);
+  assert.match(say(err({ code: 'SELF_SIGNED_CERT_IN_CHAIN' })), /certificate was not accepted/);
+  assert.match(say(err({}, 'The server does not support SSL connections')), /does not accept TLS/);
+  assert.match(say(err({ code: 'ECONNREFUSED' }), { ...c, type: 'mysql', port: '' }), /:3306/);
+  assert.equal(explainDbError(err({ code: 'ECONNREFUSED' })).statusCode, 502);
+  assert.equal(say(err({}, 'something new')), 'something new'); // unknown: unchanged
+  const own = Object.assign(new Error('invalid host or service name'), { statusCode: 400 });
+  assert.equal(explainDbError(own, c), own);
+  assert.equal(own.message, 'invalid host or service name');
 });

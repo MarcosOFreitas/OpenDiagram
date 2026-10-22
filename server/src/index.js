@@ -392,7 +392,14 @@ app.post('/mcp', { bodyLimit: 3_000_000 }, async (req, reply) => {
 });
 
 // ---------- errors + static UI (SPA: unknown GET paths such as /s/<token> serve index.html)
-app.setErrorHandler((e, req, reply) => { if (!e.statusCode || e.statusCode >= 500) req.log.error(e); return reply.status(e.statusCode || 500).send({ error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) }); }); // driver errors (bad password, TLS...) are meant to be shown
+// what the browser gets: the message of an error that has a status (bad input, no access, 502 = the database said no, in plain words:
+// introspect.js explainDbError); any other error is a bug, answered "internal error" with the request id, its details only in the log
+export const errorReply = (e, id) => {
+  const status = e.statusCode || 500;
+  if (status >= 500 && status !== 502) return { status, body: { error: `internal error (request ${id})` } };
+  return { status, body: { error: e.message, ...(e.code === 'share_password' ? { code: e.code } : e.code === 'conflict' ? { code: e.code, version: e.version } : {}) } };
+};
+app.setErrorHandler((e, req, reply) => { if (!e.statusCode || e.statusCode >= 500) req.log.error(e); const { status, body } = errorReply(e, req.id); return reply.status(status).send(body); });
 // hashed files under assets/ never change, so they are cached for a year; index.html is revalidated so a new build is picked up.
 // The web build writes .br / .gz next to each asset (web/precompress.js); preCompressed picks one by Accept-Encoding, else the plain file.
 app.register(fstatic, {

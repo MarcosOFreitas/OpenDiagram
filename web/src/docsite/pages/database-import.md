@@ -9,7 +9,7 @@ OpenDiagram can read the structure of a **PostgreSQL**, **Oracle** or **MySQL** 
 1. Open **More → Database**.
 2. Choose **PostgreSQL**, **Oracle** or **MySQL** and fill the host, port, database (for Oracle: the **service name**; for MySQL it is optional, because each MySQL database is a schema you pick after the test), user and password.
 3. Choose the TLS mode if needed (see [Security & TLS](database-security#tls)).
-4. Press **Test connection**. You get the list of schemas and any warnings about the privileges of the user.
+4. Press **Test connection**. You get the list of schemas and any warnings about the privileges of the user. When it fails, the message says what went wrong in plain words (host not found, nothing answers on the port, no answer at all, wrong user or password, unknown database or service name, certificate not accepted, TLS not offered), with the database's own message in brackets.
 5. **Save** keeps the connection for later. The password is stored encrypted and is never shown again.
 
 ![The connection form. A successful test lists the schemas of the database.](connection-form.jpg)

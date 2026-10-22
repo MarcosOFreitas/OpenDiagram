@@ -473,9 +473,30 @@ async function myPrivileges(c, schemas) {
 
 const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgImport, privileges: pgPrivileges }, oracle: { schemas: oraSchemas, tables: oraTables, import: oraImport, privileges: oraPrivileges },
   mysql: { schemas: mySchemas, tables: myTables, import: myImport, privileges: myPrivileges } };
-export const listSchemas = (c) => drivers[c.type].schemas(c);
-export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas);
-export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas);
+
+// a driver error in plain words, with the driver's own text kept in brackets; answered as 502 (the database, not this server, said no).
+// An error that already has a status (bad input found before connecting) is left as it is.
+const TLS_CODES = /^(SELF_SIGNED_CERT_IN_CHAIN|DEPTH_ZERO_SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE|UNABLE_TO_GET_ISSUER_CERT(_LOCALLY)?|CERT_HAS_EXPIRED|ERR_TLS_CERT_ALTNAME_INVALID|CERT_UNTRUSTED)$/;
+export function explainDbError(e, c = {}) {
+  if (e?.statusCode) return e;
+  const msg = String(e?.message ?? e).split('\n')[0].trim(), code = String(e?.code ?? ''), at = `${c.host}:${+c.port || { oracle: 1521, mysql: 3306 }[c.type] || 5432}`;
+  const plain = code === 'ENOTFOUND' || code === 'EAI_AGAIN' ? `Host "${c.host}" was not found: check the name (this server looks it up from its own network).`
+    : code === 'ECONNREFUSED' || /^NJS-503\b/.test(msg) ? `Nothing answers on ${at}: is the database running, and is the port right?`
+      : ['ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH'].includes(code) || /timeout expired|connection timeout|^NJS-510\b/i.test(msg) ? `No answer from ${at}: a firewall, a VPN that is off, or the wrong host or port.`
+        : code === '28P01' || code === 'ER_ACCESS_DENIED_ERROR' || /^ORA-01017\b/.test(msg) ? 'The database refused the user name or password.'
+          : code === '28000' || code === 'ER_HOST_NOT_PRIVILEGED' ? 'The database does not accept this user from this server\'s address (PostgreSQL: pg_hba.conf; MySQL: the host part of the user).'
+            : code === '3D000' || code === 'ER_BAD_DB_ERROR' ? `Database "${c.database}" does not exist on this server.`
+              : /^NJS-518\b|^ORA-12514\b/.test(msg) ? `The listener does not know the service "${c.database}": check the service name (for example FREEPDB1).`
+                : /^ORA-28000\b/.test(msg) ? 'This Oracle account is locked.'
+                  : TLS_CODES.test(code) ? `The server's certificate was not accepted (${code}): give its CA certificate, or choose "encrypted, not verified".`
+                    : /does not support SSL/i.test(msg) || code === 'HANDSHAKE_NO_SSL_SUPPORT' ? 'This server does not accept TLS connections: set TLS to off.'
+                      : null;
+  return Object.assign(e instanceof Error ? e : new Error(msg), { message: plain ? `${plain} (${msg})` : msg, statusCode: 502 });
+}
+const plainly = (c) => (e) => { throw explainDbError(e, c); };
+export const listSchemas = (c) => drivers[c.type].schemas(c).catch(plainly(c));
+export const listTables = (c, schemas) => drivers[c.type].tables(c, schemas).catch(plainly(c));
+export const privilegeWarnings = (c, schemas) => drivers[c.type].privileges(c, schemas).catch(plainly(c));
 // `tables` is the stored selection: [] or missing = every table, otherwise exactly those (`schema.name`, or the plain name). Never more than asked for.
 // `m.missing` = the asked-for tables the database does not have (any more): the caller says so instead of silently importing fewer.
 export function filterModel(m, tables) {
@@ -493,4 +514,4 @@ export function filterModel(m, tables) {
   }
   return m;
 }
-export async function importModel(c, schemas, tables) { return filterModel(await drivers[c.type].import(c, schemas), tables); }
+export async function importModel(c, schemas, tables) { return filterModel(await drivers[c.type].import(c, schemas).catch(plainly(c)), tables); }
