@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useViewport, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useStore, useStoreApi, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
 import Editor from './Editor.jsx';
@@ -17,7 +17,7 @@ import TablePicker, { tableMatcher } from './TablePicker.jsx';
 import { ALL, isAll, summary } from './tableSelection.js';
 import History from './History.jsx';
 import { closure } from './lineage.js';
-import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown } from './diagramModel.js';
+import { readable, cid, pid, viewKindOf, parse, qid, withGroups, keepGroups, diffSummary, edgeShown, nodeChanges } from './diagramModel.js';
 import TablesPanel from './TablesPanel.jsx';
 import { useConnect, goneNote } from './useConnect.js';
 import { PAD, HEAD, tableWidth, tableHeight, lessDetail, shownFields, ROW, layout } from './layout.js';
@@ -84,7 +84,7 @@ function GroupNode({ data: g }) {
 // Relationship line with a draggable label: dragging it bends the line through the new point (saved in layout['@labels']);
 // double-click puts it back. Without an offset the line is the normal curve/step/straight path.
 function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, markerEnd, interactionWidth, data }) {
-  const { zoom } = useViewport();
+  const flow = useStoreApi(); // the zoom is read when a label is dragged: subscribing to the viewport re-rendered every edge on every frame of a pan
   const args = { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition };
   const [base, bx, by] = data.edgeType === 'straight' ? getStraightPath(args) : data.edgeType === 'step' ? getSmoothStepPath({ ...args, borderRadius: 0 }) : data.edgeType === 'smoothstep' ? getSmoothStepPath(args) : getBezierPath(args);
   const off = data.off, px = bx + (off?.dx || 0), py = by + (off?.dy || 0);
@@ -93,7 +93,7 @@ function RefEdge({ id, sourceX, sourceY, sourcePosition, targetX, targetY, targe
     e.stopPropagation(); e.preventDefault();
     const x0 = e.clientX, y0 = e.clientY, o = off || { dx: 0, dy: 0 };
     let moved = false;
-    const move = (ev) => { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 3) moved = true; if (moved) data.onMove(id, { dx: Math.round(o.dx + (ev.clientX - x0) / zoom), dy: Math.round(o.dy + (ev.clientY - y0) / zoom) }); };
+    const move = (ev) => { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 3) moved = true; const zoom = flow.getState().transform[2]; if (moved) data.onMove(id, { dx: Math.round(o.dx + (ev.clientX - x0) / zoom), dy: Math.round(o.dy + (ev.clientY - y0) / zoom) }); };
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (!moved) data.onPick(id); };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   };
@@ -146,9 +146,11 @@ const EXPORTS = [ // key, label, extension, group of the Export menu
   ['docs-html', 'Documentation (HTML)', '.html', 'Other'], ['docs-md', 'Documentation (Markdown)', '.md', 'Other'],
 ];
 
+// the zoom shown in the dock: its own component, so a pan or a zoom re-renders this label and not the whole workspace
+function ZoomLevel() { return <span>{Math.round(useStore((st) => st.transform[2]) * 100)}%</span>; }
+
 function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, onOrg }) {
   const { fitView, zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
-  const { zoom } = useViewport();
   const shared = !!shareToken;
   const [doc, setDoc] = useState(null); // loaded diagram: { id, access, ownerName, isOwner }
   const [loadErr, setLoadErr] = useState('');
@@ -768,7 +770,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         {mode !== 'docs' && <button className="edge-toggle" style={{ left: editorOpen ? edW : 0 }} onClick={() => setEditorOpen(!editorOpen)} aria-expanded={editorOpen} title="Toggle editor" aria-label="Toggle editor">{editorOpen ? '‹' : '›'}</button>}
 
         <main className="canvas" data-mode={mode} aria-label="Diagram">
-          <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
+          <ReactFlow nodes={shown} edges={shownEdges} onNodesChange={(ch) => { const c = nodeChanges(ch); if (c.length) onNodesChange(c); }} onEdgesChange={onEdgesChange} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode={view.theme}
             snapToGrid={view.snap} snapGrid={[20, 20]} minZoom={0.05} maxZoom={2} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             onNodeClick={(_, n) => { setActiveEdge(null); setActiveId(n.type === 'table' ? n.id : null); setActiveGroup(n.type === 'grp' ? n.data.name : null); }} onEdgeClick={(_, e) => { setActiveId(null); setActiveGroup(null); setActiveEdge(e.id); }} onPaneClick={() => { setActiveId(null); setActiveEdge(null); setActiveGroup(null); }} nodesConnectable={false} nodesDraggable={canEdit}
             onNodeDragStart={(_, n) => { // a group box moves all its tables with it
@@ -802,7 +804,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
           {mode === 'docs' && (docModel ? <DocsView model={docModel} title={title} theme={view.theme} changelog={changelog} comments={comments} me={user} canComment={canComment} isOwner={!!doc?.isOwner || access === 'admin'} onAdd={addComment} onDelete={deleteComment} /> : <div className="empty">Fix the DBML errors to generate documentation.</div>)}
           <div className="dock" inert={drawer && window.innerWidth <= 720 ? '' : undefined} style={{ left: `calc(50% - ${((drawer ? 350 : 0) + (panelOpen && mode === 'diagram' ? 320 : 0)) / 2}px)` }}>
             <button onClick={() => zoomOut()} title="Zoom out" aria-label="Zoom out"><Ic n="zoomOut" /></button>
-            <span>{Math.round(zoom * 100)}%</span>
+            <ZoomLevel />
             <button onClick={() => zoomIn()} title="Zoom in" aria-label="Zoom in"><Ic n="zoomIn" /></button>
             <i className="sep" />
             <button onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 250 })} title="Fit to screen" aria-label="Fit to screen"><Ic n="fit" /></button>

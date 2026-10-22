@@ -67,3 +67,8 @@ export function diffSummary(oldDbml, newDbml) {
   const parts = [add && `+${add} table(s)`, rem && `−${rem} table(s)`, chg && `${chg} changed`].filter(Boolean);
   return parts.length ? parts.join(', ') : 'indexes/relationships/comments changed';
 }
+
+// React Flow's node changes that may reach the nodes state. TableGroup boxes (`g:<name>`) are derived from their tables on every render
+// (App.jsx `shown`): their measurements must not reach the state. Even ignored, they made applyNodeChanges return a new array, so new boxes
+// were built and measured again: a render loop of ~45 commits a second with the diagram idle. App.jsx skips the call when nothing is left
+export const nodeChanges = (changes) => changes.filter((c) => !(c.type === 'dimensions' && c.id.startsWith('g:')));

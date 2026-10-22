@@ -8,6 +8,8 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CANDIDATES = [process.env.CHROME, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].filter(Boolean);
 import { existsSync } from 'node:fs';
 
+// CDP_GUI=1: a real window with the GPU (frame rates while zooming or panning mean nothing in headless Chrome, which draws in software)
+const GUI = process.env.CDP_GUI === '1';
 export async function launch({ port = 9444, width = 1280, height = 800, focus = true } = {}) {
   const bin = CANDIDATES.find((p) => existsSync(p));
   if (!bin) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
@@ -17,7 +19,7 @@ export async function launch({ port = 9444, width = 1280, height = 800, focus = 
   for (let attempt = 1; attempt <= 2 && !wsUrl; attempt++) {
     profile = mkdtempSync(join(tmpdir(), 'od-cdp-'));
     let err = '', exited = null;
-    proc = spawn(bin, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--disable-gpu', `--window-size=${width},${height}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    proc = spawn(bin, [...(GUI ? [] : ['--headless=new']), `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), ...(GUI ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'] : ['--disable-gpu']), `--window-size=${width},${height}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
     proc.stderr.on('data', (d) => { err = (err + d).slice(-600); });
     proc.on('exit', (code) => { exited = code; });
     for (let i = 0; i < 150 && !wsUrl && exited === null; i++) { await sleep(300); try { wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl; } catch { /* starting */ } }

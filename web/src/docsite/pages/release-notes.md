@@ -2,6 +2,10 @@
 
 OpenDiagram does not use version numbers yet; changes are listed from newest to oldest, grouped by theme.
 
+## Smoother large diagrams
+
+- A diagram with table groups no longer keeps the browser busy while nothing happens, and moving around the canvas no longer redraws the whole page: with 100 tables zooming went from about 13 to about 50 frames per second, and an idle page from 20 to the screen's full rate.
+
 ## Finding diagrams
 
 - **More → Diagrams** gets a search box (name or owner), a sort by name or by last change and a filter for the diagrams linked to a database, once you have more than eight. Deleting asks in the card itself; very long titles take two lines.

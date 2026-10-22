@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, test, expect } from 'vitest';
-import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown } from './diagramModel.js';
+import { parse, viewKindOf, withGroups, keepGroups, diffSummary, readable, qid, cid, pid, edgeShown, nodeChanges } from './diagramModel.js';
 
 const DBML = `Table shop.customers { id int [pk] }
 Table shop.orders { id int [pk]
@@ -109,4 +109,18 @@ describe('edgeShown (which lines the canvas draws)', () => {
     expect(edgeShown(lin, { hidden: none, hideRefs: true, lineageOn: false })).toBe(false);
   });
   test('off by default: no flag, no change', () => expect(edgeShown(ref, { hidden: none, hideRefs: undefined })).toBe(true));
+});
+
+describe('nodeChanges', () => {
+  // TableGroup boxes (`g:<name>`) are derived from their tables on every render; letting React Flow's measurements of them into the
+  // nodes state made a new array, new boxes, a new measurement, and so on: 45 React commits a second with the diagram idle
+  test('drops the measurements of the derived group boxes and keeps everything else', () => {
+    const changes = [
+      { type: 'dimensions', id: 'g:Sales', dimensions: { width: 300, height: 200 } },
+      { type: 'dimensions', id: 'shop.orders', dimensions: { width: 220, height: 180 } },
+      { type: 'position', id: 'g:Sales', position: { x: 1, y: 2 } },
+      { type: 'select', id: 'shop.orders', selected: true },
+    ];
+    expect(nodeChanges(changes)).toEqual(changes.slice(1));
+  });
 });

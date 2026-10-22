@@ -34,6 +34,8 @@ const pure = SIZES.map((n) => {
 await api('POST', '/api/auth/login', { email: EMAIL, password: PASS });
 const B = await launch({ width: 1440, height: 900, port: 9455 });
 const { cdp, ev } = B;
+// React commits, counted through a minimal DevTools hook: an idle diagram must not keep rendering (a render loop once made 45 a second)
+await cdp('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__commits = 0; window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = { supportsFiber: true, renderers: new Map(), inject() { return 1; }, onCommitFiberRoot() { window.__commits++; }, onPostCommitFiberRoot() {}, onScheduleFiberRoot() {}, checkDCE() {} };' });
 const rows = [];
 for (const n of SIZES) {
   const id = (await api('POST', '/api/diagrams', { title: `client bench ${n}`, dbml: dbml(n) })).id;
@@ -46,9 +48,10 @@ for (const n of SIZES) {
   for (let i = 0; i < 600 && ms === null; i++) { await sleep(100); try { nodes = await ev(`document.querySelectorAll('.react-flow__node').length`); } catch { nodes = 0; } if (nodes >= n || (nodes > 0 && i > 450)) ms = Date.now() - t0; }
   await sleep(1500); // let the layout and the measuring passes finish
   const heap = await ev(`Math.round((performance.memory?.usedJSHeapSize || 0) / 1048576)`);
+  const c0 = await ev('window.__commits'); await sleep(2000); const idleCommits = ((await ev('window.__commits')) - c0) / 2; // nothing happens for 2 s
   // pan/zoom smoothness: frames drawn in 2 s while the viewport is zoomed in and out
   const fps = await ev(`(async () => { let f = 0; const t = performance.now(); const tick = () => { f++; if (performance.now() - t < 2000) requestAnimationFrame(tick); }; requestAnimationFrame(tick); const z = document.querySelector('.react-flow__pane'); for (let i = 0; i < 20; i++) { z.dispatchEvent(new WheelEvent('wheel', { deltaY: i % 2 ? -120 : 120, ctrlKey: true, clientX: 700, clientY: 400, bubbles: true })); await new Promise((r) => setTimeout(r, 90)); } await new Promise((r) => setTimeout(r, 300)); return Math.round(f / 2); })()`);
-  const row = { tables: n, columns: STRESS ? null : n * 12, drawnNodes: nodes, secondsToDraw: ms === null ? null : +(ms / 1000).toFixed(1), jsHeapMb: heap, framesPerSecondWhileZooming: fps };
+  const row = { tables: n, columns: STRESS ? null : n * 12, drawnNodes: nodes, secondsToDraw: ms === null ? null : +(ms / 1000).toFixed(1), jsHeapMb: heap, idleReactCommitsPerSecond: idleCommits, framesPerSecondWhileZooming: fps };
   if (STRESS) {
     // (the delay from a keystroke to the diagram is not measured here: headless Chrome never commits the deferred parse; measure it in a
     // visible browser, see the stress results in .specs/14-release-v1.md)
