@@ -72,6 +72,7 @@ To run the unit tests before every commit: `git config core.hooksPath .githooks`
 ## Setup
 
 ```bash
+# uncomment COMPOSE_PATH_SEPARATOR and COMPOSE_FILE in .env (see .env.example) so docker compose includes docker-compose.demo.yml
 docker compose up -d --build
 docker compose --profile oracle up -d     # for Oracle checks / roundtrip.mjs
 docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'

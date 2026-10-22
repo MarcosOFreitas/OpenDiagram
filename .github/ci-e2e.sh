@@ -11,6 +11,8 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 P=${COMPOSE_PROJECT_NAME:-odci}
 export COMPOSE_PROJECT_NAME=$P
+# the app plus the demo databases; the image built here is tagged :ci so it never replaces a pulled :latest
+export COMPOSE_PATH_SEPARATOR=: COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.yml:docker-compose.demo.yml} OPENDIAGRAM_VERSION=${OPENDIAGRAM_VERSION:-ci}
 UI=od-ci-ui
 SHARD=${UI_SHARD:-1/1}
 FIRST=$([ "${SHARD%%/*}" = 1 ] && echo 1 || echo "")
@@ -61,7 +63,7 @@ fi
 
 # the UI tools refuse :3000 and create accounts and diagrams: they get their own empty instance of the same image
 docker rm -f $UI >/dev/null 2>&1
-docker run -d --name $UI --network "${P}_default" -p 3100:3000 -e APP_SECRET=ci-ui-secret-000000000000000000000000 -e COOKIE_SECURE=0 "${P}-app" >/dev/null || exit 1
+docker run -d --name $UI --network "${P}_default" -p 3100:3000 -e APP_SECRET=ci-ui-secret-000000000000000000000000 -e COOKIE_SECURE=0 "$(docker compose config --images app)" >/dev/null || exit 1
 wait_health http://localhost:3100/api/health || exit 1
 docker exec $UI node src/cli.js create-admin ui@example.com 'ui-test-password-1' >/dev/null || exit 1
 export BASE=http://localhost:3100

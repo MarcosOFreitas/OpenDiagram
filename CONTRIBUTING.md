@@ -13,7 +13,7 @@ Thanks for helping. This project is small on purpose: the smallest change that s
 ```bash
 git clone https://github.com/<you>/OpenDiagram.git   # your fork of https://github.com/MarcosOliveira-Intelicity/OpenDiagram
 cp .env.example .env                          # set APP_SECRET (openssl rand -hex 32)
-docker compose up -d --build                  # app on http://localhost:3000 + demo databases
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build   # app on http://localhost:3000 + demo databases (or set COMPOSE_FILE in .env, see .env.example)
 cd server && npm install && npm start         # or: run the API from source (Node 24)
 cd web && npm install && npm run dev          # UI with hot reload on :5173
 ```

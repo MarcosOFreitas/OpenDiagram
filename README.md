@@ -25,12 +25,25 @@ Free, source-available, self-hostable database diagramming tool in the spirit of
 
 Requires Docker with Compose v2 (Docker Desktop on Windows and macOS). Node 24 is only needed for [development](#develop).
 
+To run it, only the compose file and a secret are needed (the image `ghcr.io/marcosoliveira-intelicity/opendiagram` is published for amd64 and arm64):
+
+```bash
+mkdir opendiagram && cd opendiagram
+curl -fsSLO https://raw.githubusercontent.com/MarcosOliveira-Intelicity/OpenDiagram/main/docker-compose.yml
+echo "APP_SECRET=$(openssl rand -hex 32)" > .env
+docker compose up -d            # app on :3000
+```
+
+To try the live import against the demo databases, or to develop, clone the repository instead:
+
 ```bash
 git clone https://github.com/MarcosOliveira-Intelicity/OpenDiagram.git && cd OpenDiagram
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
-docker compose up -d --build    # app on :3000 + demo Postgres
-docker compose --profile oracle up -d   # optional: demo Oracle Free (the first start is slow)
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build                    # app (built from source) + demo Postgres
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d           # optional: demo Oracle Free (the first start is slow)
 ```
+
+Uncommenting `COMPOSE_PATH_SEPARATOR` and `COMPOSE_FILE` in `.env` makes plain `docker compose ...` include the demo file; the commands below assume it.
 
 Open <http://localhost:3000> and **create the first account: it becomes the administrator**. From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups. Public sign-up stays closed unless you open it. New accounts start with a sample diagram, "Online store - sample". Alternatively create the administrator from the command line: `docker compose exec app node src/cli.js create-admin <email> <password>`.
 
@@ -45,7 +58,7 @@ The demo databases are reachable **from the app container** with these hosts:
 
 Schema to import: `shop` (Postgres) or `SHOP` (Oracle). The Oracle demo creates its user and tables on the first start (allow a minute or two). If the tables are ever missing, load them once: `docker compose exec -T demo-oracle sqlplus -S "/ as sysdba" < demo/oracle.sql`. To re-run the Postgres demo init after editing `demo/pg.sql`: `docker compose rm -sfv demo-pg && docker compose up -d demo-pg`.
 
-The demo databases are for trying and testing only; **remove the `demo-*` services for a real deployment** (their passwords are public).
+The demo databases are for trying and testing only and live in `docker-compose.demo.yml`, which a real deployment does not use (their passwords are public; their ports are published on `127.0.0.1` only).
 
 ### Backup and moving to another machine
 
@@ -57,7 +70,9 @@ docker compose cp app:/data ./backup                 # backup
 docker compose start app
 # on the new machine: start once, then stop, restore and start
 docker compose up -d --build
-docker compose stop app && docker compose cp ./backup/. app:/data && docker compose start app
+docker compose stop app && docker compose cp ./backup/. app:/data
+docker compose run --rm --user root --entrypoint chown app -R node:node /data   # files copied in belong to root; the app runs as the user node
+docker compose start app
 ```
 
 ## Using it

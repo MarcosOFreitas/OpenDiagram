@@ -1,6 +1,14 @@
+# OpenDiagram: the app only. Demo databases for trying the import and for the e2e scripts are in docker-compose.demo.yml.
+#   docker compose up -d                      pulls the published image (OPENDIAGRAM_VERSION, default latest)
+#   docker compose up -d --build              builds it from this clone instead
+# The project name is fixed, so the data volume is always opendiagram_appdata whatever the folder is called.
+name: opendiagram
+
 services:
   app:
+    image: ghcr.io/marcosoliveira-intelicity/opendiagram:${OPENDIAGRAM_VERSION:-latest}
     build: .
+    restart: unless-stopped
     ports: ["3000:3000"]
     environment:
       APP_SECRET: ${APP_SECRET:-}
@@ -10,40 +18,10 @@ services:
       DB_HOST_ALLOWLIST: ${DB_HOST_ALLOWLIST:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+    # nothing but the data volume is written: a read-only root filesystem, and a small /tmp in memory
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
     volumes: [appdata:/data]
-
-  # demo DBs to test imports: host "demo-pg" / "demo-oracle" from inside the app
-  demo-pg:
-    image: postgres:16-alpine
-    environment: { POSTGRES_PASSWORD: demo, POSTGRES_DB: demo }
-    ports: ["5433:5432"]
-    volumes: ["./demo/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro"]
-
-  # Postgres with TLS (self-signed cert in /certs) — test "Verify certificate" with the CA PEM
-  demo-pg-tls:
-    image: postgres:16
-    environment: { POSTGRES_PASSWORD: demo, POSTGRES_DB: demo }
-    ports: ["5434:5432"]
-    volumes: ["./demo/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro", "./demo/tls-entrypoint.sh:/tls-entrypoint.sh:ro"]
-    entrypoint: ["bash", "/tls-entrypoint.sh"]
-
-  # TCPS in front of demo-oracle (a socat TLS proxy with a self-signed certificate, CN oracle.demo.test, see demo/oracle-tls): test the Oracle TLS modes.
-  #   host oracle.demo.test (alias of this proxy) + "verify" works; host demo-oracle-tls + "verify" fails (name mismatch) unless the expected DN CN=oracle.demo.test is given; "noverify" skips the name check.
-  demo-oracle-tls:
-    profiles: [oracle]
-    image: alpine/socat
-    command: ["OPENSSL-LISTEN:2484,fork,reuseaddr,cert=/tls/server.pem,key=/tls/server.key,verify=0", "TCP:demo-oracle:1521"]
-    volumes: ["./demo/oracle-tls:/tls:ro"]
-    ports: ["2484:2484"]
-    networks: { default: { aliases: [oracle.demo.test] } }
-    depends_on: [demo-oracle]
-
-  demo-oracle:
-    profiles: [oracle]
-    image: gvenzl/oracle-free:slim-faststart
-    environment: { ORACLE_PASSWORD: demo, APP_USER: shop, APP_USER_PASSWORD: shop }
-    ports: ["1522:1521"]
-    volumes: ["./demo/oracle.sql:/container-entrypoint-initdb.d/oracle.sql:ro"]
 
 volumes:
   appdata:

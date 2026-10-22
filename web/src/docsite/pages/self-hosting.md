@@ -7,19 +7,17 @@ OpenDiagram ships as **one Docker image** with built-in SQLite storage. No other
 Requires Docker with Compose v2.
 
 ```bash
-cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
-docker compose up -d --build    # the app on :3000 plus two demo PostgreSQL servers (demo-pg, demo-pg-tls)
+mkdir opendiagram && cd opendiagram
+curl -fsSLO https://raw.githubusercontent.com/MarcosOliveira-Intelicity/OpenDiagram/main/docker-compose.yml
+echo "APP_SECRET=$(openssl rand -hex 32)" > .env
+docker compose up -d            # pulls the image and starts the app on :3000
 ```
 
 Open `http://localhost:3000` and create the first account: it becomes the **administrator**.
 
-Optional demo databases to try the import:
+The compose file runs the container with a read-only filesystem (only the `/data` volume and a small `/tmp` are writable), restarts it unless you stop it, and keeps the data in the volume `opendiagram_appdata`. Set `OPENDIAGRAM_VERSION=1.0.0` in `.env` to pin a version.
 
-```bash
-docker compose --profile oracle up -d    # demo Oracle Free (the first start is slow)
-```
-
-> **Warning** The `demo-*` services are only for trying the app (their passwords are public). Remove them for a real deployment, and also remove from the `app` service the `NODE_EXTRA_CA_CERTS` variable and the `./demo/oracle-tls/server.pem` volume line: they only exist to trust the demo Oracle TLS proxy.
+Demo databases to try the import (PostgreSQL, and Oracle with `--profile oracle`) need a clone of the repository: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build`. They are for trying the app only (their passwords are public).
 
 > **Info** How much CPU, memory and disk it needs, measured: [Hosting requirements](hosting-requirements). A database behind a VPN or a firewall: see *Databases behind a VPN or a firewall* below.
 
@@ -72,9 +70,28 @@ docker compose start app
 docker compose up -d --build
 docker compose stop app
 docker compose cp ./backup/. app:/data
+docker compose run --rm --user root --entrypoint chown app -R node:node /data   # files copied in belong to root; the app runs as the user node
 docker compose start app
 ```
 
 ## Updating
 
-Pull the new version of the repository and run `docker compose up -d --build app`. The data volume is kept.
+Run `docker compose pull && docker compose up -d` (from a clone: pull the repository and run `docker compose up -d --build app`). The data volume is kept.
+
+> **Warning** Older versions named the data volume after the folder of the repository (for example `myfolder_appdata`); the compose file now always uses the project name `opendiagram`, so the volume is `opendiagram_appdata`. Copy the old one over once, with the app stopped (`docker volume ls` shows the old name):
+>
+> ```bash
+> docker compose down
+> docker volume create opendiagram_appdata
+> docker run --rm -v OLDNAME_appdata:/from:ro -v opendiagram_appdata:/to alpine sh -c "cp -a /from/. /to/ && chown -R 1000:1000 /to"
+> docker compose up -d
+> ```
+
+> **Warning** Since the release that runs the container as the unprivileged user `node`, a data volume created by an older version belongs to `root` and the app stops at start-up with "/data is not writable". Hand it over once, then start again:
+>
+> ```bash
+> docker compose run --rm --user root --entrypoint chown app -R node:node /data
+> docker compose up -d app
+> ```
+
+The container reports its health to Docker (`docker compose ps` shows `healthy`): every 30 seconds it calls `/api/health`, which also checks that the database answers.

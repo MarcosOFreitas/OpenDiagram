@@ -1,0 +1,36 @@
+# Demo databases to try the import and run the e2e scripts. Never for an instance other people use: their passwords are public.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d                     # app + demo-pg + demo-pg-tls
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d    # + demo Oracle (slow first start) and its TLS proxy
+# The app reaches them by service name (demo-pg, demo-oracle, ...). Their ports are published on 127.0.0.1 only, for tools on this machine.
+services:
+  demo-pg:
+    image: postgres:16-alpine
+    environment: { POSTGRES_PASSWORD: demo, POSTGRES_DB: demo }
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["./demo/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro"]
+
+  # Postgres with TLS (self-signed cert in /certs) — test "Verify certificate" with the CA PEM
+  demo-pg-tls:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: demo, POSTGRES_DB: demo }
+    ports: ["127.0.0.1:5434:5432"]
+    volumes: ["./demo/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro", "./demo/tls-entrypoint.sh:/tls-entrypoint.sh:ro"]
+    entrypoint: ["bash", "/tls-entrypoint.sh"]
+
+  # TCPS in front of demo-oracle (a socat TLS proxy with a self-signed certificate, CN oracle.demo.test, see demo/oracle-tls): test the Oracle TLS modes.
+  #   host oracle.demo.test (alias of this proxy) + "verify" works; host demo-oracle-tls + "verify" fails (name mismatch) unless the expected DN CN=oracle.demo.test is given; "noverify" skips the name check.
+  demo-oracle-tls:
+    profiles: [oracle]
+    image: alpine/socat
+    command: ["OPENSSL-LISTEN:2484,fork,reuseaddr,cert=/tls/server.pem,key=/tls/server.key,verify=0", "TCP:demo-oracle:1521"]
+    volumes: ["./demo/oracle-tls:/tls:ro"]
+    ports: ["127.0.0.1:2484:2484"]
+    networks: { default: { aliases: [oracle.demo.test] } }
+    depends_on: [demo-oracle]
+
+  demo-oracle:
+    profiles: [oracle]
+    image: gvenzl/oracle-free:slim-faststart
+    environment: { ORACLE_PASSWORD: demo, APP_USER: shop, APP_USER_PASSWORD: shop }
+    ports: ["127.0.0.1:1522:1521"]
+    volumes: ["./demo/oracle.sql:/container-entrypoint-initdb.d/oracle.sql:ro"]
