@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, NodeResizer, BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStraightPath, Background, MiniMap, Handle, Position, useNodesState, useEdgesState, useReactFlow, useStore, useStoreApi, getNodesBounds, MarkerType, getViewportForBounds } from '@xyflow/react';
 import { exporter, importer } from '@dbml/core';
 import { toPng, toSvg } from 'html-to-image';
@@ -886,15 +886,16 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
               {source && doc?.refresh?.lastError && <div className="warn">The last scheduled refresh failed: {doc.refresh.lastError}.{doc.refresh.paused ? ' Scheduled refresh is paused after 5 failures in a row; Refresh now (when it works) turns it back on.' : ''}</div>}
               <h4>Saved connections <a {...press(null, reset)}>+ new</a></h4>
               {conns.length === 0 && <small className="hint">None yet — fill the form below and Save.</small>}
-              {conns.map((c) => (
-                <div key={c.id} className={`card act ${form.id === c.id ? 'sel' : ''}`}>
+              {conns.map((c) => (<Fragment key={c.id}>
+                <div className={`card act ${form.id === c.id ? 'sel' : ''}`}>
                   <button type="button" className="card-open grow" aria-current={form.id === c.id ? 'true' : undefined} onClick={() => pick(c)}>
                     <span className={`badge ${c.type}`}>{engine(c.type)[3]}</span>
                     <span className="grow"><b>{c.name}</b><small>{`${c.host}:${c.port}/${c.database}`.replace(/([./_])/g, '$1​')}</small></span>
                   </button>
                   {c.shared ? <span className="chip" title="Registered by an administrator: you can use it, not change it">shared</span> : <button className="ghost" onClick={(e) => { e.stopPropagation(); del(c); }} title="Delete" aria-label={`Delete ${c.name}`}>✕</button>}
                 </div>
-              ))}
+                {c.secretLost && <div className="warn">The saved password of <b>{c.name}</b> cannot be read: the server key (APP_SECRET) changed. {c.managed ? 'Enter it again in Administration → Connections.' : c.shared ? 'An administrator must enter it again.' : 'Pick it, enter the password again and Save.'}</div>}
+              </Fragment>))}
               <h4>{form.shared ? 'Shared connection' : form.id ? 'Edit connection' : 'New connection'}</h4>
               {form.shared && <small className="hint">Registered by an administrator. You can use it to import and refresh, but the database user and password are not visible to you and cannot be changed here. Every use is recorded.</small>}
               <fieldset className="conn-fs" disabled={!!form.shared}>

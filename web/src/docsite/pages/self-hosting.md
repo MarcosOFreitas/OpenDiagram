@@ -25,7 +25,7 @@ Demo databases to try the import (PostgreSQL, and Oracle with `--profile oracle`
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_SECRET` | empty | Key that encrypts saved passwords and certificates. Empty = a public development key and a warning at startup (local trial only); the server refuses to start without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it makes saved connections unreadable. |
+| `APP_SECRET` | empty | Key that encrypts saved passwords and certificates. Empty = a public development key and a warning at startup (local trial only); the server refuses to start without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it makes the saved passwords unreadable: the connections stay listed, with a warning, and each password has to be entered again (a saved CA certificate is dropped and pasted again). |
 | `PORT`, `DATA_DIR` | `3000`, `/data` | fixed inside the image (Dockerfile); they are not read from `.env`. To change the host port edit `ports:` in `docker-compose.yml` (for example `8080:3000`). `app.db` lives in `DATA_DIR` (Docker volume `appdata`). **Back it up.** |
 | `ALLOW_SIGNUP` | empty | empty: the administrator decides (closed after the first account); `1` opens sign-up; `0` forces it closed |
 | `DB_HOST_POLICY` | `open` | which database hosts users may reach: `open`, `public-only` (blocks hosts that resolve to private, loopback, link-local, CGNAT or multicast addresses) or `allowlist` |
@@ -62,7 +62,7 @@ Before exposing the instance beyond your own network:
 
 ## Backup and moving to another machine
 
-Everything is one SQLite file in the `appdata` volume. Restoring needs the **same** `APP_SECRET`.
+Everything is one SQLite file in the `appdata` volume. Restore with the **same** `APP_SECRET`: with another one everything works except the saved database passwords, which the Database tab and *Administration → Connections* then ask you to enter again.
 
 ```bash
 docker compose exec app node src/cli.js backup                       # a consistent copy while the app runs: /data/backup-<date>-<time>.db

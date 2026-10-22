@@ -56,6 +56,10 @@ const conn = await admin.call('POST', '/api/connections', { name: 'audit-db', ty
 const failing = (await admin.call('POST', '/api/diagrams', { title: 'Refresh error' })).id;
 await admin.call('PUT', `/api/diagrams/${failing}`, { dbml: SAMPLE, source: { connId: conn.id, schemas: ['shop'], tables: null, at: Date.now(), gen: 'x' } });
 execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, { input: `const { DatabaseSync } = require('node:sqlite'); new DatabaseSync('/data/app.db').prepare("insert into refresh_state (diagram_id, last_run, last_error, failures, paused) values (?, ?, ?, 5, 1)").run('${failing}', Math.floor(Date.now() / 1000), 'connect ECONNREFUSED demo-pg:5432');` });
+// connections whose password was saved under another APP_SECRET (a restore on another machine): the lists warn (.specs/15, M2)
+const moved = await admin.call('POST', '/api/connections', { name: 'moved-db', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' });
+const movedShared = await admin.call('POST', '/api/admin/connections', { name: 'Moved warehouse', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' });
+execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, { input: `const { DatabaseSync } = require('node:sqlite'); new DatabaseSync('/data/app.db').prepare('update connections set password = ? where id in (?, ?)').run(Buffer.alloc(40).toString('base64'), '${moved.id}', '${movedShared.id}');` });
 console.log('fixtures ready');
 
 // ---------- Chrome

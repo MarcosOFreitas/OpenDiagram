@@ -21,7 +21,7 @@
 
 - [x] Authentication (accounts) and per-user ownership of connections and diagrams ([09](09-accounts-sharing.md)).
 - [x] Outbound policy for DB hosts (`DB_HOST_POLICY`) — set `public-only` or `allowlist` when hosting; [ ] pin the resolved IP to close the DNS-rebinding window.
-- [ ] `APP_SECRET` set from a secret manager; document rotation; consider per-record keys. (Done in part: an empty key warns, and the server refuses to start without one with `COOKIE_SECURE=1`, `DB_HOST_POLICY` other than `open` or `REQUIRE_APP_SECRET=1`.)
+- [ ] `APP_SECRET` set from a secret manager (a different key on restore no longer breaks the connection lists: unreadable secrets are listed as `secretLost` and asked for again, `.specs/15` M2); document rotation; consider per-record keys. (Done in part: an empty key warns, and the server refuses to start without one with `COOKIE_SECURE=1`, `DB_HOST_POLICY` other than `open` or `REQUIRE_APP_SECRET=1`.)
 - [x] The default compose file does not make the app trust the public demo certificate (`docker-compose.demo-tls.yml`, opt-in, tests only).
 - [x] Security headers + CSP, login/sign-up throttling; [ ] HTTPS termination (reverse proxy + `COOKIE_SECURE=1` / `TRUST_PROXY=1`), [ ] general rate limiting on `/api/*`.
 - [ ] Decide whether the hosted service stores database credentials at all (alternative: credentials used once, never persisted).

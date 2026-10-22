@@ -62,6 +62,7 @@ export default function AdminConnections({ users, groups, act, setErr }) {
             <div className="group-head">
               <span className={`badge ${c.type}`}>{engine(c.type)[3]}</span>
               <b>{c.name}</b><small>{c.host}:{c.port}/{c.database} · user <code>{c.user}</code> · TLS {c.tls}</small>
+              {c.secretLost && <small className="warn">password unreadable (APP_SECRET changed): Edit and enter it again</small>}
               <span className="grow" />
               <button onClick={() => test(c)}>Test</button>
               <button onClick={() => edit(c)}>Edit</button>

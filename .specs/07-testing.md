@@ -18,7 +18,7 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | server | `dbml.test.js` | model to DBML: pk, quoting, refs, views with and without the full DDL, enums, lineage, sequences, check constraints (a named `checks` block) and the `PARTITIONED BY` line; triple quotes cannot escape a note |
 | server | `policy.test.js` | SSRF policy: private/CGNAT/link-local ranges, allowlist, public-only |
 | server | `audit.test.js` | every filter of the audit log, paging, facets, CSV formula guard, retention |
-| server | `store.test.js` | secrets encrypted at rest and never listed, shared connection access by user and by group, what members may see |
+| server | `store.test.js` | secrets encrypted at rest and never listed, shared connection access by user and by group, what members may see; secrets saved under another `APP_SECRET`: the lists still work (`secretLost`), using one asks for the password, saving heals |
 | server | `merge.test.js` | what a refresh keeps (TableGroups, hand-written lineage) and its summary: the same cases as the browser copy in `diagramModel.test.js` |
 | server | `refresh.test.js` | scheduled refresh: which diagrams are due (minimum 5 min, jitter, pause), saved as its own history entry, same text = no-op, baseline for old links, failures and pause, conflict retried, disabled owner / lost connection, skipped while someone edits, audit of shared connections |
 | server | `sessions.test.js` | the session list (device, current one, ids that are not the stored hash), revoking one / all but the current / never another person's, session length and inactivity limit, the persistent failed-attempt limiter under a hashed key, link expiry |

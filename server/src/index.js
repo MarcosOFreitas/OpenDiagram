@@ -76,6 +76,9 @@ async function resolve(b, user) {
   const saved = b.id ? store.getForUse(user, b.id) : {};
   if (b.id && !saved) throw bad('connection not found', 404);
   const draft = saved.shared ? {} : Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined && v !== null && v !== '')); // a shared connection is used exactly as registered: a request can never point its credentials somewhere else
+  if (saved.lost?.includes('password') && !draft.password) { // saved under another APP_SECRET (store.js): say so instead of trying an empty password
+    throw bad(`The saved password of this ${saved.shared ? 'shared connection' : 'connection'} cannot be read: the server key (APP_SECRET) changed since it was saved. ${saved.shared ? 'An administrator must enter it again.' : 'Enter the password again and save.'}`, 409);
+  }
   const c = { ...saved, ...draft };
   assertType(c.type);
   if (!c.host || (!c.database && c.type !== 'mysql') || !c.user) throw bad(c.type === 'mysql' ? 'host and user are required' : 'host, database and user are required');

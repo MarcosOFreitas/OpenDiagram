@@ -130,3 +130,18 @@ test('connection fields of the wrong type are a 400, not a crash in the encrypti
   }
   assert.equal((await call('POST', '/api/schemas', { ...conn, password: 5 })).statusCode, 400);
 });
+
+test('a connection whose secrets were saved under another APP_SECRET: listed with secretLost, using it asks for the password, a new one is used (.specs/15, M2)', async () => {
+  const { db } = await import('../src/db.js');
+  const { createCipheriv, randomBytes, scryptSync } = await import('node:crypto');
+  const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', scryptSync('another-secret', 'dbdiagram-open', 32), iv), d = Buffer.concat([c.update('p', 'utf8'), c.final()]);
+  const cid = (await call('POST', '/api/connections', { name: 'moved', type: 'postgres', host: '127.0.0.1', port: 1, database: 'd', user: 'u', password: 'p' })).json().id;
+  db.prepare('update connections set password = ? where id = ?').run(Buffer.concat([iv, c.getAuthTag(), d]).toString('base64'), cid);
+  const list = await call('GET', '/api/connections');
+  assert.equal(list.statusCode, 200);
+  assert.equal(list.json().find((x) => x.id === cid).secretLost, true);
+  const use = await call('POST', '/api/schemas', { id: cid });
+  assert.equal(use.statusCode, 409);
+  assert.match(use.json().error, /cannot be read.*APP_SECRET.*Enter the password again/);
+  assert.equal((await call('POST', '/api/schemas', { id: cid, password: 'typed-again' })).statusCode, 502); // got past the check: 127.0.0.1:1 refuses
+});

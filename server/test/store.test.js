@@ -1,6 +1,7 @@
 import './env.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createCipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { db } from '../src/db.js';
 import { createUser } from '../src/auth.js';
 import * as store from '../src/store.js';
@@ -101,4 +102,22 @@ test('setAccess: unknown ids are ignored, unknown connection is 404, listShared 
   assert.throws(() => store.setAccess('nope', {}), { statusCode: 404 });
   const priv = store.upsert(ana.id, { ...conn, name: 'priv' });
   assert.throws(() => store.setAccess(priv, {}), { statusCode: 404 }); // a private connection cannot be shared by granting access
+});
+
+test('secrets encrypted with another APP_SECRET (a restore on another machine) do not break the lists; using them asks for them again; saving heals (.specs/15, M2)', () => {
+  const other = (s) => { const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', scryptSync('another-secret', 'dbdiagram-open', 32), iv); const d = Buffer.concat([c.update(s, 'utf8'), c.final()]); return Buffer.concat([iv, c.getAuthTag(), d]).toString('base64'); }; // the stored format, another key
+  const own = store.upsert(ana.id, { ...conn, name: 'moved', caPem: 'PEM' });
+  const shared = store.upsert(admin.id, { ...conn, name: 'moved-shared' }, { shared: true });
+  db.prepare('update connections set password = ?, ca_pem = ? where id in (?, ?)').run(other('p4ss'), other('PEM'), own, shared);
+  const mine = store.list(ana.id).find((c) => c.id === own);
+  assert.equal(mine.secretLost, true);
+  assert.equal(mine.hasCa, false);
+  assert.equal(store.listShared().find((c) => c.id === shared).secretLost, true);
+  assert.equal(store.listFor(admin).find((c) => c.id === shared).secretLost, true);
+  const use = store.getForUse(ana, own);
+  assert.deepEqual([use.secretLost, use.password, use.caPem], [true, '', '']);
+  store.upsert(ana.id, { ...conn, id: own, name: 'moved', password: 'new-pass' }); // the form sent the password again
+  const healed = store.get(ana.id, own);
+  assert.deepEqual([healed.secretLost, healed.password, healed.caPem], [false, 'new-pass', '']); // the unreadable CA is dropped: paste it again
+  assert.equal(store.list(ana.id).find((c) => c.id === own).secretLost, false);
 });
