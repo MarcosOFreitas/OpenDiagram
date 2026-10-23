@@ -303,7 +303,8 @@ await run('admin-create-user-result', async () => { await go('/', { local: D });
 await run('admin-reset-password', async () => { await go('/', { local: D }); await adminOverlay('Users'); await ev(`(async () => { const row = [...document.querySelectorAll('.admin-table tr')].find((r) => /Maya/.test(r.textContent)); const b = [...(row?.querySelectorAll('button') || [])].find((x) => /Reset password/.test(x.textContent)); if (!b) throw new Error('no Reset password button on the Maya row'); b.click(); await H.w(900); })()`); }, { vps: ['desktop'] });
 await run('admin-group-members', async () => { await go('/', { local: D }); await adminOverlay('Groups'); }, { vps: ['desktop', 'phone'] });
 // 8. documentation site (every page, light; search light + dark)
-const pageIds = readdirSync(new URL('./src/docsite/pages/', import.meta.url)).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3));
+const mdIn = (dir) => readdirSync(new URL(dir, import.meta.url)).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3));
+const pageIds = [...mdIn('../web/src/docsite/pages/'), ...mdIn('../docs/'), 'tools']; // the user pages and the developer pages (docs/, tools/README.md)
 for (const id of pageIds) await run(`docsite-${id}`, async () => { await go(`/docs/${id}`, { as: null }); }, { vps: ['desktop', 'phone'], themes: ['light'] });
 await run('docsite-search', async () => { await go('/docs', { as: null }); await ev(`(async () => { const i = H.q('input[type=search], input'); i && H.set(i, 'share'); await H.w(600); })()`); }, { vps: ['desktop'], themes: ['light', 'dark'] });
 // 9. the downloaded documentation (standalone HTML) opened straight from disk

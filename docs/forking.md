@@ -1,6 +1,6 @@
 # Forking
 
-OpenDiagram is Apache-2.0: you may copy it, change it and publish your own version. This is what to change so that your copy publishes its own image and receives its own reports. To cut a release afterwards, see [`RELEASING.md`](RELEASING.md).
+OpenDiagram is Apache-2.0: you may copy it, change it and publish your own version. This is what to change so that your copy publishes its own image and receives its own reports. To cut a release afterwards, see [the releasing guide](releasing.md).
 
 ## Rename
 
@@ -25,7 +25,7 @@ Do this before your first `docker compose up --build`: a local build is tagged w
 - **Private vulnerability reporting** (Settings → Code security): `SECURITY.md` and the issue template point to it.
 - **Dependabot** alerts and security updates (Settings → Code security); version updates come from `.github/dependabot.yml`.
 - **Branch protection** (optional): require the `unit` check. Do not require `e2e` on pull requests: it does not run there.
-- **GHCR package**: after your first tag, make the package public (see `RELEASING.md`).
+- **GHCR package**: after your first tag, make the package public (see [Releasing](releasing.md)).
 
 ## Running next to the original
 

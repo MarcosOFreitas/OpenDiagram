@@ -88,7 +88,7 @@ To run the unit tests before every commit: `git config core.hooksPath .githooks`
 
 - Presence and most of the `Workspace` (beyond the autosave, conflict, delete and "last opened" paths of `workspace.test.jsx`) are covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
 - Database drivers (`pgWith`, `oraWith`, `myWith` and the catalog queries) need a real database: `test-guardrails.mjs` (PostgreSQL and MySQL against the demo databases: privileges of root / writer / reader, strict mode, the picker, enum, increment, defaults, relationships, views and their lineage, triggers, check constraints and the `PARTITIONED BY` line, a write refused inside the app's own read-only session, TLS modes). Oracle is tried by `test-oracle-tls.mjs`, `roundtrip.mjs` and `ORACLE_PORT=1522 node tools/test-guardrails.mjs` with the Oracle demo, none of them in CI.
-- Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code ([`FORKING.md`](../FORKING.md)).
+- Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code ([`docs/forking.md`](../docs/forking.md)).
 
 ## Local test topology
 
@@ -138,6 +138,6 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 ## Known gaps
 
 - Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `tools/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported, and a real Oracle server with a private CA was never tried.
-- CI does not run the Oracle checks, `roundtrip.mjs`, `docshots.mjs` or `visualsnap.mjs`: run them before a release ([`RELEASING.md`](../RELEASING.md)).
+- CI does not run the Oracle checks, `roundtrip.mjs`, `docshots.mjs` or `visualsnap.mjs`: run them before a release ([`docs/releasing.md`](../docs/releasing.md)).
 - No screen reader, Windows high-contrast or tablet pass; the interface audit runs in Chrome only.
 - When asserting on edges in a headless/hidden pane, nodes may stay `visibility:hidden` (unmeasured): focus or screenshot first.

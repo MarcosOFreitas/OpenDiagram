@@ -2,7 +2,7 @@
 
 Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming tool in the spirit of dbdiagram.io: write [DBML](https://dbml.dbdiagram.io/docs) and get a live diagram, **or connect to a PostgreSQL, Oracle or MySQL database and generate the diagram from its metadata** (read-only, never table data). It also generates browsable documentation, tracks versions, and lets a team share diagrams with accounts, groups and links.
 
-**Documentation:** <http://localhost:3000/docs> once it runs (the same pages live in [`web/src/docsite/pages`](web/src/docsite/pages)). **For contributors and AI agents:** [`CONTRIBUTING.md`](CONTRIBUTING.md), [`AGENTS.md`](AGENTS.md), [`.specs/`](.specs/README.md). **Security:** [`SECURITY.md`](SECURITY.md).
+**Start here.** To **use** it: the *Quick start* below, then the documentation at <http://localhost:3000/docs> once it runs (the same pages are in [`web/src/docsite/pages`](web/src/docsite/pages)). To **change or fork** it, person or AI agent: [`docs/developers.md`](docs/developers.md) (a map of the repository and a reading order), then [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md). To **report a vulnerability**: [`SECURITY.md`](SECURITY.md).
 
 ## Features
 
@@ -19,7 +19,7 @@ Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming t
 - **Import** SQL (PostgreSQL, MySQL, SQL Server, Oracle, Snowflake) and DBML; **export** DBML, SQL (PostgreSQL, MySQL, SQL Server, Oracle), JSON, PNG, SVG.
 - Ships as **one Docker image with SQLite storage**; no external services.
 
-> Status: **1.0, feature-complete.** There is no promised support: issues and pull requests are welcome and read on a best-effort basis, and forks are encouraged (Apache-2.0). What was not tested is listed in the [release notes](web/src/docsite/pages/release-notes.md). Read [Security](#security) before exposing it beyond your own machine or network. What is planned and what is deliberately not done is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md).
+> Status: **1.0, feature-complete.** There is no promised support: issues and pull requests are welcome and read on a best-effort basis, and forks are encouraged (Apache-2.0). What was not tested is listed in the [release notes](web/src/docsite/pages/release-notes.md). Read [Security](#security) before exposing it beyond your own machine or network. Known limitations and ideas for forks are in [`.specs/06-roadmap.md`](.specs/06-roadmap.md); how it got here is in [`docs/history.md`](docs/history.md).
 
 ## Quick start
 
@@ -39,7 +39,7 @@ To try the live import against the demo databases, or to develop, clone the repo
 ```bash
 git clone https://github.com/MarcosOliveira-Intelicity/OpenDiagram.git && cd OpenDiagram
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
-docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build                    # app (built from source) + demo Postgres
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build                    # app (built from source) + demo PostgreSQL and MySQL
 docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d           # optional: demo Oracle Free (the first start is slow)
 ```
 
@@ -89,9 +89,9 @@ docker compose start app
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_SECRET` | empty | Key for AES-256-GCM encryption of saved passwords and CA PEMs. Empty = a public development key and a warning at startup (local trial only); the server **refuses to start** without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it invalidates saved connections. |
-| `PORT` | `3000` | HTTP port. |
-| `DATA_DIR` | `/data` (container) | Where `app.db` (SQLite) lives (Docker volume `appdata`). **Back it up.** |
+| `APP_SECRET` | empty | Key for AES-256-GCM encryption of saved passwords and CA PEMs. Empty = a public development key and a warning at startup (local trial only); the server **refuses to start** without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it makes the saved connection passwords unreadable: the connections stay listed and ask for their password again. |
+| `PORT` | `3000` | HTTP port when the server runs from source (`npm start`); with Compose, change `ports:` in `docker-compose.yml` instead. |
+| `DATA_DIR` | `/data` (container), `./data` (from source) | Where `app.db` (SQLite) lives; with Compose it is the `appdata` volume. **Back it up.** |
 | `ALLOW_SIGNUP` | empty | Empty: the administrator decides (closed after the first account). `1` opens self-registration, `0` forces it closed. |
 | `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private, loopback and link-local addresses) or `allowlist` (+ `DB_HOST_ALLOWLIST`, comma-separated host names). |
 | `COOKIE_SECURE` / `TRUST_PROXY` | `0` | Set `1` when served over HTTPS / behind a reverse proxy (which must keep the `Host` header or send `X-Forwarded-Host`). |
@@ -99,40 +99,29 @@ docker compose start app
 
 ## Develop
 
-```bash
-# API (Node 24: uses the built-in node:sqlite); data goes to ./server/data (git-ignored)
-cd server && npm install && npm start          # http://localhost:3000; the first account you create is the administrator
-# UI with hot reload, proxying /api to :3000
-cd web && npm install && npm run dev           # http://localhost:5173
-# production build into server/public
-cd web && npm run build
-```
-
-Unit tests run in seconds without Docker (`cd server && npm test`, `cd web && npm test`) and in CI; the rest of the verification is end-to-end (no linter): the scripts and what each needs are listed in [`.specs/07-testing.md`](.specs/07-testing.md). They need an administrator of the instance under test: create a throw-away one with `docker compose exec app node src/cli.js create-admin admin@example.com 'a-long-test-password'` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`; `BASE=http://host:port` points them at another address (default `http://localhost:3000`).
-
-Layout: `server/` (Fastify API, introspection, DBML generation) · `web/` (Vite + React UI and the documentation site) · `demo/` (sample databases) · `.specs/` (product, architecture and security specs) · [`AGENTS.md`](AGENTS.md) (guide for AI coding agents). See [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute.
+Node 24, Docker, and a few commands: [`docs/development.md`](docs/development.md) (setup, the loop, where to change what). Unit tests run in seconds without Docker (`cd server && npm test`, `cd web && npm test`); the end-to-end checks, the interface audit and the other scripts are in [`tools/`](tools/README.md). Releasing a version: [`docs/releasing.md`](docs/releasing.md); publishing your own copy: [`docs/forking.md`](docs/forking.md).
 
 ## Security
 
-Fine for your machine or a trusted network as is. **Before hosting it for other people**: set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, remove the demo services, and read the checklist in [`.specs/05-security.md`](.specs/05-security.md). To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
+Fine for your machine or a trusted network as is. **Before hosting it for other people**: set `APP_SECRET`, serve it over HTTPS (`COOKIE_SECURE=1`), set `DB_HOST_POLICY=public-only` (or `allowlist`), consider `ALLOW_SIGNUP=0`, do not use `docker-compose.demo.yml` or `docker-compose.demo-tls.yml` (their passwords and the demo TLS key are public), and read the checklist in [`.specs/05-security.md`](.specs/05-security.md). To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 In short: accounts (scrypt, HttpOnly cookies, login throttling), personal connections private to their owner, shared connections audited, and every database session read-only (metadata only). Details and the threat model: [`.specs/05-security.md`](.specs/05-security.md).
 
 ## Known limitations
 
-- PostgreSQL, Oracle and MySQL for live import (MariaDB best effort); functions and procedures are not imported. SQL Server works as an SQL file import and export target. MySQL triggers are imported only with a user that has the `TRIGGER` privilege.
-- Oracle SQL **files** import tables, keys, indexes and comments only (views, sequences and triggers come with the live import). JSON is export-only.
-- Exporting SQL for a different engine than the source needs manual edits (for example `nextval(...)` defaults, `character varying`).
-- The scheduled refresh runs in the server process (one instance); it skips a diagram that someone is editing and pauses after 5 failures in a row.
-- Changes are detected and merged by version (conflict dialog), not edited live together: there is no real-time co-editing.
-- No e-mail at all: no verification, invitations or password reset by e-mail (a forgotten password is reset with the recovery key the person made, or by an administrator); no SSO or MFA; accounts are created by administrators; share links are bearer secrets.
-- Oracle TLS (TCPS): `verify` was checked against an OCI Autonomous DB; `verify`, `serverDn` and `noverify` are tested against the `demo-oracle-tls` proxy. Wallets are not supported; a private CA is trusted by the server through `NODE_EXTRA_CA_CERTS` (mount the PEM and set it on the `app` service in `docker-compose.yml`).
+The main ones (the full list is in [`.specs/06-roadmap.md`](.specs/06-roadmap.md), and what was not tested in the release notes):
+
+- Live import from PostgreSQL, Oracle and MySQL (MariaDB best effort); functions and procedures are not imported. SQL Server is a file import and export format only.
+- Exporting SQL for another engine than the source needs manual edits (no type or default translation).
+- One instance per data volume (SQLite, and the scheduler in the process); no real-time co-editing (a conflict dialog instead).
+- No e-mail of any kind, no SSO or MFA: a forgotten password is reset with the recovery key the person made, or by an administrator.
+- Oracle: no wallets; a private CA is trusted through `NODE_EXTRA_CA_CERTS` for the whole server.
 
 ## Credits and disclaimer
 
-Built on [`@dbml/core` and `@dbml/parse`](https://github.com/holistics/dbml) (Apache-2.0), [React Flow](https://reactflow.dev) (MIT), [CodeMirror 6](https://codemirror.net) (MIT), [dagre](https://github.com/dagrejs/dagre) (MIT), [html-to-image](https://github.com/bubkoo/html-to-image) (MIT), [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser) (MIT), [node-postgres](https://node-postgres.com) (MIT), [node-oracledb](https://node-oracledb.readthedocs.io) (Apache-2.0 / UPL), [Fastify](https://fastify.dev) (MIT). The UI/UX review rules were checked with the [ui-ux-pro-max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT, vendored under `.claude/skills` with its notice).
+Built on [`@dbml/core` and `@dbml/parse`](https://github.com/holistics/dbml) (Apache-2.0), [React Flow](https://reactflow.dev) (MIT), [CodeMirror 6](https://codemirror.net) (MIT), [dagre](https://github.com/dagrejs/dagre) (MIT), [html-to-image](https://github.com/bubkoo/html-to-image) (MIT), [pgsql-ast-parser](https://github.com/oguimbal/pgsql-ast-parser) (MIT), [node-postgres](https://node-postgres.com) (MIT), [mysql2](https://github.com/sidorares/node-mysql2) (MIT), [node-oracledb](https://node-oracledb.readthedocs.io) (Apache-2.0 / UPL), [Fastify](https://fastify.dev) (MIT). The UI/UX review rules were checked with the [ui-ux-pro-max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT, vendored under `.claude/skills` with its notice).
 
-Developed by Marcos Oliveira together with AI tools: [Claude](https://www.anthropic.com/claude) (Anthropic) through Claude Code, with the plugins [Ponytail](https://github.com/DietrichGebert/ponytail), [Caveman](https://github.com/JuliusBrussee/caveman), [Context7](https://github.com/upstash/context7) and [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) (code graph search).
+Developed by Marcos Oliveira, built with help from [Claude Code](https://www.anthropic.com/claude-code).
 
 OpenDiagram is an independent project, **not affiliated with or endorsed by dbdiagram.io or Holistics**. It is a clean-room implementation of comparable behaviour; no code or assets from their service are used. DBML is an open language by Holistics.
 
@@ -140,5 +129,5 @@ OpenDiagram is an independent project, **not affiliated with or endorsed by dbdi
 
 [Apache License 2.0](LICENSE), with the copyright line in [`NOTICE`](NOTICE). In plain words: use it for anything (personal, company, commercial, hosted), change it and share it, as long as you keep the license and the notice and say what you changed. It comes with no warranty.
 
-- The libraries OpenDiagram uses keep their own licenses (listed above); the skills vendored under `.claude/skills` keep theirs.
+- The libraries OpenDiagram uses keep their own licenses (listed above); the agent skills under `.claude/skills` list their sources and licenses in `.claude/skills/THIRD_PARTY.md`.
 - This is a summary, not legal advice: the `LICENSE` file is what counts.

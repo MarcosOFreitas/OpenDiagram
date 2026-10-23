@@ -1,6 +1,6 @@
 # Releasing
 
-How a version of OpenDiagram is checked and published. The 1.0.0 release followed these steps; a fork uses them too (see [`FORKING.md`](FORKING.md) first).
+How a version of OpenDiagram is checked and published. The 1.0.0 release followed these steps; a fork uses them too (see [the forking guide](forking.md) first).
 
 ## Where the version lives
 
@@ -11,13 +11,13 @@ How a version of OpenDiagram is checked and published. The 1.0.0 release followe
 
 ## Checklist before tagging
 
-Everything here is described in [`.specs/07-testing.md`](.specs/07-testing.md); the instances the tools need are listed there too.
+Everything here is described in [`.specs/07-testing.md`](../.specs/07-testing.md); the instances the tools need are listed there too.
 
 - [ ] `(cd server && npm test)` and `(cd web && npm test)` green; `(cd web && npx vite build)` clean; `for f in server/src/*.js; do node --check "$f"; done` clean.
 - [ ] The CI run of the commit you tag is green, `e2e` included (CI runs it on `main`; locally, `bash .github/ci-e2e.sh` needs port 3000 free). The release workflow does **not** wait for CI.
 - [ ] `node tools/uiaudit.mjs` zero findings on every screen (part of the e2e run), and `tools/behavior.golden.json` current.
 - [ ] `node tools/docshots.mjs` rerun on a throw-away instance and every picture looked at (no personal data, nothing cut off).
-- [ ] `node tools/roundtrip.mjs` with the Oracle demo (`--profile oracle`) matches the table in [`.specs/04-formats.md`](.specs/04-formats.md).
+- [ ] `node tools/roundtrip.mjs` with the Oracle demo (`--profile oracle`) matches the table in [`.specs/04-formats.md`](../.specs/04-formats.md).
 - [ ] If performance-relevant code changed: `node tools/bench.mjs` and `node tools/benchclient.mjs`, numbers updated in the *Hosting requirements* page.
 - [ ] License consistent (`LICENSE`, `NOTICE`, both `package.json`); `npm audit --audit-level=high` clean in both folders (CI runs it).
 - [ ] README, specs and documentation pages match the behaviour; the release notes have the new section and its *Not tested* list.
@@ -34,4 +34,4 @@ Running the workflow by hand (*Actions → release → Run workflow*) builds and
 
 ## After a release
 
-Security reports arrive through GitHub's private vulnerability reporting ([`SECURITY.md`](SECURITY.md)). A fix lands on `main` and in the next tag; older releases are not patched. Dependabot opens security updates; version updates of `vite` / `vitest` majors are done by hand, together (see the comment in `.github/dependabot.yml`).
+Security reports arrive through GitHub's private vulnerability reporting ([`SECURITY.md`](../SECURITY.md)). A fix lands on `main` and in the next tag; older releases are not patched. Dependabot opens security updates; version updates of `vite` / `vitest` majors are done by hand, together (see the comment in `.github/dependabot.yml`).

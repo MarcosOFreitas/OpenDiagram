@@ -7,7 +7,7 @@
 <!-- Say honestly what you ran and what you did not (no Oracle server, no real screen reader, ...). -->
 
 - [ ] `cd server && npm test` and `cd web && npm test` pass; a bug fix includes a regression test that fails on the old code, a feature includes tests for its logic
-- [ ] `cd web && npx vite build` and `node --check server/src/*.js` pass
+- [ ] `cd web && npx vite build` and `for f in server/src/*.js; do node --check "$f"; done` pass
 - [ ] the e2e scripts that cover this change pass (`server/test-*.mjs`, `tools/roundtrip.mjs`)
 - [ ] UI change: loaded in a browser; `node tools/uiaudit.mjs <screens>` reports zero findings; new screens added to the script
 - [ ] docs updated in the same change (`.specs/`, `web/src/docsite/pages/`, README); pictures retaken with `tools/docshots.mjs` if a documented screen changed

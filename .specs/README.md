@@ -3,7 +3,7 @@
 Living specifications for OpenDiagram. Rules:
 
 - One topic per file, numbered by reading order. Each spec has **Status** and **Acceptance criteria** that are testable.
-- Change behaviour → update the spec, the documentation page and the README in the same commit. Known limitations and ideas for forks are in [`06-roadmap.md`](06-roadmap.md); how to release is in [`RELEASING.md`](../RELEASING.md), how to publish a fork in [`FORKING.md`](../FORKING.md).
+- Change behaviour → update the spec, the documentation page and the README in the same commit. Known limitations and ideas for forks are in [`06-roadmap.md`](06-roadmap.md); the developer guides (start here, development, tools, releasing, forking, history) are in [`docs/`](../docs/developers.md).
 - Mark criteria as `[x]` only when verified (say how in [`07-testing.md`](07-testing.md)); otherwise leave `[ ]`.
 
 | # | Spec | Status |

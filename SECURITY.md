@@ -25,12 +25,12 @@ Out of scope: findings that need a malicious administrator (administrators can b
 
 The defaults are meant for your own machine or a trusted network. Before you host it for other people:
 
-- set a strong `APP_SECRET` and keep it (changing it makes saved connections unreadable);
+- set a strong `APP_SECRET` and keep it (changing it makes the saved connection passwords unreadable: they must be typed again);
 - serve it over **HTTPS** and set `COOKIE_SECURE=1` (and `TRUST_PROXY=1` behind a reverse proxy);
 - set `DB_HOST_POLICY=public-only` or `allowlist`, so users cannot point the server at your internal network;
 - keep public sign-up closed (`ALLOW_SIGNUP=0`) unless you want it open;
 - use **read-only database users** for every connection (the app warns about and can refuse credentials with write privileges), and enable TLS with certificate verification;
-- remove the `demo-*` services from `docker-compose.yml` (they have well-known passwords and a published demo key);
+- do not use `docker-compose.demo.yml` or `docker-compose.demo-tls.yml`, and leave `COMPOSE_FILE` unset in `.env` (the demo databases have well-known passwords and the demo TLS key is public);
 - back up the `/data` volume.
 
 The full threat model and the pre-deployment checklist are in [`.specs/05-security.md`](.specs/05-security.md) and in the documentation page *Self-hosting* (`/docs`).

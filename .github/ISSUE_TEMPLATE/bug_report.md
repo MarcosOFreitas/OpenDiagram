@@ -13,6 +13,6 @@ labels: bug
 **Environment**
 - OpenDiagram version / commit:
 - How it runs (Docker image, `npm start`), browser and OS:
-- Database engine and version, if it involves an import (PostgreSQL / Oracle):
+- Database engine and version, if it involves an import (PostgreSQL / Oracle / MySQL):
 
 **Logs or screenshots** (remove passwords, hosts and any real data)

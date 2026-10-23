@@ -1,5 +1,5 @@
 # Demo databases to try the import and run the e2e scripts. Never for an instance other people use: their passwords are public.
-#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d                     # app + demo-pg + demo-pg-tls
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d                     # app + demo-pg, demo-pg-tls, demo-mysql
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d    # + demo Oracle (slow first start) and its TLS proxy
 # The app reaches them by service name (demo-pg, demo-oracle, ...). Their ports are published on 127.0.0.1 only, for tools on this machine.
 services:

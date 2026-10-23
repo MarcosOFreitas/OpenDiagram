@@ -6,6 +6,9 @@ RUN cd web && npm ci
 COPY web ./web
 # the web bundles this one server module (the structural diff of History, shared with the server)
 COPY server/src/schemaDiff.js ./server/src/schemaDiff.js
+# and the developer pages of the documentation site, which live at the repository root so that GitHub shows them too
+COPY docs ./docs
+COPY tools/README.md ./tools/README.md
 RUN cd web && npm run build
 
 FROM node:24-slim

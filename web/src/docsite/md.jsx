@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { highlightCode, classHighlighter } from '@lezer/highlight';
 import { dbml } from '../Editor.jsx';
+import { docsHref } from './nav.js';
 
 // Tiny Markdown renderer for the documentation pages (no dependency): headings, paragraphs, lists, tables,
 // fenced code (with a Copy button), blockquote callouts (> **Note** ...), rules and inline code / bold / italic / links.
@@ -10,7 +11,6 @@ const slugify = (s) => String(s).toLowerCase().replace(/<[^>]+>/g, '').replace(/
 const IMGS = import.meta.glob('./img/*.{png,jpg,webp}', { query: '?url', import: 'default', eager: true });
 const imgUrl = (n) => IMGS[`./img/${n}`];
 
-const href = (u) => (/^(https?:|mailto:|#|\/)/.test(u) ? u : `/docs/${u}`);
 
 function inline(text, key = 'i') {
   const out = [];
@@ -22,7 +22,7 @@ function inline(text, key = 'i') {
     if (t[0] === '`') out.push(<code key={k}>{t.slice(1, -1)}</code>);
     else if (t.startsWith('**')) out.push(<strong key={k}>{inline(t.slice(2, -2), k)}</strong>);
     else if (t[0] === '*') out.push(<em key={k}>{inline(t.slice(1, -1), k)}</em>);
-    else { const [, label, url] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); const ext = /^https?:/.test(url); out.push(<a key={k} href={href(url)} {...(ext ? { target: '_blank', rel: 'noreferrer' } : {})}>{inline(label, k)}</a>); }
+    else { const [, label, url] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); const ext = /^https?:/.test(url), h = docsHref(url); out.push(h ? <a key={k} href={h} {...(ext ? { target: '_blank', rel: 'noreferrer' } : {})}>{inline(label, k)}</a> : <span key={k} title={url}>{inline(label, k)}</span>); }
     last = m.index + t.length;
   }
   if (last < text.length) out.push(text.slice(last));

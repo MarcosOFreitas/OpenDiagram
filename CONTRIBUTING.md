@@ -2,9 +2,11 @@
 
 Thanks for helping. This project is small on purpose: the smallest change that solves a problem is the best change. Contributions by humans and by AI coding agents follow the same rules (agents: read [`AGENTS.md`](AGENTS.md) first).
 
+OpenDiagram 1.0 is feature-complete and has no maintainer on call: issues and pull requests are read on a best-effort basis, and a fork is often the faster path. New here? Start with [`docs/developers.md`](docs/developers.md): a map of the repository and a reading order; [`docs/development.md`](docs/development.md) has the setup and the loop.
+
 ## Before you start
 
-- **Open an issue** for anything bigger than a typo or a small fix, so we can agree on the approach (and on whether it fits [the roadmap](.specs/06-roadmap.md)) before you write code.
+- **Open an issue** for anything bigger than a typo or a small fix, so we can agree on the approach (and on whether it fits the product: [`.specs/00-product.md`](.specs/00-product.md), and the known limitations and ideas for forks in [`.specs/06-roadmap.md`](.specs/06-roadmap.md)) before you write code.
 - **Security problems are not issues.** See [`SECURITY.md`](SECURITY.md).
 - OpenDiagram is a **clean-room** implementation: do not copy code, text or images from dbdiagram.io, dbdocs or other products. Only contribute code you have the right to license under the [Apache License 2.0](LICENSE).
 
@@ -24,7 +26,7 @@ Open <http://localhost:3000> and create the first account (it becomes the admini
 
 There is no linter. Unit tests (`cd server && npm test`, `cd web && npm test`) run in seconds without Docker, in CI and, once enabled with `git config core.hooksPath .githooks`, before every commit (only the tests the staged files can affect); the CI `e2e` job (`.github/ci-e2e.sh`) runs the end-to-end scripts, the UI audit and the behaviour fingerprint, which cover what a unit test cannot. A bug fix comes with a regression test that fails on the old code; a feature comes with tests for its logic. The scripts and what they need are in [`.specs/07-testing.md`](.specs/07-testing.md). At minimum, before opening a pull request:
 
-1. `cd web && npx vite build` and `node --check server/src/*.js` pass.
+1. `cd web && npx vite build` and `for f in server/src/*.js; do node --check "$f"; done` pass (`node --check a.js b.js` checks only `a.js`).
 2. The e2e scripts that cover what you touched pass (`tools/test-auth.mjs`, `tools/test-guardrails.mjs`, `tools/roundtrip.mjs`, ...). Create a throw-away administrator with `docker compose exec app node src/cli.js create-admin ...` and export `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`.
 3. For a **UI change**: you loaded it in a browser, and `node tools/uiaudit.mjs <screen ...>` reports zero findings for the screens you touched (it needs a throw-away instance, see the header of the file). New screens, drawers, popups and dialogs are added to that script. Follow the **UI standard** in [`AGENTS.md`](AGENTS.md#ui-standard) and [`.specs/11-ui-review.md`](.specs/11-ui-review.md) (the rules come from the [ui-ux-pro-max skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill), MIT; agents can use the copy under `.claude/skills`): shared controls and tokens, light and dark theme, 375px width, keyboard focus, accessible names, contrast.
 4. **Documentation moves with the code**: update the relevant spec in `.specs/`, the page in `web/src/docsite/pages/` and the README if behaviour, labels, defaults or limits change. If a documented screen looks different, regenerate the pictures with `node tools/docshots.mjs`.
