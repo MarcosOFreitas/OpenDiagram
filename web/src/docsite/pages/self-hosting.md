@@ -17,7 +17,7 @@ Open `http://localhost:3000` and create the first account: it becomes the **admi
 
 The compose file runs the container with a read-only filesystem (only the `/data` volume and a small `/tmp` are writable), restarts it unless you stop it, and keeps the data in the volume `opendiagram_appdata`. Set `OPENDIAGRAM_VERSION=1.0.0` in `.env` to pin a version.
 
-Demo databases to try the import (PostgreSQL, and Oracle with `--profile oracle`) need a clone of the repository: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build`. They are for trying the app only (their passwords are public).
+Demo databases to try the import (PostgreSQL and MySQL, and Oracle with `--profile oracle`) need a clone of the repository: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build`. They are for trying the app only (their passwords are public).
 
 > **Info** How much CPU, memory and disk it needs, measured: [Hosting requirements](hosting-requirements). A database behind a VPN or a firewall: see *Databases behind a VPN or a firewall* below.
 
@@ -57,10 +57,18 @@ Importing and refreshing read only the catalog, so a read-only user is enough. T
 Before exposing the instance beyond your own network:
 
 1. Serve it over **HTTPS** and set `COOKIE_SECURE=1` (and `TRUST_PROXY=1` behind a proxy). The proxy must tell the app which address the browser used: keep the `Host` header (nginx: `proxy_set_header Host $host;`, Caddy and Traefik do it by default) or send `X-Forwarded-Host`. Otherwise every change, sign-in included, is refused as *cross-origin request blocked*.
-2. Set a strong `APP_SECRET`.
+2. Set a strong `APP_SECRET` and keep it in a secret manager. There is no rotation command: with a new key, the saved connections stay listed and ask for their passwords again.
 3. Set `DB_HOST_POLICY=public-only` or `allowlist` so users cannot point the app at your internal network.
 4. Keep sign-up closed and create accounts as the administrator. Sessions last 30 days. Wrong passwords lock sign-in for a few minutes after 8 in 15 minutes for the same e-mail and address, 50 from one address whatever the e-mail, or 30 for one e-mail from any address (behind a proxy set `TRUST_PROXY=1` so the real address is seen; otherwise everyone shares the proxy's address and its budget of 50).
-5. Read the security notes of the project (`.specs/05-security.md`) first.
+5. Put a **rate limit** in the proxy (example below): the app limits sign-ins, link passwords, recovery keys and agent tokens, but not the API as a whole.
+6. Read the security notes of the project (`.specs/05-security.md`) first.
+
+A rate limit with nginx, for example (an open diagram calls the API every 4 seconds, and a save or an import a few times more: this leaves room for that):
+
+```nginx
+limit_req_zone $binary_remote_addr zone=opendiagram:10m rate=20r/s;   # in http { }
+location /api/ { limit_req zone=opendiagram burst=60 nodelay; proxy_pass http://app:3000; proxy_set_header Host $host; }
+```
 
 ## Backup and moving to another machine
 
@@ -88,20 +96,6 @@ docker compose cp app:/data/backups ./opendiagram-backups
 
 Run `docker compose pull && docker compose up -d` (from a clone: pull the repository and run `docker compose up -d --build app`). The data volume is kept.
 
-> **Warning** Older versions named the data volume after the folder of the repository (for example `myfolder_appdata`); the compose file now always uses the project name `opendiagram`, so the volume is `opendiagram_appdata`. Copy the old one over once, with the app stopped (`docker volume ls` shows the old name):
->
-> ```bash
-> docker compose down
-> docker volume create opendiagram_appdata
-> docker run --rm -v OLDNAME_appdata:/from:ro -v opendiagram_appdata:/to alpine sh -c "cp -a /from/. /to/ && chown -R 1000:1000 /to"
-> docker compose up -d
-> ```
-
-> **Warning** Since the release that runs the container as the unprivileged user `node`, a data volume created by an older version belongs to `root` and the app stops at start-up with "/data is not writable". Hand it over once, then start again:
->
-> ```bash
-> docker compose run --rm --user root --entrypoint chown app -R node:node /data
-> docker compose up -d app
-> ```
+The compose file fixes the project name (`opendiagram`), so the data volume is always `opendiagram_appdata`, whatever the folder is called. The container runs as the unprivileged user `node`: a volume it cannot write stops it at start-up with "/data is not writable" and the command that hands it over (`docker compose run --rm --user root --entrypoint chown app -R node:node /data`).
 
 The container reports its health to Docker (`docker compose ps` shows `healthy`): every 30 seconds it calls `/api/health`, which also checks that the database answers.

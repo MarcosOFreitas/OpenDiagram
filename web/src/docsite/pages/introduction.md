@@ -2,7 +2,7 @@
 
 ## OpenDiagram Docs
 
-OpenDiagram is a free, open-source tool (Apache-2.0: see [License](license)) to draw database diagrams (ERDs) by typing code. It uses the popular **DBML** (Database Markup Language): you write text, the diagram follows. It can also **read the structure of a live PostgreSQL or Oracle database** and generate the diagram for you.
+OpenDiagram is a free, open-source tool (Apache-2.0: see [License](license)) to draw database diagrams (ERDs) by typing code. It uses the popular **DBML** (Database Markup Language): you write text, the diagram follows. It can also **read the structure of a live PostgreSQL, Oracle or MySQL database** and generate the diagram for you.
 
 > **Info** OpenDiagram runs on your own machine or server (a single Docker image with SQLite storage). Your diagrams and database credentials never leave your installation.
 
@@ -17,7 +17,7 @@ OpenDiagram is a free, open-source tool (Apache-2.0: see [License](license)) to 
 - **Connect an AI client**: Claude Code and other MCP clients can read, comment on and edit the diagrams that were shared with them, and never see a database credential. See [Connect Claude (MCP)](connect-claude-mcp).
 - **Keep metadata fresh**: the server re-reads linked databases on a schedule, even with nobody connected. See [Import from a database](database-import).
 - **Keep history**: every change is saved, versions can be named, compared and restored. See [Versions & history](versions-and-history).
-- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake) or DBML files from **More → Import**, and **export** to PNG, SVG, DBML, JSON and SQL for PostgreSQL, MySQL, SQL Server and Oracle. See [Import & export](import-export).
+- **Import** SQL (PostgreSQL, MySQL, SQL Server, Snowflake, Oracle) or DBML files from **More → Import**, and **export** to PNG, SVG, DBML, JSON and SQL for PostgreSQL, MySQL, SQL Server and Oracle. See [Import & export](import-export).
 
 ## Where to start
 
@@ -28,4 +28,4 @@ OpenDiagram is a free, open-source tool (Apache-2.0: see [License](license)) to 
 
 ## Feature requests and bug reports
 
-Send feature requests and bug reports to the people who run your OpenDiagram installation; they can raise them with the project maintainers.
+Send questions and bug reports to the people who run your OpenDiagram installation. The project itself takes issues on GitHub, read on a best-effort basis: version 1.0 is feature-complete and nobody is on call.

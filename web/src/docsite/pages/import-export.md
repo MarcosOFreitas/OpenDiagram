@@ -10,6 +10,7 @@
 | MySQL SQL | |
 | SQL Server SQL | |
 | Snowflake SQL | |
+| Oracle SQL | tables, keys, indexes and comments (see the note below) |
 | DBML | replaces the editor content |
 
 Syntax problems are reported in a message. Importing replaces the whole diagram text, for every format; **More → History** can bring the previous text back.
@@ -35,4 +36,4 @@ Tables hidden from the diagram with the [Tables panel](tables-panel-and-views) a
 
 ## Views from a database
 
-A database view is exported to SQL as a plain table (DBML has no view type). The view definition stays in the table note.
+A database view is exported to SQL as a plain table (DBML has no view type). Its definition is in the table note only if **Full DDL of views** was ticked at import.

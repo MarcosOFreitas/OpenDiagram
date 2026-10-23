@@ -39,7 +39,7 @@ Press **Import N schema(s) → diagram**. The DBML appears in the editor and the
 
 ## What is imported
 
-- **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE`; `ON UPDATE` for PostgreSQL) and indexes.
+- **Tables**, columns (type, nullability, default), comments, primary keys, foreign keys (with `ON DELETE`; `ON UPDATE` for PostgreSQL and MySQL) and indexes.
 - **Auto-numbered columns** as `increment`: PostgreSQL `serial` and identity columns, Oracle identity columns, MySQL `AUTO_INCREMENT` (the sequence behind them is not written as a default).
 - **Generated (computed) columns** with their expression in the column note, `GENERATED ALWAYS AS (net + vat) STORED` (or `VIRTUAL`), not as a default.
 - **Partial indexes** (PostgreSQL) with their condition as the index note, `WHERE NOT paid`.

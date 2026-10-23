@@ -13,7 +13,7 @@ You can create several links with different levels and revoke each one on its ow
 
 ## Expiry
 
-When you create a link you can make it **expire** (1, 7, 30 or 90 days). Next to each link you see when it expires and can change it (or make it permanent) with **Change expiry…**. An expired link answers as if it did not exist; you still see it in the list as *Expired* and can extend or revoke it. Links you made before this option never expire.
+When you create a link you can make it **expire** (1, 7, 30 or 90 days). Next to each link you see when it expires and can change it (or make it permanent) with **Change expiry…**. An expired link answers as if it did not exist; you still see it in the list as *Expired* and can extend or revoke it.
 
 ## What a link allows
 

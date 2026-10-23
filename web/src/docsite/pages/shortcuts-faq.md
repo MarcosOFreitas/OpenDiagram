@@ -39,7 +39,7 @@ Yes, through the MCP connector, at the level you give it (view, comment or edit)
 
 ### Can two people edit at the same time?
 
-Not in real time yet. If both save changes, the second save is refused and a dialog asks whether to load the other person's version or keep yours (the other version stays in the history). See [Versions & history](versions-and-history). Giving the other person *Comment* access avoids the question.
+There is no real-time co-editing. If both save changes, the second save is refused and a dialog asks whether to load the other person's version or keep yours (the other version stays in the history). See [Versions & history](versions-and-history). Giving the other person *Comment* access avoids the question.
 
 ### My diagram became slow with hundreds of tables. What can I do?
 
@@ -47,7 +47,7 @@ Hide what you do not need with the [Tables panel](tables-panel-and-views), switc
 
 ### The importer wrote a view as a table. Is that a bug?
 
-No. DBML has no view type, so a view is a table marked **· View** with its SQL in the note. It is exported to SQL as a plain table.
+No. DBML has no view type, so a view is a table marked **· View** (with its SQL in the note when **Full DDL of views** was ticked at import). It is exported to SQL as a plain table.
 
 ### Why does an Oracle connection with TLS close right after connecting?
 
@@ -67,4 +67,4 @@ An operator can reset it from the command line: see [Administration](administrat
 
 ### Can I embed a diagram in another site?
 
-Not at the moment. Use a [share link](share-links) or the exported [documentation](generated-documentation#export).
+No. Use a [share link](share-links) or the exported [documentation](generated-documentation#export).

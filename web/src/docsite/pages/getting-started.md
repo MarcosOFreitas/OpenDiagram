@@ -4,7 +4,7 @@
 
 - **Left**: the DBML editor. It is the **single source of truth**: the diagram is always drawn from this text.
 - **Center**: the diagram. Drag tables, zoom with the wheel or the dock at the bottom, and click things to focus them.
-- **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export**, **More** (Diagrams, Database, Import, History, View, Documentation) and your avatar (Account & password, Administration for administrators, Sign out). **Database** is only there on your own diagrams.
+- **Top bar**: the diagram title, the **Diagram | Docs** switch, **Share**, **Export**, **More** (Diagrams, Database, Import, History, Documentation) and your avatar (Account & password, Administration for administrators, Sign out). **Database** is only there on your own diagrams.
 - **Right edge** of the diagram: the **Tables panel** (search, group, hide and jump to tables).
 
 ![The sample model: tables, table groups (colored boxes) and relationship lines. The dock at the bottom has zoom, fit, collapse, highlight and Arrange.](diagram-overview.jpg)

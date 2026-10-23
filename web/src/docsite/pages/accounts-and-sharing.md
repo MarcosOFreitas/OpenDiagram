@@ -49,4 +49,4 @@ Administrators can open every diagram of the organization and edit it, comment, 
 
 Comments live in the [Docs view](generated-documentation#comments): any number per table or column, with author and date. They respect the levels above.
 
-> **Warning** There is no real-time co-editing yet. If two people edit the same diagram at the same time, the second one to save is asked whether to load the other version or overwrite it (see [Versions & history](versions-and-history)). Coordinate who edits, or give the other person *Comment* access.
+> **Warning** There is no real-time co-editing. If two people edit the same diagram at the same time, the second one to save is asked whether to load the other version or overwrite it (see [Versions & history](versions-and-history)). Coordinate who edits, or give the other person *Comment* access.

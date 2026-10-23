@@ -42,9 +42,9 @@ The address is the same server and port as the app, path `/mcp`. Over a network,
 - Use one agent and one token per use (laptop, pipeline), keep the default **expiry** (90 days) or choose another length, and revoke the ones you no longer use. **Disable** an agent to stop it at once without deleting it.
 - Every call is recorded in **Administration → Sign-ins & connections → Agent calls**: which agent, which tool, which diagram, whether it worked. The content of the diagram is never written to the log.
 - The token only works on `/mcp`. It does not open the app, the API or the Administration, and an agent has no password and cannot sign in.
-- Limits: 120 calls per minute for each token, and 2 MB of DBML per save.
+- Limits: 120 calls per minute for each token, and 500,000 characters of DBML per save.
 
 ## Not supported yet
 
-- **Custom connectors of claude.ai on the web**: they need OAuth sign-in and a public HTTPS address. This comes later, together with single sign-on (SSO) through AWS Cognito.
+- **Custom connectors of claude.ai on the web**: they need OAuth sign-in and a public HTTPS address. OpenDiagram has no OAuth, so they cannot connect.
 - Creating diagrams, or acting on behalf of a person.

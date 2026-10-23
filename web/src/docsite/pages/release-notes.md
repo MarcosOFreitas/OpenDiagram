@@ -11,7 +11,19 @@ The first release, and the last planned one: OpenDiagram is **feature-complete**
 - MariaDB outside one manual try with 11.4 (it is not in the automated tests).
 - The Oracle import in the automated end-to-end run (it is tried by hand and in `roundtrip.mjs`).
 - Importing a very large schema (hundreds of tables) from a real PostgreSQL or Oracle server, the scheduled refresh with many linked diagrams, refreshes during a 150-person peak, and a server shared by several organizations.
-- Browsers other than Chrome: the automated interface audit runs in Chrome only.
+- Browsers other than Chrome: the automated interface audit runs in Chrome only. No screen reader, Windows high-contrast or tablet pass either.
+- A penetration test against a running instance, and PostgreSQL TLS against a cloud endpoint.
+
+## Hardening before 1.0
+
+Four independent reviews read the whole project before the release (the code and its security, the documentation against the behaviour, a newcomer setting it up, every open item). Fixed:
+
+- A request to the API with a percent-encoded path (`/%61pi/...`) skipped the sign-in, Origin and password-change checks. Every check now uses the route that matched.
+- A database server that accepted the sign-in and then hung up could stop the whole app. Now only that request fails.
+- With `DB_HOST_POLICY=public-only`, a private IPv6 address written another way (`0::1`, or `127.0.0.1` in hex inside IPv6) was accepted. Every spelling is refused now.
+- A saved CA certificate is at most 64 KB. MySQL connections get the CA certificate field (with TLS *verify certificate*), as PostgreSQL had.
+- The daily backups show in **Administration → Audit log**.
+- The documentation was checked against the code page by page, with a test for every link. There is a **For developers** section for whoever carries the project on.
 
 ## Changed since you last opened it
 
