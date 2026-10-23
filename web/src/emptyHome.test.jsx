@@ -20,3 +20,17 @@ test('an account without diagrams gets the create options; no sample is created 
   expect(screen.getByTitle('Ana · ana@example.com')).toBeTruthy(); // the account menu stays reachable (sign out)
   expect(calls.filter((c) => c.startsWith('POST diagrams'))).toEqual([]);
 });
+
+test('with no diagram open, Account & password still opens: the password, the recovery key and the sessions, then back to the create options', async () => {
+  mockApi({ 'GET auth/me': { user: { id: 1, name: 'Ana', email: 'ana@example.com', role: 'member' }, org: '', groups: [] } });
+  const { default: userEvent } = await import('@testing-library/user-event');
+  const user = userEvent.setup({ delay: null });
+  render(<App />);
+  await screen.findByRole('heading', { name: 'No diagrams yet' });
+  await user.click(screen.getByTitle('Ana · ana@example.com'));
+  await user.click(screen.getByRole('menuitem', { name: /Account & password/ }));
+  expect(await screen.findByRole('heading', { name: 'Change password' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'No diagrams yet' })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Close' }));
+  expect(await screen.findByRole('heading', { name: 'No diagrams yet' })).toBeTruthy();
+});

@@ -23,6 +23,7 @@ Four independent reviews read the whole project before the release (the code and
 - With `DB_HOST_POLICY=public-only`, a private IPv6 address written another way (`0::1`, or `127.0.0.1` in hex inside IPv6) was accepted. Every spelling is refused now.
 - A saved CA certificate is at most 64 KB. MySQL connections get the CA certificate field (with TLS *verify certificate*), as PostgreSQL had.
 - The daily backups show in **Administration → Audit log**.
+- **Account & password** opens from the *No diagrams yet* screen too.
 - The documentation was checked against the code page by page, with a test for every link. There is a **For developers** section for whoever carries the project on.
 
 ## Changed since you last opened it

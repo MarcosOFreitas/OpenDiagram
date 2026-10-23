@@ -703,9 +703,24 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
     </form></div>
   );
   const themeBtn = <button className="tbtn ic theme-btn" onClick={toggleTheme} aria-label={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} title={view.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}><Ic n={view.theme === 'dark' ? 'sun' : 'moon'} /></button>;
-  const accountMenu = (home) => (user // home: no diagram is open, so no drawer for Account & password
+  // the account panel: in the drawer, and on the home screen of an account without diagrams (no drawer there)
+  const accountBody = user && (
+    <div className="dbody">
+      <div className="card static">
+        <span className="avatar big">{(user.name || user.email)[0].toUpperCase()}</span>
+        <div className="grow"><b>{user.name}</b><small>{user.email}</small></div>
+        <span className="chip">{user.role === 'admin' ? 'Administrator' : 'Member'}</span>
+      </div>
+      {groups?.length > 0 && <><h4>My groups</h4><div>{groups.map((g) => <span key={g.id} className="chip">{g.name}</span>)}</div></>}
+      <div className="group-card"><h4>Change password</h4><PasswordForm onDone={onUser} /></div>
+      <div className="group-card"><RecoveryKey notify={notify} /></div>
+      <div className="group-card"><Sessions notify={notify} /></div>
+      <div className="group-card"><h4>Leave</h4><button onClick={onLogout}>Sign out</button><DeleteAccount onDone={onLogout} /></div>
+    </div>
+  );
+  const accountMenu = () => (user
     ? <Menu title={`${user.name} · ${user.email}`} label={`Account menu, ${user.name || user.email}`} trigger={<span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>}
-      items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, ...(home ? [] : [{ key: 'account', label: 'Account & password', onClick: () => setDrawer('account') }]),
+      items={[{ header: `${user.name} · ${user.role === 'admin' ? 'Administrator' : 'Member'}` }, { key: 'account', label: 'Account & password', onClick: () => setDrawer('account') },
         ...(user.role === 'admin' ? [{ key: 'admin', label: 'Administration', hint: 'users, groups, settings', onClick: () => setShowAdmin(true) }] : []),
         { sep: true }, { key: 'out', label: 'Sign out', danger: true, onClick: onLogout }]} />
     : <button className="tbtn on" onClick={onLogin}>Log in</button>);
@@ -719,14 +734,21 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
         <div className="brand"><Logo /> {org || 'OpenDiagram'}</div>
         <div className="grow" />
         {themeBtn}
-        {accountMenu(true)}
+        {accountMenu()}
       </header>
       <main className="home">
-        <section className="home-card dbody" aria-labelledby="home-h">
-          <h2 id="home-h">No diagrams yet</h2>
-          <small className="hint">Start with a blank diagram, the sample or a template.</small>
-          <CreateOptions templates={TEMPLATES} onCreate={newDiagram} />
-        </section>
+        {drawer === 'account' && user ? (
+          <section className="home-card" aria-labelledby="home-account">
+            <div className="dtabs"><b className="dtitle" id="home-account">Account</b><button className="x" onClick={() => setDrawer(null)} title="Close (Esc)" aria-label="Close">✕</button></div>
+            {accountBody}
+          </section>
+        ) : (
+          <section className="home-card dbody" aria-labelledby="home-h">
+            <h2 id="home-h">No diagrams yet</h2>
+            <small className="hint">Start with a blank diagram, the sample or a template.</small>
+            <CreateOptions templates={TEMPLATES} onCreate={newDiagram} />
+          </section>
+        )}
       </main>
       {overlays}
     </div>
@@ -769,7 +791,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             ...(window.innerWidth <= 720 ? [{ sep: true }, { key: 'theme', label: view.theme === 'dark' ? 'Light theme' : 'Dark theme', onClick: toggleTheme }] : []), // phones: no room for the top-bar button
             { sep: true }, { key: 'help', label: 'Documentation', hint: 'opens in a new tab', onClick: () => window.open('/docs', '_blank', 'noopener') }]} />
         {themeBtn}
-        {accountMenu(false)}
+        {accountMenu()}
       </header>
 
       {newer && (
@@ -855,20 +877,7 @@ function Workspace({ user, groups, org, shareToken, onLogin, onLogout, onUser, o
             <button className="x" onClick={() => setDrawer(null)} title="Close (Esc)" aria-label="Close">✕</button>
           </div>
 
-          {drawer === 'account' && user && (
-            <div className="dbody">
-              <div className="card static">
-                <span className="avatar big">{(user.name || user.email)[0].toUpperCase()}</span>
-                <div className="grow"><b>{user.name}</b><small>{user.email}</small></div>
-                <span className="chip">{user.role === 'admin' ? 'Administrator' : 'Member'}</span>
-              </div>
-              {groups?.length > 0 && <><h4>My groups</h4><div>{groups.map((g) => <span key={g.id} className="chip">{g.name}</span>)}</div></>}
-              <div className="group-card"><h4>Change password</h4><PasswordForm onDone={onUser} /></div>
-              <div className="group-card"><RecoveryKey notify={notify} /></div>
-              <div className="group-card"><Sessions notify={notify} /></div>
-              <div className="group-card"><h4>Leave</h4><button onClick={onLogout}>Sign out</button><DeleteAccount onDone={onLogout} /></div>
-            </div>
-          )}
+          {drawer === 'account' && accountBody}
           {drawer === 'diagrams' && <Library diagrams={diagrams} currentId={doc?.id} isAdmin={user?.role === 'admin'} onOpen={(id) => { openDiagram(id).then(() => setDrawer(null)).catch((e) => notify('err', errMsg(e))); }} templates={TEMPLATES} onCreate={newDiagram} onDelete={deleteDiagram} />}
           {drawer === 'share' && manage && doc?.id && <SharePanel diagramId={doc.id} notify={notify} />}
           {drawer === 'history' && canEdit && doc?.id && !shared && <History diagramId={doc.id} version={docVersion} dbml={dbml} notify={notify} onRestored={() => openDiagram(doc.id)} />}
