@@ -38,6 +38,7 @@ await admin.call('PUT', '/api/admin/settings', { allowAgents: true });
 const bot = await admin.call('POST', '/api/admin/agents', { name: 'Claude of the data team' }); // for the Agents picture: one agent with a token and a share
 await admin.call('POST', `/api/admin/agents/${bot.id}/tokens`, { name: 'laptop', expiresInDays: 90 });
 await admin.call('POST', `/api/diagrams/${shop}/access`, { type: 'user', subjectId: bot.id, access: 'comment' });
+const mine = (await maya.call('POST', '/api/diagrams', { title: 'Orders report', dbml: 'Table shop.orders {\n  id integer [pk]\n  total numeric(10,2)\n}\n' })).id; // Maya's own diagram: the Database drawer is only on one's own
 console.log(`fixtures ready (diagrams ${shop.slice(0, 8)}, ${lin.slice(0, 8)})`);
 
 // ---------- Chrome over CDP
@@ -53,10 +54,10 @@ const HELP = `window.H = {
   more: async (item) => { await window.H.click('More', document.querySelector('header.top')); await window.H.click(item, document.querySelector('.menu-pop')); await window.H.w(500); },
   close: async () => { for (const s of ['.admin .x', '.admin-card .x', '.drawer.open .x', '.tpn-x']) document.querySelector(s)?.click(); document.querySelector('.menu-pop') && document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); await window.H.w(350); },
 };`;
-const go = async (path, local = {}) => {
+const go = async (path, local = {}, [email, password] = [EMAIL, PASS]) => { // signed in as the administrator, or as someone else
   await cdp('Page.navigate', { url: BASE + '/' });
   await sleep(600);
-  await ev(`(async () => { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ${JSON.stringify(EMAIL)}, password: ${JSON.stringify(PASS)} }) }); if (!r.ok) throw new Error('login ' + r.status); localStorage.clear(); for (const [k, v] of Object.entries(${JSON.stringify(local)})) localStorage.setItem(k, v); })()`);
+  await ev(`(async () => { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)} }) }); if (!r.ok) throw new Error('login ' + r.status); localStorage.clear(); for (const [k, v] of Object.entries(${JSON.stringify(local)})) localStorage.setItem(k, v); })()`);
   await cdp('Page.navigate', { url: BASE + path });
   await sleep(2500);
   await ev(HELP);
@@ -104,6 +105,11 @@ try {
     await ev(`(async () => { await H.click('All tables', document.querySelector('.drawer')); await H.w(1500); const i = document.querySelector('.admin-card.tp .tp-bar input'); if (i) { H.set(i, '*order*'); await H.w(500); } })()`);
     if (want('table-picker')) await shot('table-picker');
     if (want('table-picker-groups')) { await ev(`H.click('Groups', document.querySelector('.admin-card.tp .dtabs'))`); await sleep(800); await shot('table-picker-groups'); }
+  }
+  if (want('member-shared-connection')) { // what a member sees of a shared connection: name, type, host and database, nothing to change, no credential
+    await go('/', { lastDiagram: mine, tablesPanel: '0' }, ['maya@example.com', 'Maya-shots-pass-1']);
+    await ev(`(async () => { await H.more('Database'); const b = [...document.querySelectorAll('.drawer .card-open')].find((x) => /Demo shop/.test(x.textContent)); if (!b) throw new Error('no shared connection in the list'); b.click(); await H.w(700); })()`);
+    await shot('member-shared-connection');
   }
   if (want('admin-connections') || want('admin-audit')) {
     await go('/', dg);

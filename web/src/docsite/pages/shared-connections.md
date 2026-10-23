@@ -26,6 +26,8 @@ Shared connections belong to the organization, not to the administrator who crea
 
 In **More → Database** (on your own diagrams), shared connections appear in **Saved connections** with a **shared** tag. You see the **name, type, host and database**. The user, password and certificate are never sent to your browser, and the form is read-only.
 
+![A member's Database drawer: the shared connection shows its name, type, host and database; the form cannot be changed and the user and password are not shown.](member-shared-connection.jpg)
+
 You use it like any connection: **Test connection**, pick the schemas and tables, **Import**. A request can only use the connection as it was registered; it cannot point its credentials to another host.
 
 ## Refreshing a linked diagram
