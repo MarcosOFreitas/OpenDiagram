@@ -190,12 +190,14 @@ export function lineageRefs(tables, lineage, algo) {
 // algo: auto | lr (plain dagre, groups as clusters) | pipeline | snowflake | compact. lineage: edges of the data lineage that take part in the layout (empty when it is switched off)
 export function layout(tables, refs, old, groups = [], algo = 'auto', lineage = []) {
   const kept = old ? tables.filter((t) => old.get(t.id)) : [];
+  const node = (t, position) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position, data: t });
+  if (kept.length && kept.length === tables.length) return tables.map((t) => node(t, old.get(t.id))); // every table has a place (each edit in the editor): nothing to lay out
   if (kept.length && kept.length < tables.length) { // tables new to a diagram that has places (a second import, a table typed in): laid out among themselves, below the kept ones, never on top of them
     const fresh = layout(tables.filter((t) => !old.get(t.id)), refs, null, groups, algo, lineage);
     const x0 = Math.min(...kept.map((t) => old.get(t.id).x)), y0 = Math.max(...kept.map((t) => old.get(t.id).y + tableHeight(t))) + 80;
     const fx = Math.min(...fresh.map((n) => n.position.x)), fy = Math.min(...fresh.map((n) => n.position.y));
     const at = new Map(fresh.map((n) => [n.id, { x: n.position.x - fx + x0, y: n.position.y - fy + y0 }]));
-    return tables.map((t) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position: old.get(t.id) || at.get(t.id), data: t }));
+    return tables.map((t) => node(t, old.get(t.id) || at.get(t.id)));
   }
   if (lineage.length) refs = [...refs, ...lineageRefs(tables, lineage, algo)];
   let pos;
@@ -204,5 +206,5 @@ export function layout(tables, refs, old, groups = [], algo = 'auto', lineage = 
   else if (groups.length) pos = groupedPositions(tables, refs, groups, algo); // one block per group
   else if (algo === 'auto' && tables.length < 25) pos = dagrePositions(tables, refs);
   else pos = shelfPack(blocksOf(tables, refs, algo)).pos;
-  return tables.map((t) => ({ id: t.id, type: 'table', ariaLabel: `Table ${t.name}`, position: old?.get(t.id) || pos.get(t.id), data: t }));
+  return tables.map((t) => node(t, old?.get(t.id) || pos.get(t.id)));
 }

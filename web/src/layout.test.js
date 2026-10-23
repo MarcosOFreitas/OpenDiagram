@@ -74,6 +74,13 @@ describe.each(ALGOS)('algorithm %s', (algo) => {
 });
 
 describe('manual positions', () => {
+  test('when every table already has a place (each edit in the editor), nothing is laid out: the places come back as they are', () => {
+    const { tables, refs } = chain(30);
+    const placed = new Map(tables.map((t, i) => [t.id, { x: i * 10, y: i * 20 }]));
+    const untouchable = tables.map((t) => Object.defineProperty({ ...t }, 'fields', { get() { throw new Error('a layout ran'); } }));
+    const nodes = layout(untouchable, refs, placed, [], 'auto');
+    expect(nodes.map((n) => [n.id, n.position])).toEqual(tables.map((t) => [t.id, placed.get(t.id)]));
+  });
   test('a position the person set (old) is kept, new tables get one', () => {
     const { tables, refs } = chain(3);
     const nodes = layout(tables, refs, new Map([['s.t1', { x: 5000, y: 7000 }]]), [], 'auto');
