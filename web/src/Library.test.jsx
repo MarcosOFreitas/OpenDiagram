@@ -77,7 +77,7 @@ describe('Library: finding a diagram', () => {
   });
 });
 
-describe('Library: "changed since you last opened it" (.specs/14, item 9)', () => {
+describe('Library: "changed since you last opened it" (.specs/09)', () => {
   test('people who can edit see the latest change and how many there are; the others see the badge alone; nothing new, nothing shown', () => {
     const at = Math.floor(Date.now() / 1000) - 7200;
     setup({ diagrams: [

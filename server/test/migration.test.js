@@ -1,4 +1,4 @@
-// db.js on a database made before one of its tables existed: the table is added and the data stays (.specs/14, item 9: diagram_seen)
+// db.js on a database made before one of its tables existed: the table is added and the data stays (.specs/09: diagram_seen)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

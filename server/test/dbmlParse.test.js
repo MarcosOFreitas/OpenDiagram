@@ -1,4 +1,4 @@
-// The server reads DBML with the light parse (.specs/14-release-v1.md, item 9): it must give what @dbml/core's own Parser gives for
+// The server reads DBML with the light parse (.specs/01-architecture.md): it must give what @dbml/core's own Parser gives for
 // 'dbmlv2' (the copy in web/src/dbmlParse.js has the same test)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

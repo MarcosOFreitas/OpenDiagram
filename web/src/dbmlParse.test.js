@@ -5,7 +5,7 @@ import { Parser, ModelExporter } from '@dbml/core';
 import { parseDbml } from './dbmlParse.js';
 import { TEMPLATES } from './templates.js';
 
-// parseDbml must give what @dbml/core's own Parser gives for 'dbmlv2', without loading the SQL parsers (.specs/15-audit-2026-10-22.md, P1)
+// parseDbml must give what @dbml/core's own Parser gives for 'dbmlv2', without loading the SQL parsers (.specs/01)
 const viaCore = (t) => new Parser().parse(t, 'dbmlv2');
 const asJson = (db) => ModelExporter.export(db, 'json', false);
 

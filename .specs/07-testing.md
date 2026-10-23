@@ -1,6 +1,6 @@
 # 07 — Testing
 
-Verification has three layers (the test pyramid). Unit tests are the base: fast, no Docker, run on every commit and in CI. End-to-end scripts and the UI tools sit on top and need a running stack. The e2e and UI scripts accept `BASE=http://host:port` (default `http://localhost:3000`) and need an administrator of that stack (`TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD`).
+Verification has three layers (the test pyramid). Unit tests are the base: fast, no Docker, run on every commit and in CI. End-to-end scripts and the UI tools sit on top and need a running stack; *Local test topology* below says which instance, port and credentials each one wants.
 
 ## Unit tests (every commit, CI)
 
@@ -16,7 +16,10 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | Area | File | What it pins down |
 |------|------|-------------------|
 | server | `dbml.test.js` | model to DBML: pk, quoting, refs, views with and without the full DDL, enums, lineage, sequences, check constraints (a named `checks` block) and the `PARTITIONED BY` line; triple quotes cannot escape a note |
-| server | `policy.test.js` | SSRF policy: private/CGNAT/link-local ranges, allowlist, public-only |
+| server | `policy.test.js` | SSRF policy: private/CGNAT/link-local ranges, allowlist, public-only, IPv6 in any spelling (an IPv4 address written in hex inside IPv6, `0::1`), a zone id refused |
+| server | `proxy.test.js` | behind a reverse proxy (`TRUST_PROXY=1`): the Origin check compares with `X-Forwarded-Host`, so a proxy that rewrites `Host` still signs people in (own file: `TRUST_PROXY` is read when `index.js` builds the app) |
+| server | `secret.test.js` | `APP_SECRET`: a local trial starts with a warning, a set key starts silently, hosted settings without a key refuse to start, an empty key counts as not set |
+| server | `migration.test.js` | `db.js` on a database made before `diagram_seen`: the table is added, the data stays, a seen mark goes with its person or diagram |
 | server | `audit.test.js` | every filter of the audit log, paging, facets, CSV formula guard, retention |
 | server | `backup.test.js` | daily backup: one complete copy per day (opens on its own), nothing new the same day, old copies deleted, other files kept, the folder inside `DATA_DIR`; checked in a read-only container: written at start, `integrity_check` ok, `cli.js restore` brings it back |
 | server | `store.test.js` | secrets encrypted at rest and never listed, shared connection access by user and by group, what members may see; secrets saved under another `APP_SECRET`: the lists still work (`secretLost`), using one asks for the password, saving heals |
@@ -51,7 +54,10 @@ Both finish in seconds and need neither Docker nor Chrome. Test files that touch
 | web | `api.test.js`, `historyDiff.test.js`, `Menu.test.jsx`, `AdminAudit.test.jsx` | fetch wrapper and storage guards, line diff, menu dismissal, audit filters sent to the server |
 | web | `layout.test.js` (fixes of 2026-10-22) | tables new to a diagram with places never overlap the kept ones (a second import did); the header width counts the view mark |
 | web | `History.test.jsx` | the Compare dialog: the structural summary and the changes grouped by table above the text diff, a side with DBML errors (text only), no structural change, the 300-line limit |
-| server | `schemaDiff.test.js` | the structural diff (item 8): no change for layout and documentation, tables and columns added / removed (a rename is both), column properties on one line, the primary key, indexes by columns, relationships by ends, enums, checks by name or expression, notes, the summary and the order |
+| server | `schemaDiff.test.js` | the structural diff: no change for layout and documentation, tables and columns added / removed (a rename is both), column properties on one line, the primary key, indexes by columns, relationships by ends, enums, checks by name or expression, notes, the summary and the order |
+| web | `formats.test.js` | what the Import drawer relies on from `@dbml/core` (each import format on a sample, the Oracle importer's limits), so a library upgrade that breaks it fails here |
+| web | `AdminConnections.test.jsx` | the CA certificate field is offered with TLS verify for PostgreSQL and MySQL, not for Oracle |
+| web | `smoke.test.jsx` | the test setup itself (Testing Library renders into jsdom) |
 | web | `dbmlParse.test.js` | the app's own DBML parse gives the same database (every template and a full case) and the same error `diags` as `@dbml/core`'s `Parser` |
 | web | `workspace.test.jsx` | the `App` with a stubbed API: autosave of the owner (title, DBML, link, layout, `baseVersion`), the edit-conflict dialog on a 409 and no further save, deleting the open diagram leads to the create options, opening a diagram puts its "changed since you last opened it" out at once and the Diagrams tab loads the list again |
 | web | `searchPanel.test.js` | the editor's Ctrl+F bar in a real CodeMirror view (jsdom): match count and its text, focus in the find field on open (it went to the DBML), Enter / Shift+Enter, the option toggles, replace on demand and never when read-only, Escape; `uiaudit.mjs editor-search` audits it |
@@ -78,12 +84,27 @@ To run the unit tests before every commit: `git config core.hooksPath .githooks`
 
 **Keeping the unit tests fast** (the web suite went from ~31 s to ~6 s): test files of plain modules start with `// @vitest-environment node` (no jsdom, and `test-setup.js` does not even load React for them); `userEvent.setup({ delay: null })` in component tests; a wait that exists only for the user (a debounce) is shortened in the test (see `AdminAudit.test.jsx`), never in the component. Measure with `npx vitest run --reporter=json --outputFile=out.json` and sort the files by time.
 
-### Not covered by unit tests yet
+### Not covered by unit tests
 
-- `workspace.test.jsx` now runs the whole `App` with a stubbed API for the owner's autosave (payload and `baseVersion`), the 409 conflict dialog (and no save until the person chooses) and deleting the open diagram (each test fails when its path is broken on purpose); `savePayload` (`diagramModel.js`) pins what each role saves. Presence and the rest of the `Workspace` are covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts only. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
-- The e2e job has run only through its script on a laptop, not yet on GitHub: check the Actions tab after the first push. Chrome there is started with `--no-sandbox` (when `CI` is set).
-- Database drivers (`pgWith`, Oracle, the MySQL catalog queries) need a real database, see `test-guardrails.mjs` (its MySQL part against `demo-mysql`: privileges of root / writer / reader, strict mode, the picker, enum, increment, defaults, relationship, the view and its lineage, the trigger as root, an `INSERT` refused inside the read-only session as root, TLS `noverify` and a failing `verify`; for PostgreSQL and MySQL also the check constraints and the `PARTITIONED BY` line, item 7b). The Oracle checks and partitioning were tried by hand against the Oracle demo only.
-- Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code.
+- Presence and most of the `Workspace` (beyond the autosave, conflict, delete and "last opened" paths of `workspace.test.jsx`) are covered by `behaviorcheck.mjs`, `uiaudit.mjs` and the e2e scripts. The connection flow is the hook `useConnect.js` and the layouts are `layout.js`, both unit tested.
+- Database drivers (`pgWith`, `oraWith`, `myWith` and the catalog queries) need a real database: `test-guardrails.mjs` (PostgreSQL and MySQL against the demo databases: privileges of root / writer / reader, strict mode, the picker, enum, increment, defaults, relationships, views and their lineage, triggers, check constraints and the `PARTITIONED BY` line, a write refused inside the app's own read-only session, TLS modes). Oracle is tried by `test-oracle-tls.mjs`, `roundtrip.mjs` and `ORACLE_PORT=1522 node server/test-guardrails.mjs` with the Oracle demo, none of them in CI.
+- Branch protection (a failing CI blocking the merge) is a repository setting, not part of the code ([`FORKING.md`](../FORKING.md)).
+
+## Local test topology
+
+Each tool wants its own instance, so that its accounts and diagrams never land in one that holds real work. Every UI tool refuses `:3000`.
+
+| Tool | Instance (default `BASE`) | Credentials | Also needs |
+|------|----------|-------------|------------|
+| `server/test-auth.mjs`, `test-guardrails.mjs`, `test-oracle-tls.mjs`, `web/roundtrip.mjs` | the dev stack on `:3000` | `TEST_ADMIN_EMAIL` / `TEST_ADMIN_PASSWORD` | the demo databases (`docker compose` must find `docker-compose.demo.yml`: run from the repository root with `COMPOSE_FILE` set as in `.env.example`); `test-guardrails` creates and drops `shop.late_table` and waits up to 150 s for the scheduled refresh |
+| `web/uiaudit.mjs` | a container on `:3100` (`audit-app`, or `AUDIT_CONTAINER`) on the network `opendiagram_default` | `AUDIT_EMAIL` / `AUDIT_PASSWORD` | Chrome; `docker exec` into the container (it writes two rows of state straight into its database); the `first-run` screen only with an empty instance on `BASE_EMPTY` and its name given |
+| `web/docshots.mjs` | a container on `:3100` | `SHOTS_EMAIL` / `SHOTS_PASSWORD` | Chrome, `demo-pg` on its network |
+| `web/visualsnap.mjs` | one container per build (`:3110`) | `SNAP_EMAIL` / `SNAP_PASSWORD` | Chrome |
+| `web/behaviorcheck.mjs` | `BASE` is required | `SNAP_EMAIL` / `SNAP_PASSWORD` | Chrome; regenerate the golden on a fresh instance |
+| `server/bench.mjs`, `web/benchclient.mjs` | a container with limits on `:3200` | `BENCH_EMAIL` / `BENCH_PASSWORD` | Chrome for `benchclient` |
+| `web/docsjump.mjs` | positional: `<base> <email> <password> <diagramId>` | | Chrome; a large diagram (`node web/stressdbml.mjs 200`) |
+
+Chrome is found in the usual places; `CHROME=/path/to/chrome` overrides it. On Windows with Git Bash, prefix commands that pass container paths (`/data/...`) with `MSYS_NO_PATHCONV=1`. The fixed Compose project name (`opendiagram`) means the dev stack, `ci-e2e.sh` (`odci`) and a second clone must not use the same name; `ci-e2e.sh` needs `:3000` and `:3100` free.
 
 ## Setup
 
@@ -99,16 +120,16 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 | Script | Needs | Checks |
 |--------|-------|-------------|
-| `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-auth.mjs` | app + an administrator (`docker compose exec app node src/cli.js create-admin <email> <password>`) | about 190 checks: sessions list and revocation, sign-in events in the audit log, link expiry, closing an account and handing its diagrams over, closed sign-up, admin creates users/temporary passwords/forced change, versions and edit conflicts (409), shared connections with grants and the audit log, link passwords and throttling, presence, roles and 403s, last-admin guard (isolated DB), disable/enable/reset/delete, flat groups with multi-membership, directory, per-account isolation, administrator access to every diagram (no connection link, no borrowed connections), sharing with people and groups (highest level, leave/delete group, revoke), link levels, settings, CSRF, logout, headers, SSRF policy functions. Creates and removes throw-away users/groups |
-| `node server/test-guardrails.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-pg-tls`, `demo-mysql`, (optional `demo-oracle`) | scheduled refresh: a linked diagram with an old `source.gen` is refreshed by the server within ~2 minutes with no page open, as a history entry by *Scheduled refresh* (waits up to 150 s); privilege warnings (superuser/writer/reader); strict mode blocks writer, allows reader; read-only txn rejects DDL (via `psql`); PG TLS: off, verify w/o CA (fails), verify + CA PEM, noverify, verify vs non-TLS (fails); Oracle descriptor injection rejected; Oracle TCPS vs plain listener fails cleanly |
+| `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-auth.mjs` | app + an administrator (`docker compose exec app node src/cli.js create-admin <email> <password>`) | about 230 checks: sessions list and revocation, sign-in events in the audit log, link expiry, closing an account and handing its diagrams over, closed sign-up, admin creates users/temporary passwords/forced change, versions and edit conflicts (409), shared connections with grants and the audit log, link passwords and throttling, presence, roles and 403s, last-admin guard (isolated DB), disable/enable/reset/delete, flat groups with multi-membership, directory, per-account isolation, administrator access to every diagram (no connection link, no borrowed connections), sharing with people and groups (highest level, leave/delete group, revoke), link levels, settings, CSRF, logout, headers, SSRF policy functions. Creates and removes throw-away users/groups |
+| `node server/test-guardrails.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-pg-tls`, `demo-mysql`, (optional `demo-oracle`) | scheduled refresh: a linked diagram with an old `source.gen` is refreshed by the server within ~2 minutes with no page open, as a history entry by *Scheduled refresh* (waits up to 150 s); privilege warnings (superuser/writer/reader); strict mode blocks writer, allows reader; a write refused inside the app's own read-only session (`pgWith`, `myWith`; `oraWith` with `ORACLE_PORT`); PG TLS: off, verify w/o CA (fails), verify + CA PEM, noverify, verify vs non-TLS (fails); Oracle descriptor injection rejected; Oracle TCPS vs plain listener fails cleanly |
 | `TEST_ADMIN_EMAIL=… TEST_ADMIN_PASSWORD=… node server/test-oracle-tls.mjs` | app + `--profile oracle` (`demo-oracle`, `demo-oracle-tls`) and `-f docker-compose.demo-tls.yml` (the app trusts the demo certificate) | Oracle TLS modes: verify, host-name mismatch, `serverDn` accepted/refused, `noverify`, TLS off against TCPS, DN injection |
 | `node server/test-lineage.mjs` | nothing (pure) | view column lineage: SQL parsing into output column -> source column (joins, aliases, expressions, aggregates, `*`, sub-selects, CTE, UNION, view on view, Oracle upper case, unreadable SQL gives null) |
 | `node web/lineage-check.mjs` | nothing (pure) | the `// lineage:` comment parser (table and column level, `(auto)` marker, merging, unknown names) and the upstream/downstream closure |
-| `node web/uiaudit.mjs [screen ...]` (needs `AUDIT_EMAIL`/`AUDIT_PASSWORD` of a throw-away instance, see its header) | a throw-away app instance with `demo-pg`; Chrome installed | UI audit of every screen in light/dark and desktop/phone: names, controls named only by a symbol (✕), click targets the keyboard cannot reach (an element with a pointer cursor that is not, and has no, focusable parent or child), targets, labels, contrast, overflow, dialogs, keyboard walk ([11](11-ui-review.md)); zero findings is the bar |
+| `node web/uiaudit.mjs [screen ...]` (needs `AUDIT_EMAIL`/`AUDIT_PASSWORD` of a throw-away instance, see its header) | a throw-away app instance with `demo-pg`; Chrome installed | UI audit of every screen in light/dark and desktop/phone: names, controls named only by a symbol (✕), click targets the keyboard cannot reach (an element with a pointer cursor that is not, and has no, focusable parent or child), targets, labels, contrast, overflow, dialogs, keyboard walk ([11](11-ui-review.md)); also the PNG and SVG exports (`export-images`), a comment-level member posting a column comment with real key events (`member-comment`) and an edit-level member's autosave (`member-edit-save`), each confirmed through the API; zero findings is the bar |
 | `node web/docshots.mjs` (needs `SHOTS_EMAIL`/`SHOTS_PASSWORD` of a throw-away instance) | same | retakes the documentation pictures |
 | `node web/visualsnap.mjs snap <dir>` / `compare <dirA> <dirB>` (needs `SNAP_EMAIL`/`SNAP_PASSWORD`) | a throw-away instance per build | refactors: 21 static screens as PNG, compared pixel by pixel between the old and the new build; also reports JavaScript errors per screen |
 | `node web/behaviorcheck.mjs` (same variables) | same | JSON fingerprint of menus, popovers, search, export list, copy, the table picker, the shared-connection flow, groups and Full DDL; compared with `web/behavior.golden.json` in CI, and old vs new build in refactors |
-| `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
+| `cd web && node roundtrip.mjs` (also needs `TEST_ADMIN_*`) | app, `demo-pg`, `demo-mysql`, `demo-oracle` | import → export (pg/mysql/mssql/oracle/json) → re-import comparison; prints diffs. Expected: PG→PG, Oracle→PG, Oracle→MSSQL identical; others fail as documented in [04](04-formats.md) |
 
 `test-auth`, `test-guardrails` and `test-oracle-tls` exit non-zero on failure (`roundtrip.mjs` only prints; read its output). Demo data drifts if you alter `shop.*` manually — the scripts assume ≥ 4 PG tables.
 
@@ -124,14 +145,11 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 - Alter the demo DB, press `↻` → toast with diff, TableGroup kept; press again → "Already up to date".
 - Set refresh 5 min on a linked diagram, alter the DB, wait with **no page open** (or set `source.at` far in the past) → the next minute's round saves a *Refresh from database* entry by *Scheduled refresh*; a stopped database shows the error in the Database drawer, and five failures pause it.
 - Switch to Docs: sidebar, search, relationship links; collapse/expand a table (chevron), Collapse all / Expand all, reload keeps collapsed state; add a table and a column comment, reload keeps them; export Docs `.html`/`.md` includes the comments and the `.html` opens standalone with working search.
-- Export each format; open PNG/SVG and confirm all tables are present (**not yet automated**).
+- Export each format (PNG and SVG are also checked by `uiaudit.mjs export-images`).
 
 ## Known gaps
 
-- Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `server/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported. A real Oracle with a private CA was not tried.
-- `DB_HOST_POLICY=public-only` / `allowlist` verified only through the policy functions, not through `/api/schemas`.
-- A comment-level / edit-level member exercising the UI (the API is covered).
-- Read-only enforcement proven with `psql`, not through the app's own pool.
-- CI does not run the Oracle checks, `roundtrip.mjs`, `docshots.mjs` or `visualsnap.mjs`. Suggested next: `npm audit`.
-- No browser automation for UI flows; tests above were driven by hand/JS in a browser pane.
-- When asserting on edges in a headless/hidden pane, nodes may stay `visibility:hidden` (unmeasured) — focus/screenshot first.
+- Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `server/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported, and a real Oracle server with a private CA was never tried.
+- CI does not run the Oracle checks, `roundtrip.mjs`, `docshots.mjs` or `visualsnap.mjs`: run them before a release ([`RELEASING.md`](../RELEASING.md)).
+- No screen reader, Windows high-contrast or tablet pass; the interface audit runs in Chrome only.
+- When asserting on edges in a headless/hidden pane, nodes may stay `visibility:hidden` (unmeasured): focus or screenshot first.

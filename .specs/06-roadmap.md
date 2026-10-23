@@ -1,61 +1,44 @@
-# 06 — Roadmap
+# 06 — Known limitations and ideas for forks
 
-Status of what exists and what is planned. Move an item to its own numbered spec when work starts. Anyone is welcome to pick an item: open an issue first (see [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
+OpenDiagram 1.0 is feature-complete ([00](00-product.md)): nothing below is scheduled. It is the honest list of what the release does not do, and a menu for anyone who forks it. Before building one of the ideas, read [`CONTRIBUTING.md`](../CONTRIBUTING.md) and the security invariants in [`AGENTS.md`](../AGENTS.md); an idea that touches connections, sharing or outbound traffic starts by revisiting [05](05-security.md).
 
-## Planned (in this order)
+## Known limitations
 
-**The v1.0 release plan is [14-release-v1.md](14-release-v1.md) and wins over this list.**
+- **Engines.** Live import from PostgreSQL, Oracle and MySQL 8.0+. MariaDB 10.6+ is best effort: tried by hand with 11.4, not in the automated tests, and without the table-level lineage of views. No SQL Server live import (SQL Server works as an SQL file import and export).
+- **Not imported:** functions and procedures, partition bounds and subpartitions (a partitioned table says its method and key), Oracle enums written as check constraints. MySQL triggers need the `TRIGGER` privilege.
+- **Oracle TLS:** no wallets or mutual TLS. A private CA is trusted for the whole server through `NODE_EXTRA_CA_CERTS` (no per-connection CA for Oracle and MySQL; PostgreSQL has a CA field), and a real private CA was never tested.
+- **Formats:** SQL export to another engine needs manual edits (no type or default translation, [04](04-formats.md)). JSON is export-only. An Oracle SQL file imports tables, keys, indexes and comments only.
+- **Collaboration:** no real-time co-editing (a conflict dialog instead), no notifications in the app or by e-mail, no mentions. Comments cannot be edited (delete and post again), and renaming a table or column orphans its comments.
+- **History:** no per-entry delete, no diff of the layout, no history for edit-link visitors; Compare is one version against the current state, and a rename shows as removed plus added.
+- **Accounts:** no e-mail of any kind (no verification, invitations or reset by e-mail), no SSO or MFA. MCP clients that need OAuth (such as claude.ai custom connectors on the web) cannot connect. Agents cannot create diagrams and have no per-agent rate settings.
+- **Operation:** one instance per data volume (SQLite, the scheduler and presence live in the process): no replicas. No general API rate limit (configure one in the reverse proxy; see *Self-hosting*). `APP_SECRET` is one key with no rotation tool: a new key means typing the connection passwords again.
+- **Size:** large diagrams cost the browser (about 220 ms of parsing after each pause in typing and a 1.7 s *Left to right* arrange at 200 tables); nothing above 400 tables was measured.
+- **Sticky notes** have one colour and plain text, and appear neither in the Docs view nor in the exports.
+- **Interface checks** run in Chrome only, at desktop and phone width: no screen reader, Windows high-contrast or tablet pass. The documentation site has no print styles.
+- **By design**, never: running SQL, reading table data, applying migrations, a language model inside the app, iframe embedding, drawing lineage by dragging.
 
-1. ~~**API tokens, CLI and an MCP connector.**~~ The MCP connector is done (see [09](09-accounts-sharing.md)); a CLI and general API tokens are not planned for now. The original plan: an agent user whose permissions per diagram and group are the existing grants; every use goes into the audit log; diagram text is untrusted input for the agent. Re-read [05](05-security.md) first: this widens the exposure of the API.
-2. ~~**Server-side scheduled refresh.**~~ Done (see [03](03-connections-import.md)); the original plan: Diagrams live on the server, so a refresh can run without an open page. Plan: one job in the server process, every minute, over the connections that are due; minimum interval 5 min with jitter; skip a diagram while someone is editing it (presence); the result is saved as a "Refresh from database" history entry; port `keepGroups` (groups, positions, hand-written lineage) to the server; show last run and last error on the connection; the browser timer goes away; a lock row in SQLite only if the app ever runs on more than one instance. It needs the audit log (done) and an explicit connection owner.
-3. ~~**Account hardening.**~~ Done without e-mail (see [09](09-accounts-sharing.md)): sessions, session policy, link expiry, account self-closing with a 7-day grace, sign-in events in their own audit tab. Self-service "forgot password" without SMTP is a recovery key the person keeps.
-4. **Public deployment of a free hosted instance.** HTTPS reverse proxy, `DB_HOST_POLICY=public-only` with pinned resolved IPs, general rate limits, dependency audit (Dependabot alerts and security updates are on; add `npm audit` to CI if wanted), container as non-root ([05](05-security.md)).
-5. **Simplicity audit with Ponytail.** A later validation round over the whole codebase with [Ponytail](https://github.com/DietrichGebert/ponytail) (`/ponytail-audit`, MIT): a ranked list of what to delete, simplify or replace with stdlib/native features. Pending: not started; run it, review each finding against the security invariants and the e2e scripts, and apply only what keeps them green.
-6. **SSO** (not scheduled): OIDC login for organisations; the target integration is AWS Cognito, LDAP only if someone asks. The same OAuth work lets the **custom connectors of claude.ai on the web** reach the MCP server (they need OAuth and a public HTTPS address); today only clients that send a bearer token header (Claude Code, Claude Desktop through a bridge, the MCP Inspector) can.
+What was not tested is listed in the *Not tested* part of the release notes (`web/src/docsite/pages/release-notes.md`).
 
-## Pending checks
+## Ideas for forks
 
-- **Oracle with a real private CA.** `verify`, `serverDn` and `noverify` are tested against a TLS proxy (`server/test-oracle-tls.mjs`) and `verify` against OCI; a real server whose certificate comes from a private CA (trusted through `NODE_EXTRA_CA_CERTS`) was never tried.
-- **Picture of a member's view of a shared connection** (name/type/host/database, read-only form) for the documentation pages `shared-connections` and `database-security` ([10](10-documentation-site.md)); add it to `docshots.mjs` with the same change.
+Each with what it needs and the trap to avoid.
 
-A proposal for what comes next, in waves and with how each item would be built, is in [13-feature-plan.md](13-feature-plan.md); agreed items move here.
-
-## Follow-ups (recorded 2026-10-17, after the harness / audit round)
-
-Nothing here blocks a release; take them in this order of value for the effort.
-
-1. **Do the version bumps allow new optimizations, DBML first.** `@dbml/core` went 3.14.1 -> 10.3.1 (web in #14, server in #11), `oracledb` 6.10 -> 26, Vite 7, Vitest 5, `actions/*` 7. Read the changelogs and measure, do not assume:
-   - **`@dbml/core` 10.x**: re-test the two Gotchas in `AGENTS.md` (`importer.import(sql, 'oracle')` returns empty; `json` import does not round-trip its own export) and the `roundtrip.mjs` FAILs (MySQL, MSSQL, JSON): if the library now handles them, import options and exports can grow (and the Gotcha lines go). Look for a faster or incremental parse (the diagram re-parses the whole editor text on every change; time it with `web/benchclient.mjs` before and after), a smaller bundle (Vite warns about a chunk over 500 kB: check what the DBML parser adds, and whether it can load lazily or tree-shake), new DBML syntax (custom properties, check constraints, partitions, which the "Later" list wants), better parse errors with positions for the editor, and a shared parse result so `server/src/merge.js` and the web agree on what is valid.
-   - **Measured 2026-10-17** (`@dbml/core` 3.14.1 vs 10.3.1, Node 24, `new Parser().parse(text, 'dbmlv2')` as the app calls it, 20 / 200 / 1000 tables): 3.14.1 = 9 / 46 / 259 ms; 10.3.1 = 18 / 148 / 995 ms, so a parse is 2-4x **slower** (a 200-table diagram re-parses in ~150 ms on every edit). Package 19.8 MB -> 36.9 MB unpacked; the web build's `App` chunk is 16.3 MB (not minified-away: the whole library is bundled, no lazy load). Gotchas re-tested: `importer.import(sql, 'oracle')` now **works** (simple table with PK; the `AGENTS.md` Gotcha is outdated, but the catalog import does not use it); `json` import still fails (`[object Object]`); MySQL and MSSQL SQL import work. Next: decide whether to pin back to 3.x or to load the parser lazily / off the main thread, and re-run `roundtrip.mjs` (needs Docker, oracle profile) for the MySQL/MSSQL/JSON FAILs.
-   - **`oracledb` 26**: thin-mode pooling and pipelining for the scheduled refresh (`refresh.js` opens one connection per run today); check TLS options that could replace `NODE_EXTRA_CA_CERTS` (a per-connection CA would close the "Oracle with a real private CA" check below).
-   - **Vite 7 / Vitest 5 / React**: build time and the pre-commit hook (the web suite is ~6 s), `manualChunks` for the large chunk, whether React 19 (PR #13, closed) is now worth a try.
-   - Record the numbers in `.specs/07-testing.md` or the hosting page, and add the change as its own commit with a test.
-2. **Finish the UI/UX review round.** Library done 2026-10-22: search, sort and the "linked to a database" filter once there are more than 8 diagrams, secondary text at 12 px, very long titles clamped to two lines, delete confirmed inside the card, a long title in the `uiaudit.mjs` fixtures. Next: review the other screens one by one (Database drawer, History, Docs view, Tables panel, Administration). Rerun `node web/docshots.mjs` and `node web/visualsnap.mjs` for the screens that changed (Library, Tables panel, saved connections); add a very long title to the `uiaudit.mjs` fixtures so overflow in a card is caught.
-3. ~~**MCP connector** (audit 04)~~ Done 2026-10-22: `inputSchema` enforced (M3), only the reason of a failure in the audit row (M4), annotations were already on every tool (M5), `list_diagrams` pages (M6), tokens last 90 days unless "never" is chosen (M7).
-4. ~~**API** (audit 03, optional ones left)~~ Done 2026-10-22: `POST /api/connections` validates like the administrators' route (`validConn`: type, name up to 80, host, database, user, port 1-65535 or empty = default, host policy); `schemas` and `tables` must be lists of names; a stale `baseVersion` with identical content answers the current version instead of 409; share tokens are masked in the request log (`maskUrl`).
-5. **Docker** (audit 06): `npm ci` from lockfiles, `USER node`, demo ports bound to 127.0.0.1, `HEALTHCHECK` and a restart policy; regenerate the demo certificate with `CA:FALSE`.
-6. **CI** (audit 05): alert when `main` is red, pin actions by SHA, `npm audit` step, and the required-check trap when the repository goes public (the ruleset is not enforced while it is private; enable Private vulnerability reporting then). Doc drift: `07-testing.md` says "two jobs" (there are three), `AGENTS.md` says "~20 min" for e2e (it is ~11 min in 4 shards).
-7. ~~**Observability** (audit 11)~~ Done 2026-10-22: scheduled-refresh failures go to the server log, `/api/health` runs `select 1` (the container health check uses it), every answer carries `x-request-id`, the id of its line in the log.
-8. **Audits not run yet** (one at a time, no sub-agents): security (01), SQL (02), performance (07), simplicity (08), tests (09), review of the last commits (10), UI/UX of every screen (12). The skills are in `.claude/skills`; `AGENTS.md` says how each applies here.
-
-## Later
-
-- Cross-dialect SQL export (type and default translation) so PG→MySQL/MSSQL and Oracle→MySQL produce valid DDL.
-- Check constraints and partition details in the import; functions and procedures.
-- More engines: MySQL/MariaDB, SQL Server.
-- DBML custom properties; per-table color picker; column-level layout controls.
-- Schema diff between two imports (history) and "drift" notifications.
-- Real-time co-editing (presence and conflict detection exist). Only if usage asks for it.
-- Sticky notes: colours, Markdown, notes in the Docs view and exports.
-- UI: tablet width, a pass with a real screen reader and Windows high-contrast mode ([11](11-ui-review.md)).
-- Documentation: more pictures when screens change ([10](10-documentation-site.md)).
+- **Drift webhook** (builds on the refresh summary). An administrator setting with one URL and one secret; one event only (a refresh that changed the structure); payload: diagram id, title, version and the summary, never DBML, `source`, a connection or a credential; signed with HMAC-SHA256 (`node:crypto`), sent with native `fetch`, a short timeout, one retry, no queue, an audit row per delivery; the URL goes through a host policy like `DB_HOST_POLICY`. It is a new outbound connection: invariant 6.
+- **Migration script from the diff:** a PostgreSQL `ALTER` script from `server/src/schemaDiff.js`, generated as a file and never executed, destructive changes commented at the top.
+- **PII tags on columns:** metadata only, never inferred from data.
+- **Cross-dialect type mapping** for SQL export, starting with Oracle → PostgreSQL.
+- **SQL Server live import**, following *Adding a database engine* in [01](01-architecture.md).
+- **In-app notifications**, and **proposed changes** with a review step (the safer path for agents), plus MCP tools such as `get_schema_diff` and `propose_change`.
+- **OIDC sign-in** (any provider), which also lets OAuth-only MCP clients connect; and a **hosted instance**, only after the pre-deployment checklist of [05](05-security.md).
+- **History:** compare two arbitrary versions, rename detection, changes highlighted on the canvas, "new" for a diagram someone just shared with you.
+- **Large diagrams:** React Flow's `onlyRenderVisibleElements`, parsing in a Web Worker, fewer handles per column.
+- **Small ones:** folding in the editor, a colour picker per table, sticky notes with colours and Markdown, an instance health card for administrators, a per-connection CA for Oracle and MySQL, an `APP_SECRET` rotation command.
+- **Code:** split `web/src/App.jsx` and `server/src/introspect.js` when touching them; both are large.
 
 ## Not planned
 
-- Executing arbitrary SQL, browsing table data or sample data (against the catalog-only invariant).
-- Embedding diagrams in an iframe.
-- Drawing a lineage link by dragging (lineage is imported or written as `// lineage:` comments).
+Running arbitrary SQL, browsing table data or sample data (against the catalog-only invariant); embedding diagrams in an iframe; drawing a lineage link by dragging (lineage is imported or written as `// lineage:` comments).
 
 ## Done
 
-See *Features* in the [README](../README.md) and the [release notes](../web/src/docsite/pages/release-notes.md). Not repeated here so that it cannot drift.
+See *Features* in the [README](../README.md) and the [release notes](../web/src/docsite/pages/release-notes.md); not repeated here so that it cannot drift.

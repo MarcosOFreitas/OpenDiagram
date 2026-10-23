@@ -1,5 +1,5 @@
-// The structural diff between two versions of a diagram (.specs/14-release-v1.md, item 8). Pure, no imports: the History dialog of the
-// web imports it from here, and the refresh summary (item 9) and an ALTER script can reuse it on the server.
+// The structural diff between two versions of a diagram (.specs/09-accounts-sharing.md, history). Pure, no imports: the History dialog of the
+// web imports it from here, and the server uses it for the summary of a refresh (merge.js structural).
 // In: two parsed @dbml/core Database objects (before, after). Out: changes { op: '+' | '-' | '~', kind, table, name, from, to, details }.
 // Identity is by name (a rename is a removal plus an addition: never guessed); indexes by their columns and uniqueness, relationships by
 // their two ends, checks by name or else by expression. Only what an ALTER would change counts: TableGroups, colours, positions, sticky

@@ -9,7 +9,7 @@ The set of tables a diagram imports, and refreshes. It is **not one value in one
 | Where | What it holds | Written by | Read by |
 |---|---|---|---|
 | `TablePicker` state `sel` | the ticks in the dialog (a `Set` of `schema.table`) | the person | Apply |
-| `useConnect` state `tableSel` | the list the Database drawer works with (`[]` = all) | `pick`, Apply | the picker, Import |
+| `useConnect` state `selection` (`{ mode, tables }`, `tableSelection.js`) | the list the Database drawer works with (`[]` = all) | `pick`, Apply | the picker, Import |
 | `connections.tables` (server) | what the connection last imported | `persist` on Import | `pick` (personal connections only; a shared one is never saved) |
 | `diagrams.source.tables` (server) | what **this diagram** imported | Import, scheduled refresh keeps it | refresh (manual and scheduled) |
 | `importModel(c, schemas, tables)` | the filter applied to the catalog (`[]`/missing = all) | the request | the server |

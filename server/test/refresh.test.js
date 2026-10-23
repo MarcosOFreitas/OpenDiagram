@@ -57,7 +57,7 @@ test('a changed schema is saved as its own "Refresh from database" entry by "Sch
   assert.equal(JSON.parse(d.source).gen, genHash(GEN2));
   const last = dg.listVersions(id)[0];
   assert.equal(last.author, 'Scheduled refresh');
-  assert.equal(last.summary, 'Refresh from database: 1 table added'); // the structure, as History -> Compare says it (item 9)
+  assert.equal(last.summary, 'Refresh from database: 1 table added'); // the structure, as History -> Compare says it
 });
 
 test('a refresh that changes nothing structural keeps the line summary', async () => {
@@ -66,7 +66,7 @@ test('a refresh that changes nothing structural keeps the line summary', async (
   assert.equal(dg.listVersions(id)[0].summary, 'Refresh from database: +1 / -0 lines');
 });
 
-test('a scheduled refresh lights "changed since you last opened it" for whoever opened the diagram before it (.specs/14, item 9)', async () => {
+test('a scheduled refresh lights "changed since you last opened it" for whoever opened the diagram before it (.specs/09)', async () => {
   const id = linked(conn(5), { gen: genHash(GEN1) });
   dg.markSeen(owner.id, id, row(id).version); // Olga opened it
   await refreshOne(row(id), fake(GEN2), NOW);

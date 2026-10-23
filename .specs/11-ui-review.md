@@ -29,7 +29,7 @@ Sign in · first run (create the first account) · forced password change · mai
 
 - The dark theme sets `--muted`/`--line` for the canvas and drawers, but the Administration card, menus and pickers stay white: tokens are reset on `.admin` / `.menu-pop` (a new white surface must do the same).
 - React Flow sets `outline: none` on nodes and edges with a higher specificity: the focus ring has its own rule.
-- Header colours come from the DBML: the text colour is picked by contrast (`readable()` in `App.jsx`), never fixed white.
+- Header colours come from the DBML: the text colour is picked by contrast (`readable()` in `diagramModel.js`), never fixed white.
 - Sizes measured inside the canvas depend on the zoom, so the audit skips them; the CSS sizes are what count.
 
 ## Not covered

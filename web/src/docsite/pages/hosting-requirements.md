@@ -66,7 +66,17 @@ The diagram is drawn in the browser, so large diagrams cost the **person's** mac
 
 After a pause in typing, the browser reads the whole DBML again: about **35 ms** for 30 tables (18 KB) and **220 ms** for 200 tables (115 KB), median of 15 runs of the app's own DBML parse in Node on the same PC. Drawing comes on top: in a visible Chrome window a new table showed in the diagram about 0.1 s after the keystroke at 50 tables and 0.6 s at 200.
 
-Up to about **100 tables** the diagram is smooth. Beyond that, moving and zooming get heavier: use the **View → Detail** levels (tables only), **hide** or **collapse** the tables you are not working on, and **TableGroups**, or split the model into several diagrams. A slower PC than the one above will feel it earlier.
+On a realistic schema (`node web/stressdbml.mjs <tables>`: three schemas, TableGroups, enums, 5 to 16 columns, indexes, one or two relationships per table), in a visible Chrome window with the GPU:
+
+| Tables | Keystroke until the diagram shows it | Zoom / pan (frames per second) | Open Docs |
+|---|---|---|---|
+| 50 | 0.1 s | 151 / 55 | 0.1 s |
+| 100 | 0.25 s | 83 / 28 | 0.2 s |
+| 200 | 0.6 s | 18 / 11 | 0.5 s |
+
+At 200 tables, **Arrange** holds the page about 1.7 s with *Left to right* (dagre with the TableGroups as clusters) and about 0.5 s with the other algorithms. What is left at that size is the parse and the browser painting a large page: an expected limit.
+
+Up to about **100 tables** the diagram is smooth. Beyond that, moving and zooming get heavier: use the **Table detail** levels of the side panel's **Display** tab (tables only), **hide** or **collapse** the tables you are not working on, and **TableGroups**, or split the model into several diagrams. A slower PC than the one above will feel it earlier.
 
 ## Disk
 

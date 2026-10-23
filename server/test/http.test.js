@@ -101,7 +101,7 @@ test('a MySQL connection is accepted with an empty Database (it only sets the se
   assert.equal((await call('POST', '/api/connections', { ...base, type: 'sqlserver', database: 'd' })).statusCode, 400);
 });
 
-test('history entries cannot be deleted through the API: named versions are never removed (.specs/15, M3)', async () => {
+test('history entries cannot be deleted through the API: named versions are never removed (.specs/09)', async () => {
   const d = (await call('POST', '/api/diagrams', { title: 'H', dbml: 'Table a { id int }' })).json().id;
   assert.equal((await call('POST', `/api/diagrams/${d}/versions`, { label: 'Release 1' })).statusCode, 200);
   const v = (await call('GET', `/api/diagrams/${d}/versions`)).json().find((x) => x.label === 'Release 1');
@@ -110,20 +110,20 @@ test('history entries cannot be deleted through the API: named versions are neve
   assert.ok((await call('GET', `/api/diagrams/${d}/versions`)).json().some((x) => x.id === v.id));
 });
 
-test('an unexpected error answers "internal error" with the request id, never its text; errors with a status keep their message (.specs/15, S3)', () => {
+test('an unexpected error answers "internal error" with the request id, never its text; errors with a status keep their message', () => {
   assert.deepEqual(errorReply(new TypeError('Cannot read properties of undefined (reading \'x\')'), 'req-7'), { status: 500, body: { error: 'internal error (request req-7)' } });
   assert.deepEqual(errorReply(Object.assign(new Error('Nothing answers on x:1'), { statusCode: 502 }), 'r'), { status: 502, body: { error: 'Nothing answers on x:1' } });
   assert.deepEqual(errorReply(Object.assign(new Error('bad input'), { statusCode: 400 }), 'r'), { status: 400, body: { error: 'bad input' } });
   assert.deepEqual(errorReply(Object.assign(new Error('stale'), { statusCode: 409, code: 'conflict', version: 3 }), 'r').body, { error: 'stale', code: 'conflict', version: 3 });
 });
 
-test('a database that does not answer is a 502 in plain words (.specs/15, U2)', async () => {
+test('a database that does not answer is a 502 in plain words', async () => {
   const r = await call('POST', '/api/schemas', { type: 'postgres', host: '127.0.0.1', port: 1, database: 'd', user: 'u', password: 'p' });
   assert.equal(r.statusCode, 502, r.body);
   assert.match(r.json().error, /Nothing answers on 127\.0\.0\.1:1/);
 });
 
-test('connection fields of the wrong type are a 400, not a crash in the encryption (.specs/15, M5)', async () => {
+test('connection fields of the wrong type are a 400, not a crash in the encryption', async () => {
   const conn = { name: 'c', type: 'postgres', host: 'db.example.com', port: 5432, database: 'd', user: 'u' };
   for (const [k, v] of [['password', 123], ['caPem', { pem: 1 }], ['serverDn', ['x']], ['tls', 'maybe']]) {
     const r = await call('POST', '/api/connections', { ...conn, [k]: v });
@@ -135,7 +135,7 @@ test('connection fields of the wrong type are a 400, not a crash in the encrypti
   assert.deepEqual([big.statusCode, /caPem is too long/.test(big.json().error)], [400, true]);
 });
 
-test('a connection whose secrets were saved under another APP_SECRET: listed with secretLost, using it asks for the password, a new one is used (.specs/15, M2)', async () => {
+test('a connection whose secrets were saved under another APP_SECRET: listed with secretLost, using it asks for the password, a new one is used (.specs/05)', async () => {
   const { db } = await import('../src/db.js');
   const { createCipheriv, randomBytes, scryptSync } = await import('node:crypto');
   const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', scryptSync('another-secret', 'dbdiagram-open', 32), iv), d = Buffer.concat([c.update('p', 'utf8'), c.final()]);
@@ -150,7 +150,7 @@ test('a connection whose secrets were saved under another APP_SECRET: listed wit
   assert.equal((await call('POST', '/api/schemas', { id: cid, password: 'typed-again' })).statusCode, 502); // got past the check: 127.0.0.1:1 refuses
 });
 
-test('a save that follows a refresh (entry "refresh") stores what changed in the structure, and later edits do not rewrite it (.specs/14, item 9)', async () => {
+test('a save that follows a refresh (entry "refresh") stores what changed in the structure, and later edits do not rewrite it (.specs/09)', async () => {
   const d = (await call('POST', '/api/diagrams', { title: 'R', dbml: 'Table a { id int }\n' })).json().id;
   const summaries = async () => (await call('GET', `/api/diagrams/${d}/versions`)).json().map((v) => v.summary);
   assert.equal((await call('PUT', `/api/diagrams/${d}`, { dbml: 'Table a { id int }\nTable b { id int }\n', entry: 'refresh' })).statusCode, 200);
@@ -163,7 +163,7 @@ test('a save that follows a refresh (entry "refresh") stores what changed in the
   assert.equal((await summaries())[0], 'Refresh from database: layout only');
 });
 
-test('Library: "changed since you last opened it" lights for changes by someone else and shows the change only to people who can edit (.specs/14, item 9)', async () => {
+test('Library: "changed since you last opened it" lights for changes by someone else and shows the change only to people who can edit (.specs/09)', async () => {
   const people = {};
   for (const [name, email] of [['Bo', 'bo@example.com'], ['Cy', 'cy@example.com']]) {
     people[name] = await createUser({ email, password: 'long-enough-pass', name });
@@ -200,7 +200,7 @@ const signIn = async (name, email) => {
   return Object.assign((method, url, payload) => app.inject({ method, url, payload, headers: { cookie: c } }), { id: u.id });
 };
 
-test('one\'s own save puts "changed since you last opened it" out, also over a newer version (overwrite) or by restoring one (.specs/14, item 9)', async () => {
+test('one\'s own save puts "changed since you last opened it" out, also over a newer version (overwrite) or by restoring one (.specs/09)', async () => {
   const dee = await signIn('Dee', 'dee@example.com');
   const d = (await call('POST', '/api/diagrams', { title: 'Mine', dbml: 'Table a { id int }\n' })).json().id;
   await call('POST', `/api/diagrams/${d}/access`, { type: 'user', subjectId: dee.id, access: 'edit' });
@@ -217,7 +217,7 @@ test('one\'s own save puts "changed since you last opened it" out, also over a n
   assert.equal(await unseen(), false);
 });
 
-test('the structural summary of a refresh save is parsed only when its entry is written, at most 6 times in 10 minutes per person, then the line summary (.specs/14, item 9)', async () => {
+test('the structural summary of a refresh save is parsed only when its entry is written, at most 6 times in 10 minutes per person, then the line summary (.specs/09)', async () => {
   const eve = await signIn('Eve', 'eve@example.com');
   const d = (await eve('POST', '/api/diagrams', { title: 'Budget', dbml: 'Table t0 { id int }\n' })).json().id;
   const v = (await eve('GET', `/api/diagrams/${d}`)).json().version;

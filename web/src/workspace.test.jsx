@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App.jsx';
 
-// The Workspace with a stubbed API (.specs/15-audit-2026-10-22.md, T1): autosave, the edit-conflict dialog, deleting the open diagram.
+// The Workspace with a stubbed API: autosave, the edit-conflict dialog, deleting the open diagram.
 // Routes: "METHOD path" -> JSON, or a function (body) -> JSON / { status, json } for an error; other GETs answer [] and every call is recorded.
 beforeAll(() => { globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} }; }); // React Flow measures nodes with it; jsdom has none
 const calls = [];
@@ -66,7 +66,7 @@ test('deleting the open diagram when it was the only one leads to the create opt
   expect(calls.filter((c) => c.key === 'POST diagrams')).toEqual([]);
 });
 
-test('"changed since you last opened it": opening a diagram puts its badge out at once, and the Diagrams drawer loads the list again (.specs/14, item 9)', async () => {
+test('"changed since you last opened it": opening a diagram puts its badge out at once, and the Diagrams drawer loads the list again (.specs/09)', async () => {
   const change = { summary: 'Refresh from database: 1 table added', author: 'Scheduled refresh', at: 1, count: 1 };
   const first = [{ id: 'd1', title: 'Shop', role: 'owner', updatedAt: 1, unseen: true, lastChange: change }, { id: 'd2', title: 'Stock', role: 'owner', updatedAt: 1, unseen: true, lastChange: change }];
   let later = new Promise(() => {}); // the list loaded again when the drawer opens: held back first

@@ -1,6 +1,6 @@
 // Behind a reverse proxy (TRUST_PROXY=1): the CSRF check must compare the browser's Origin with the host the person typed, which a proxy
 // passes as X-Forwarded-Host or keeps in Host. nginx's default proxy_pass sends the upstream name (app:3000) as Host, and every POST,
-// sign-in included, was refused (.specs/15-audit-2026-10-22.md, M1). Own file: TRUST_PROXY is read when index.js builds the app.
+// sign-in included, was refused (.specs/05). Own file: TRUST_PROXY is read when index.js builds the app.
 import './env.js';
 process.env.OD_NO_LISTEN = '1';
 process.env.TRUST_PROXY = '1';

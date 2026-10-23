@@ -104,7 +104,7 @@ test('setAccess: unknown ids are ignored, unknown connection is 404, listShared 
   assert.throws(() => store.setAccess(priv, {}), { statusCode: 404 }); // a private connection cannot be shared by granting access
 });
 
-test('secrets encrypted with another APP_SECRET (a restore on another machine) do not break the lists; using them asks for them again; saving heals (.specs/15, M2)', () => {
+test('secrets encrypted with another APP_SECRET (a restore on another machine) do not break the lists; using them asks for them again; saving heals', () => {
   const other = (s) => { const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', scryptSync('another-secret', 'dbdiagram-open', 32), iv); const d = Buffer.concat([c.update(s, 'utf8'), c.final()]); return Buffer.concat([iv, c.getAuthTag(), d]).toString('base64'); }; // the stored format, another key
   const own = store.upsert(ana.id, { ...conn, name: 'moved', caPem: 'PEM' });
   const shared = store.upsert(admin.id, { ...conn, name: 'moved-shared' }, { shared: true });

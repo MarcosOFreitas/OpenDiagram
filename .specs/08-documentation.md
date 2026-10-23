@@ -15,7 +15,7 @@ Turn the DBML into readable database documentation: browse tables, columns, cons
 - **Enums:** value list with notes.
 - **Exports** (Export menu): **Documentation `.html`** — one self-contained file (inline CSS + small search script, no network requests, follows OS dark mode, print-friendly) that can be hosted anywhere or attached; **Documentation `.md`** — Markdown for repos/wikis. Files are named `<title>-docs.*`. Export is refused with `fix the DBML errors first` if the DBML does not parse.
 - **Collapse/expand:** every table (and enum) is a `<details>` card; the header shows a chevron (down = collapsed, click to open; up = open, click to collapse) and a column count. *Expand all / Collapse all* in the sidebar. Opening a table from a sidebar/reference link expands it and scrolls only the content pane. In-app collapsed state is remembered per browser (`localStorage.docsCollapsed`); the standalone `.html` works with plain `<details>` (no script needed to fold).
-- **Comments (app-only, multi-author):** click the dashed area to add a comment on the project (overview), a table, or a column (*Comment* column); several comments per target, each with author and date, posted with the *Post* button or Ctrl+Enter (Esc cancels). Stored per diagram in the app's SQLite (`comments` table; API in [09](09-accounts-sharing.md)), keyed by `"<schema>.<table>"`, `"<schema>.<table>.<column>"` or `"__project"`. Who can comment is decided by the diagram owner through share-link levels; authors delete their own comments, the the owner and administrators delete any. They are **never** written to DBML or to any connected database, survive refresh/re-import (same keys) and are included read-only (with author) in the `.html`/`.md` exports.
+- **Comments (app-only, multi-author):** click the dashed area to add a comment on the project (overview), a table, or a column (*Comment* column); several comments per target, each with author and date, posted with the *Post* button or Ctrl+Enter (Esc cancels). Stored per diagram in the app's SQLite (`comments` table; API in [09](09-accounts-sharing.md)), keyed by `"<schema>.<table>"`, `"<schema>.<table>.<column>"` or `"__project"`. Who can comment is decided by the diagram owner through share-link levels; authors delete their own comments, the owner and administrators delete any. They are **never** written to DBML or to any connected database, survive refresh/re-import (same keys) and are included read-only (with author) in the `.html`/`.md` exports.
 - Same React component renders the in-app view and the exported HTML (`renderToStaticMarkup`), so they cannot drift; the search script (`initDocs`) is inlined via `toString()` and must stay self-contained.
 
 ## Changelog
@@ -32,14 +32,14 @@ The Docs view lists the diagram's history (`GET /api/diagrams/:id/versions`, 50 
 - [x] Standalone HTML has no external requests and its search works when opened on its own (verified in an iframe via `srcdoc`).
 - [x] Markdown export produces project header, group sections, per-table column tables, indexes, referenced-by and enums.
 - [x] Opening the downloaded `.html` file from disk: audited by `web/uiaudit.mjs` (opened through `file://`).
-- [ ] Rendering large schemas (hundreds of tables) — not measured; sidebar search is a DOM filter, content is fully rendered.
-- [ ] Column-level comments with real keyboard input — the table-level comment was verified end to end; the column cell uses the same component but was only exercised by script.
+- [x] Large schemas: opening the Docs view took about 107 / 169 / 473 ms at 50 / 100 / 200 tables in a visible Chrome window, with `content-visibility: auto` on each table section (off-screen sections are laid out only when they come near; find in page, the index links and printing still work). Sidebar search is a DOM filter.
+- [x] Column-level comments with real keyboard input: `uiaudit.mjs member-comment` types one with real key events as a comment-level member, posts it with Ctrl+Enter and finds it through the API under its `schema.table.column` key.
 
 ## Limitations
 
 - Comments are not versioned or editable after posting (delete and re-post); no notifications or mentions.
 - Renaming a table or column orphans its comment (stays in the file, hidden).
 
-## Not included yet
+## Not included
 
-Password-protected pages, per-table ER mini-diagrams, custom branding/CSS, PDF export (use the browser's print — print CSS hides the sidebar).
+Password-protected pages, per-table ER mini-diagrams, custom branding/CSS, PDF export (use the browser's print: the print CSS hides the sidebar). Ideas for forks: [06](06-roadmap.md).

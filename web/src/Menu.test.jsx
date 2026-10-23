@@ -67,7 +67,7 @@ describe('Menu', () => {
   });
 });
 
-test('a trigger that shows only a letter (the account avatar) gets a spoken name from `label` (.specs/15, U3)', () => {
+test('a trigger that shows only a letter (the account avatar) gets a spoken name from `label`', () => {
   render(<Menu trigger={<span className="avatar">A</span>} label="Account menu, Ana" items={[]} title="Ana · ana@example.com" />);
   expect(screen.getByRole('button', { name: 'Account menu, Ana' })).toBeTruthy();
 });

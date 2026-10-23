@@ -54,7 +54,7 @@ for (const n of SIZES) {
   const row = { tables: n, columns: STRESS ? null : n * 12, drawnNodes: nodes, secondsToDraw: ms === null ? null : +(ms / 1000).toFixed(1), jsHeapMb: heap, idleReactCommitsPerSecond: idleCommits, framesPerSecondWhileZooming: fps };
   if (STRESS) {
     // (the delay from a keystroke to the diagram is not measured here: headless Chrome never commits the deferred parse; measure it in a
-    // visible browser, see the stress results in .specs/14-release-v1.md)
+    // visible browser, see the Hosting requirements docs page)
     // the Docs view, until its last table is written
     row.openDocsMs = await ev(`(async () => { const t = performance.now(); [...document.querySelectorAll('.mode button')].find((b) => /Docs/.test(b.textContent)).click(); while (!document.querySelector('.dx-main')?.textContent.includes('_${n - 1}')) { if (performance.now() - t > 30000) return null; await new Promise((r) => requestAnimationFrame(r)); } return Math.round(performance.now() - t); })()`);
     row.jsHeapAfterMb = await ev(`Math.round((performance.memory?.usedJSHeapSize || 0) / 1048576)`);

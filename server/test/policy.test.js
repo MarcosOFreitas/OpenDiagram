@@ -31,7 +31,7 @@ test('public-only: a name that does not resolve is refused', async () => {
   await assert.rejects(assertHostAllowed('no-such-host.invalid', { DB_HOST_POLICY: 'public-only' }), { statusCode: 403 });
 });
 
-test('public-only returns the address it checked (the drivers connect to it, so a second lookup cannot answer a private one: DNS rebinding, .specs/15 S2)', async () => {
+test('public-only returns the address it checked (the drivers connect to it, so a second lookup cannot answer a private one: DNS rebinding, .specs/05)', async () => {
   const env = { DB_HOST_POLICY: 'public-only' };
   let n = 0;
   const lookup = async () => (n++ ? [{ address: '10.0.0.5' }] : [{ address: '203.0.113.7' }]); // a rebinding name: public first, private next

@@ -73,7 +73,7 @@ describe('withGroups / keepGroups (refresh keeps the user TableGroups)', () => {
   test('keepGroups with unparsable old text returns the new text', () => expect(keepGroups('Table {', DBML)).toBe(DBML));
 });
 
-describe('refreshSummary: the toast of a manual refresh, in the words of History -> Compare and of the history entry (.specs/14, item 9)', () => {
+describe('refreshSummary: the toast of a manual refresh, in the words of History -> Compare and of the history entry', () => {
   const add = `${DBML}Table shop.items { id int }\n`;
   test('added', () => expect(refreshSummary(DBML, add)).toBe('1 table added'));
   test('removed', () => expect(refreshSummary(add, DBML)).toBe('1 table removed'));

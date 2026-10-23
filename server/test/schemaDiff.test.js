@@ -1,4 +1,4 @@
-// The structural diff between two versions of a diagram (.specs/14-release-v1.md, item 8): pairs of DBML, parsed by @dbml/core
+// The structural diff between two versions of a diagram (.specs/09-accounts-sharing.md, history): pairs of DBML, parsed by @dbml/core
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Parser } from '@dbml/core';

@@ -1,7 +1,7 @@
 // UI audit: opens every screen, drawer, menu and dialog of the app in headless Chrome and reports what breaks the rules in
 // .specs/11-ui-review.md: control without an accessible name, pointer target < 24px, field without a label, text contrast < 4.5:1,
 // horizontal overflow, a control named only by a symbol, a click target the keyboard cannot reach, dialog without role/focus handling, keyboard focus that is invisible or lost. Light and dark theme,
-// desktop / tablet / phone. Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
+// desktop and phone (tablet is not covered). Fixtures are created through the API, so run it against a THROW-AWAY instance (it refuses :3000):
 //   docker build -t opendiagram-audit . && docker run -d --name audit-app --network opendiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) opendiagram-audit
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
 //   AUDIT_SHARD=i/n audits only every n-th screen (CI runs 4 in parallel, each on its own instance)
@@ -33,7 +33,7 @@ await admin.call('POST', '/api/auth/login', { email: EMAIL, password: PASS });
 await admin.call('POST', '/api/admin/users', { email: 'temp@example.com', name: 'Temp User', password: 'Temp-pass-0000' }); // stays "must change password"
 const versions = ['First', 'Second'].map((label, i) => [SAMPLE.replace('  phone varchar(30)\n', `  phone varchar(30)\n  extra_${i} int\n`), `${label} version`]);
 const { maya, mayaId, shop, lin } = await seedTeam({ base: BASE, admin, sample: SAMPLE, mayaPass: 'Maya-audit-pass-1', sampleExtra: "\n\nNote note_1 {\n  'A sticky note'\n}\n", versions });
-// the administrator opened Warehouse, then Maya refreshed it: its Library card says "changed since you last opened it" (.specs/14, item 9)
+// the administrator opened Warehouse, then Maya refreshed it: its Library card says "changed since you last opened it" (.specs/09)
 const warehouse = (await admin.call('POST', '/api/diagrams', { title: 'Warehouse', dbml: 'Table stock {\n  id int [pk]\n}\n' })).id;
 await admin.call('POST', `/api/diagrams/${warehouse}/access`, { type: 'user', subjectId: mayaId, access: 'edit' });
 await admin.call('GET', `/api/diagrams/${warehouse}`);
@@ -65,7 +65,7 @@ const conn = await admin.call('POST', '/api/connections', { name: 'audit-db', ty
 const failing = (await admin.call('POST', '/api/diagrams', { title: 'Refresh error' })).id;
 await admin.call('PUT', `/api/diagrams/${failing}`, { dbml: SAMPLE, source: { connId: conn.id, schemas: ['shop'], tables: null, at: Date.now(), gen: 'x' } });
 execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, { input: `const { DatabaseSync } = require('node:sqlite'); new DatabaseSync('/data/app.db').prepare("insert into refresh_state (diagram_id, last_run, last_error, failures, paused) values (?, ?, ?, 5, 1)").run('${failing}', Math.floor(Date.now() / 1000), 'connect ECONNREFUSED demo-pg:5432');` });
-// connections whose password was saved under another APP_SECRET (a restore on another machine): the lists warn (.specs/15, M2)
+// connections whose password was saved under another APP_SECRET (a restore on another machine): the lists warn (.specs/05)
 const moved = await admin.call('POST', '/api/connections', { name: 'moved-db', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' });
 const movedShared = await admin.call('POST', '/api/admin/connections', { name: 'Moved warehouse', type: 'postgres', host: 'demo-pg', port: 5432, database: 'demo', user: 'reader', password: 'reader', tls: 'off' });
 execSync(`docker exec -i ${process.env.AUDIT_CONTAINER || 'audit-app'} node -`, { input: `const { DatabaseSync } = require('node:sqlite'); new DatabaseSync('/data/app.db').prepare('update connections set password = ? where id in (?, ?)').run(Buffer.alloc(40).toString('base64'), '${moved.id}', '${movedShared.id}');` });

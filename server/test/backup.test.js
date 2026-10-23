@@ -1,4 +1,4 @@
-// Optional daily backup (BACKUP_DIR): a copy of the database per day, the old ones deleted (.specs/15-audit-2026-10-22.md, O1)
+// Optional daily backup (BACKUP_DIR): a copy of the database per day, the old ones deleted (self-hosting docs page)
 import './env.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

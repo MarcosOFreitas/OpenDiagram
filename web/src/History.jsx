@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ago, errMsg } from './api.js';
 import { parseDbml } from './dbmlParse.js';
-import { schemaDiff, diffLines, summaryLine } from '../../server/src/schemaDiff.js'; // shared with the server (item 9, an ALTER script)
+import { schemaDiff, diffLines, summaryLine } from '../../server/src/schemaDiff.js'; // shared with the server (the summary of a refresh)
 
 const MAX_LINES = 300;
 // the structural diff of two DBML texts, or why it cannot be made (a side that does not parse: the text diff is still shown)

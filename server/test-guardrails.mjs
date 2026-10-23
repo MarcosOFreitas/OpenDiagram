@@ -58,10 +58,10 @@ check('lineage: sources outside the picked tables are dropped', /<- shop\.orders
 check('A1 sequence note (serial sequences skipped)', r.dbml.includes('Note "shop.invoice_seq" {') && !r.dbml.includes('Note "shop.customers_id_seq"'));
 check('A1 sequence used by a column default goes into the note of its table', r.dbml.includes("Table shop.tickets [note: '''\nSEQUENCES\nshop.ticket_seq (id): bigint") && !r.dbml.includes('Note "shop.ticket_seq"'));
 check('A1 trigger in table note', r.dbml.includes('TRIGGERS\ntrg_orders_touch: CREATE TRIGGER'));
-// check constraints and partitioning (.specs/14-release-v1.md, item 7b)
+// check constraints and partitioning (.specs/03-connections-import.md)
 check('7b table check with its name; a domain check stays out', r.dbml.includes("checks {\n    `price >= 0::numeric` [name: 'products_price_check']\n  }") && r.dbml.includes("[name: 'events_kind_check']") && !/value > 0/.test(r.dbml), (r.dbml.match(/ {2}checks \{[^}]*\}/g) || []).join(' | '));
 check('7b partitioned table: method and key in its note; its partitions are not imported (they repeat the parent)', r.dbml.includes("Table shop.events [note: '''\nPARTITIONED BY RANGE (created_at)\n'''] {") && !r.dbml.includes('events_2026'), (r.dbml.match(/Table shop\.events[^{]*\{/g) || []).join(' | '));
-// identity / serial, generated column, partial index (.specs/15-audit-2026-10-22.md, Q2-Q4)
+// identity / serial, generated column, partial index (.specs/03-connections-import.md)
 const inv = (r.dbml.match(/Table shop\.invoices \{[^]*?\n\}/) || [''])[0];
 check('identity and serial columns are increment, without the nextval default', inv.includes('id integer [pk, increment]') && /Table shop\.customers \[note: 'Registered customers'\] \{\n {2}id integer \[pk, increment\]\n/.test(r.dbml) && !r.dbml.includes("nextval('shop.customers_id_seq"), inv);
 check('a generated column says so in its note; a partial index keeps its WHERE', inv.includes("gross numeric(10,2) [note: 'GENERATED ALWAYS AS (net + vat) STORED']") && inv.includes("net [name: 'invoices_unpaid', type: btree, note: 'WHERE NOT paid']"), inv);
@@ -148,7 +148,7 @@ check('scheduled refresh ran with no page open', !!got?.refresh && got.refresh.l
 check('  saved as "Refresh from database" by "Scheduled refresh"', hist[0]?.author === 'Scheduled refresh' && /^Refresh from database/.test(hist[0]?.summary), `${hist[0]?.author}: ${hist[0]?.summary}`);
 await call('DELETE', `diagrams/${sd.id}`); await call('DELETE', `connections/${sc.id}`);
 
-// 7. MySQL (demo-mysql, MySQL 8.4): the same guardrails as PostgreSQL (.specs/14-release-v1.md, item 7)
+// 7. MySQL (demo-mysql, MySQL 8.4): the same guardrails as PostgreSQL (.specs/03-connections-import.md)
 const my = (user, password, extra = {}) => ({ type: 'mysql', host: 'demo-mysql', port: 3306, database: '', user, password, tls: 'off', ...extra });
 for (const [user, pass, expectWarn] of [['root', 'demo', true], ['writer', 'writer', true], ['reader', 'reader', false]]) {
   const x = await post('schemas', my(user, pass));

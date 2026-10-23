@@ -245,7 +245,7 @@ test('list_diagrams pages: limit and offset, with the next offset when there is 
   assert.doesNotMatch(rest, /next_offset/);
 });
 
-test('an agent cannot send a huge DBML: it is refused before it is parsed (.specs/15, M6)', () => {
+test('an agent cannot send a huge DBML: it is refused before it is parsed', () => {
   const id = mine(); give(id, 'edit');
   const v = dg.getForUser(owner, id).version;
   const big = `${DBML}${'// a line that only makes the text bigger\n'.repeat(15_000)}`; // more than 500 000 characters

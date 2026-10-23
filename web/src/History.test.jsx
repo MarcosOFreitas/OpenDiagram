@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import History from './History.jsx';
 
-// The Compare dialog: the structural diff (server/src/schemaDiff.js) above the text diff (.specs/14-release-v1.md, item 8)
+// The Compare dialog: the structural diff (server/src/schemaDiff.js) above the text diff (.specs/09)
 const OLD = 'Table shop.orders {\n  id int [pk]\n  status varchar(20)\n}\nTable legacy {\n  id int\n}\n';
 const NOW = 'Table shop.orders {\n  id int [pk]\n  status text [not null]\n}\nTable shop.invoices {\n  id int [pk]\n}\n';
 const mockApi = (old) => vi.stubGlobal('fetch', vi.fn(async (url) => {
