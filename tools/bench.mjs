@@ -1,7 +1,7 @@
 // Performance measurements for the "Hosting requirements" page. Run it against a THROW-AWAY instance (it creates an account, diagrams and a database):
 //   docker build -t opendiagram-bench . && docker run -d --name bench-app -p 3200:3000 --cpus 1 --memory 512m -e APP_SECRET=$(openssl rand -hex 24) -e COOKIE_SECURE=0 opendiagram-bench
 //   docker exec bench-app node src/cli.js create-admin bench@example.com 'bench-password-123'
-//   BASE=http://localhost:3200 BENCH_CONTAINER=bench-app BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node server/bench.mjs
+//   BASE=http://localhost:3200 BENCH_CONTAINER=bench-app BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node tools/bench.mjs
 // It prints JSON: latencies (p50/p95/max, ms) of the main calls, the cost of N people with a diagram open (heartbeat every 4 s, an
 // occasional save) and the container's CPU / memory while that runs. `docker stats` is read from BENCH_CONTAINER.
 import { execSync } from 'node:child_process';

@@ -1,6 +1,6 @@
 # 09 — Accounts, administration, groups and sharing
 
-**Status:** implemented (self-hosted). Code: `server/src/{db,auth,admin,diagrams,store,policy,audit,presence,cli,index}.js`, `web/src/{Auth,Admin,AdminConnections,AdminAudit,Library,SharePanel,History,App}.jsx`. Verified by `server/test/http.test.js`, `server/test-auth.mjs` (about 230 checks) and the member flows of `web/uiaudit.mjs` ([07](07-testing.md)).
+**Status:** implemented (self-hosted). Code: `server/src/{db,auth,admin,diagrams,store,policy,audit,presence,cli,index}.js`, `web/src/{Auth,Admin,AdminConnections,AdminAudit,Library,SharePanel,History,App}.jsx`. Verified by `server/test/http.test.js`, `tools/test-auth.mjs` (about 230 checks) and the member flows of `tools/uiaudit.mjs` ([07](07-testing.md)).
 
 ## Model
 

@@ -1,6 +1,6 @@
-// quick check of the lineage comment parser:  node web/lineage-check.mjs
+// quick check of the lineage comment parser:  node tools/lineage-check.mjs
 import assert from 'node:assert/strict';
-import { lineageEdges, closure, MANUAL } from './src/lineage.js';
+import { lineageEdges, closure, MANUAL } from '../web/src/lineage.js';
 
 const T = (schema, name, ...cols) => ({ id: `${schema}.${name}`, schema, name, fields: cols.map((name) => ({ name })) });
 const tables = [T('public', 'orders', 'id', 'total'), T('public', 'items', 'order_id', 'price'), T('sales', 'v_sum', 'total'), T('sales', 'mv_sum', 'total'), T('public', 'Odd Name', 'x')];

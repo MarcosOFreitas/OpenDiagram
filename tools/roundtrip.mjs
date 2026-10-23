@@ -1,4 +1,6 @@
-import { Parser, importer, exporter } from '@dbml/core';
+// Import -> export -> re-import of the demo databases in every SQL format, printing what differs: node tools/roundtrip.mjs (BASE=http://localhost:3000 by default)
+// Expected results are the table of .specs/04-formats.md. Needs the app, demo-pg, demo-mysql and demo-oracle (--profile oracle).
+import { Parser, importer, exporter } from '../web/node_modules/@dbml/core/lib/index.mjs'; // the web's copy: tools/ has no node_modules of its own
 
 // the API requires an account: sign in with the test administrator (TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
 const BASE = process.env.BASE || 'http://localhost:3000';

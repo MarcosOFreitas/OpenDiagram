@@ -1,6 +1,6 @@
 // Visual regression for refactors: screenshots of static screens (no timestamps, no random ids), then a pixel comparison.
-//   BASE=http://localhost:3110 SNAP_EMAIL=... SNAP_PASSWORD=... node web/visualsnap.mjs snap <outDir>
-//   node web/visualsnap.mjs compare <dirA> <dirB>      # exit 1 when any screen differs
+//   BASE=http://localhost:3110 SNAP_EMAIL=... SNAP_PASSWORD=... node tools/visualsnap.mjs snap <outDir>
+//   node tools/visualsnap.mjs compare <dirA> <dirB>      # exit 1 when any screen differs
 // Run `snap` against a THROW-AWAY instance (it creates a diagram), once on the old build and once on the new one, both on a
 // fresh instance with the same administrator, so the screens are comparable. Motion is forced to "reduce" so nothing is mid-animation.
 import { mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
@@ -34,7 +34,7 @@ const EMAIL = process.env.SNAP_EMAIL, PASS = process.env.SNAP_PASSWORD;
 if (mode !== 'snap' || !a || !EMAIL || !PASS) { console.error('usage: see the header of the file'); process.exit(2); }
 if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000'); process.exit(2); }
 mkdirSync(a, { recursive: true });
-const { TEMPLATES } = await import('./src/templates.js');
+const { TEMPLATES } = await import('../web/src/templates.js');
 
 let cookie = '';
 const api = async (method, path, body) => { const r = await fetch(BASE + path, { method, headers: { 'content-type': 'application/json', origin: BASE, ...(cookie ? { cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }); const s = r.headers.get('set-cookie'); if (s) cookie = s.split(';')[0]; const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`${method} ${path} -> ${r.status}`); return j; };

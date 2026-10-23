@@ -1,5 +1,5 @@
-// e2e check of the Oracle TLS modes against demo-oracle-tls (a TLS proxy in front of demo-oracle; `docker compose -f docker-compose.yml -f docker-compose.demo-tls.yml --profile oracle up -d`):
-//   TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... node server/test-oracle-tls.mjs      (BASE=http://localhost:3000 by default)
+// e2e check of the Oracle TLS modes against demo-oracle-tls (a TLS proxy in front of demo-oracle; `docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.demo-tls.yml --profile oracle up -d`):
+//   TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... node tools/test-oracle-tls.mjs      (BASE=http://localhost:3000 by default)
 // The proxy's certificate is self-signed with CN=oracle.demo.test and is trusted by the app through NODE_EXTRA_CA_CERTS, which only docker-compose.demo-tls.yml sets (see demo/oracle-tls).
 const BASE = process.env.BASE || 'http://localhost:3000';
 const E = process.env.TEST_ADMIN_EMAIL, P = process.env.TEST_ADMIN_PASSWORD;

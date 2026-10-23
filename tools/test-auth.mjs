@@ -1,12 +1,12 @@
 // e2e checks for accounts, roles, groups, sharing and the SSRF policy against the running app.
-//   TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... node server/test-auth.mjs      (BASE=http://localhost:3000 by default)
+//   TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=... node tools/test-auth.mjs      (BASE=http://localhost:3000 by default)
 // The administrator can be created with:  docker compose exec app node src/cli.js create-admin <email> <password>
 // The checks create throw-away users/groups/diagrams (names contain a random run id) and clean up what they can.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isPrivateIp, assertHostAllowed } from './src/policy.js';
+import { isPrivateIp, assertHostAllowed } from '../server/src/policy.js';
 
 const BASE = process.env.BASE || 'http://localhost:3000';
 const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL, ADMIN_PW = process.env.TEST_ADMIN_PASSWORD;
@@ -93,7 +93,7 @@ r = await ADMIN('PATCH', `/api/admin/users/${bob.id}`, { name: 'Bob' });
 
 // last-administrator guard, on an isolated database (the shared one may have several admins)
 const guard = execFileSync(process.execPath, ['--input-type=module', '-e', `
-  const admin = await import(${JSON.stringify(new URL('./src/admin.js', import.meta.url).href)});
+  const admin = await import(${JSON.stringify(new URL('../server/src/admin.js', import.meta.url).href)});
   const out = {};
   const u = await admin.createUser({ email: 'only@example.com', password: 'a long enough password' });
   admin.updateUser(u.user.id, { role: 'admin' });

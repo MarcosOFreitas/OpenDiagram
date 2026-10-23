@@ -60,7 +60,7 @@ MySQL (added after PostgreSQL and Oracle) touched these places; a new engine fol
 1. `server/src/introspect.js`: a driver in `drivers` (`schemas`, `tables`, `import`, `privileges`) that maps the catalog to the neutral model; a session helper that is **read-only in every layer** the engine has (security invariant 1) and has a statement timeout; a privilege check by **allowlist** whose findings are warnings; TLS options; the default port and error words in `explainDbError`.
 2. `server/src/index.js`: the type in `assertType` and `validConn`, its default port.
 3. `web/src/useConnect.js` (`ENGINES`: label, default port) and `web/src/AdminConnections.jsx` (shared connections use the same list).
-4. Tests: unit tests of the mapping without a server (as `server/test/mysql.test.js`), a demo database in `docker-compose.demo.yml` with root / writer / reader users, `server/test-guardrails.mjs` (read-only session, privilege warnings, the table picker), `web/roundtrip.mjs`, a `uiaudit.mjs` screen of the form.
+4. Tests: unit tests of the mapping without a server (as `server/test/mysql.test.js`), a demo database in `docker-compose.demo.yml` with root / writer / reader users, `tools/test-guardrails.mjs` (read-only session, privilege warnings, the table picker), `tools/roundtrip.mjs`, a `uiaudit.mjs` screen of the form.
 5. Docs: the *Database import* and *Database security* pages, [03](03-connections-import.md), [05](05-security.md) (a rogue server row), the README.
 
 ## Schema migrations

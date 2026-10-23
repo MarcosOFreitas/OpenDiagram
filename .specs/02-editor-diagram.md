@@ -45,8 +45,8 @@
 - [x] Dark/light and grid toggle apply immediately and persist across reload.
 - [x] Click highlights related edges; search dims non-matching tables.
 - [x] Swatch click changes the hex in the editor and the diagram color immediately; presets insert a valid hex. (Verified by simulating the picker's `input` events — the OS-native dialog itself was not exercised.)
-- [x] Visual regression: `web/visualsnap.mjs` compares 21 screens pixel by pixel between two builds (run by hand for a refactor, not in CI); `web/uiaudit.mjs` audits every screen in CI.
-- [x] Phone layout (<= 720 px) designed and audited by `web/uiaudit.mjs` ([11](11-ui-review.md)); tablet width is not covered.
+- [x] Visual regression: `tools/visualsnap.mjs` compares 21 screens pixel by pixel between two builds (run by hand for a refactor, not in CI); `tools/uiaudit.mjs` audits every screen in CI.
+- [x] Phone layout (<= 720 px) designed and audited by `tools/uiaudit.mjs` ([11](11-ui-review.md)); tablet width is not covered.
 
 ## Known gaps
 

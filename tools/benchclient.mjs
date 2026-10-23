@@ -1,12 +1,12 @@
 // Browser-side cost of a diagram for the "Hosting requirements" page: time until every table is drawn and the JavaScript heap, for several sizes.
-// Run it against a THROW-AWAY instance (it creates an account's diagrams), same setup as server/bench.mjs:
-//   BASE=http://localhost:3200 BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node web/benchclient.mjs
+// Run it against a THROW-AWAY instance (it creates an account's diagrams), same setup as tools/bench.mjs:
+//   BASE=http://localhost:3200 BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node tools/benchclient.mjs
 // MODEL=stress SIZES=50,75,100,200 measures the realistic schema of stressdbml.mjs instead of the chain of plain tables (the default, the
 // one the Hosting requirements page quotes), and adds opening the Docs view and (in Node, no browser) the parse and every Arrange algorithm.
 import { launch, sleep } from './cdp.mjs';
 import { stressDbml } from './stressdbml.mjs';
-import { parse } from './src/diagramModel.js';
-import { layout } from './src/layout.js';
+import { parse } from '../web/src/diagramModel.js';
+import { layout } from '../web/src/layout.js';
 
 const BASE = process.env.BASE || 'http://localhost:3200', EMAIL = process.env.BENCH_EMAIL, PASS = process.env.BENCH_PASSWORD;
 if (!EMAIL || !PASS) { console.error('set BENCH_EMAIL and BENCH_PASSWORD'); process.exit(2); }

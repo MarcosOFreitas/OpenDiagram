@@ -36,13 +36,13 @@ jobs:
           npm audit --audit-level=high
           for f in src/*.js; do node --check "$f"; done   # one file per call: node --check a.js b.js checks only a.js
           npm test
-          node test-lineage.mjs
+          node ../tools/test-lineage.mjs
       - name: Web
         working-directory: web
         run: |
           npm ci
           npm audit --audit-level=high
-          node lineage-check.mjs
+          node ../tools/lineage-check.mjs
           npm test
           npx vite build
 

@@ -4,7 +4,7 @@
 import { describe, test, expect } from 'vitest';
 import { parse, handleColumns, edgesOf } from './diagramModel.js';
 import { TEMPLATES } from './templates.js';
-import { stressDbml } from '../stressdbml.mjs';
+import { stressDbml } from '../../tools/stressdbml.mjs';
 
 const cols = (dbml) => { const p = parse(dbml); expect(p.error).toBeUndefined(); return { p, h: handleColumns(p) }; };
 const of = (h, table) => [...(h.get(table) || [])].sort();

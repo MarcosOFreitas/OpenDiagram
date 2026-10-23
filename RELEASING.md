@@ -15,10 +15,10 @@ Everything here is described in [`.specs/07-testing.md`](.specs/07-testing.md); 
 
 - [ ] `(cd server && npm test)` and `(cd web && npm test)` green; `(cd web && npx vite build)` clean; `for f in server/src/*.js; do node --check "$f"; done` clean.
 - [ ] The CI run of the commit you tag is green, `e2e` included (CI runs it on `main`; locally, `bash .github/ci-e2e.sh` needs port 3000 free). The release workflow does **not** wait for CI.
-- [ ] `node web/uiaudit.mjs` zero findings on every screen (part of the e2e run), and `web/behavior.golden.json` current.
-- [ ] `node web/docshots.mjs` rerun on a throw-away instance and every picture looked at (no personal data, nothing cut off).
-- [ ] `cd web && node roundtrip.mjs` with the Oracle demo (`--profile oracle`) matches the table in [`.specs/04-formats.md`](.specs/04-formats.md).
-- [ ] If performance-relevant code changed: `node server/bench.mjs` and `node web/benchclient.mjs`, numbers updated in the *Hosting requirements* page.
+- [ ] `node tools/uiaudit.mjs` zero findings on every screen (part of the e2e run), and `tools/behavior.golden.json` current.
+- [ ] `node tools/docshots.mjs` rerun on a throw-away instance and every picture looked at (no personal data, nothing cut off).
+- [ ] `node tools/roundtrip.mjs` with the Oracle demo (`--profile oracle`) matches the table in [`.specs/04-formats.md`](.specs/04-formats.md).
+- [ ] If performance-relevant code changed: `node tools/bench.mjs` and `node tools/benchclient.mjs`, numbers updated in the *Hosting requirements* page.
 - [ ] License consistent (`LICENSE`, `NOTICE`, both `package.json`); `npm audit --audit-level=high` clean in both folders (CI runs it).
 - [ ] README, specs and documentation pages match the behaviour; the release notes have the new section and its *Not tested* list.
 

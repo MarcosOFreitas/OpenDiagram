@@ -29,4 +29,4 @@ Do this before your first `docker compose up --build`: a local build is tagged w
 
 ## Running next to the original
 
-`docker-compose.yml` fixes the Compose project name (`name: opendiagram`), so its data volume is always `opendiagram_appdata`, whatever the folder is called. Two stacks with that name on one Docker host share containers and data. Give your copy another name (`name:` in `docker-compose.yml`, or `docker compose -p <name>`), and remember that the UI tools' headers (`web/uiaudit.mjs`, `web/docshots.mjs`) use the network `opendiagram_default`.
+`docker-compose.yml` fixes the Compose project name (`name: opendiagram`), so its data volume is always `opendiagram_appdata`, whatever the folder is called. Two stacks with that name on one Docker host share containers and data. Give your copy another name (`name:` in `docker-compose.yml`, or `docker compose -p <name>`), and remember that the UI tools' headers (`tools/uiaudit.mjs`, `tools/docshots.mjs`) use the network `opendiagram_default`.

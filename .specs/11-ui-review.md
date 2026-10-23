@@ -12,7 +12,7 @@ Review done with the `ui-ux-pro-max` skill (web/desktop rules: accessibility, ta
 
 ## How it is verified
 
-`node web/uiaudit.mjs` (headless Chrome with real focus, see the header of the file for the throw-away instance it needs) opens every screen below in **light and dark** theme at **desktop (1280)** and **phone (375)** and reports: control without an accessible name, pointer target < 24px, field without label, text contrast < 4.5:1, horizontal overflow, dialogs without `role`/`aria-modal`/name/focus handling/Tab trap, and a **keyboard walk** (Tab through the page: every stop must be visible and show a focus indicator). Tablet (768px) is deliberately not covered. The first-run screen needs an empty second instance: `BASE_EMPTY=http://localhost:3101 node web/uiaudit.mjs first-run`.
+`node tools/uiaudit.mjs` (headless Chrome with real focus, see the header of the file for the throw-away instance it needs) opens every screen below in **light and dark** theme at **desktop (1280)** and **phone (375)** and reports: control without an accessible name, pointer target < 24px, field without label, text contrast < 4.5:1, horizontal overflow, dialogs without `role`/`aria-modal`/name/focus handling/Tab trap, and a **keyboard walk** (Tab through the page: every stop must be visible and show a focus indicator). Tablet (768px) is deliberately not covered. The first-run screen needs an empty second instance: `BASE_EMPTY=http://localhost:3101 node tools/uiaudit.mjs first-run`.
 
 Status of the last full run (after the fixes): **no findings**.
 

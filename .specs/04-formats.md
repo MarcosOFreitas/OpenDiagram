@@ -17,7 +17,7 @@
 | Documentation | — | ✅ `.html` standalone, `.md` | see [08](08-documentation.md) |
 | Live DB | PostgreSQL, Oracle, MySQL (MariaDB best effort) | — | see [03](03-connections-import.md) |
 
-## Round-trip results (demo DBs, `web/roundtrip.mjs`)
+## Round-trip results (demo DBs, `tools/roundtrip.mjs`)
 
 DB → DBML → export → re-import → compare columns/types/PK/NOT NULL/index count/refs.
 
@@ -55,6 +55,6 @@ Multi-line notes (including multi-line column/table comments from the database) 
 - [x] All export buttons produce a file without error for the sample and demo diagrams.
 - [x] Importing valid PG SQL via paste creates tables and refs; invalid SQL shows `line N: …` in a toast.
 - [x] PG→PG and Oracle→{PG, MSSQL} round-trips are identical (per criteria above; Oracle → PG apart from ⁶). Last run: the 1.0 release, with the Oracle demo.
-- [x] PNG/SVG hold the diagram: `web/uiaudit.mjs` (screen `export-images`) catches both files from the Export menu and requires a PNG of at least 400x200 with drawn content and an SVG that shows the tables (a blank, tiny or missing file is a finding).
+- [x] PNG/SVG hold the diagram: `tools/uiaudit.mjs` (screen `export-images`) catches both files from the Export menu and requires a PNG of at least 400x200 with drawn content and an SVG that shows the tables (a blank, tiny or missing file is a finding).
 
 Not done (a known limitation, [06](06-roadmap.md)): cross-dialect export (PG→MySQL/MSSQL, Oracle→MySQL) that the target engine accepts as is; it needs a type and default translation layer.

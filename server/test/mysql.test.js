@@ -1,5 +1,5 @@
 // MySQL / MariaDB driver, the parts that need no server: connection options, the read-only session, the privilege allowlist and
-// the mapping of catalog rows. The demo server checks the rest (server/test-guardrails.mjs).
+// the mapping of catalog rows. The demo server checks the rest (tools/test-guardrails.mjs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { myConfig, myWith, myGrantWarnings, myColumn, myTableRow, myExpr, myPartition } from '../src/introspect.js';

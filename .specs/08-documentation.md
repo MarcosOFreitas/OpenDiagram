@@ -31,7 +31,7 @@ The Docs view lists the diagram's history (`GET /api/diagrams/:id/versions`, 50 
 - [x] A table comment typed with real keyboard/mouse input is saved to the server, shown after reload, and appears in the `.md`/`.html` exports; a second account commenting through a share link appears for everyone and can only delete its own.
 - [x] Standalone HTML has no external requests and its search works when opened on its own (verified in an iframe via `srcdoc`).
 - [x] Markdown export produces project header, group sections, per-table column tables, indexes, referenced-by and enums.
-- [x] Opening the downloaded `.html` file from disk: audited by `web/uiaudit.mjs` (opened through `file://`).
+- [x] Opening the downloaded `.html` file from disk: audited by `tools/uiaudit.mjs` (opened through `file://`).
 - [x] Large schemas: opening the Docs view took about 107 / 169 / 473 ms at 50 / 100 / 200 tables in a visible Chrome window, with `content-visibility: auto` on each table section (off-screen sections are laid out only when they come near; find in page, the index links and printing still work). Sidebar search is a DOM filter.
 - [x] Column-level comments with real keyboard input: `uiaudit.mjs member-comment` types one with real key events as a comment-level member, posts it with Ctrl+Enter and finds it through the API under its `schema.table.column` key.
 

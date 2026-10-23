@@ -1,6 +1,6 @@
-// pure check of the view column lineage (no stack needed):  node server/test-lineage.mjs
+// pure check of the view column lineage (no stack needed):  node tools/test-lineage.mjs
 import assert from 'node:assert/strict';
-import { columnSources, viewColumnLineage } from './src/lineage.js';
+import { columnSources, viewColumnLineage } from '../server/src/lineage.js';
 
 const T = (schema, name, ...columns) => ({ schema, name, columns });
 const tables = [T('shop', 'customers', 'id', 'name', 'email'), T('shop', 'orders', 'id', 'customer_id', 'status', 'total'), T('shop', 'order_items', 'order_id', 'qty', 'price')];

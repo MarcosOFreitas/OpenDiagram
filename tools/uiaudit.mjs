@@ -6,8 +6,8 @@
 //   docker exec audit-app node src/cli.js create-admin audit@example.com 'audit-password-123'
 //   AUDIT_SHARD=i/n audits only every n-th screen (CI runs 4 in parallel, each on its own instance)
 //   (AUDIT_CONTAINER=<name> if the container is not called audit-app: the audit writes one row of scheduler state into its database)
-//   BASE=http://localhost:3100 AUDIT_EMAIL=audit@example.com AUDIT_PASSWORD=audit-password-123 node web/uiaudit.mjs [screen-name ...]
-// The first-run screen needs an EMPTY instance on :3101: run it on its own, BASE_EMPTY=http://localhost:3101 node web/uiaudit.mjs first-run
+//   BASE=http://localhost:3100 AUDIT_EMAIL=audit@example.com AUDIT_PASSWORD=audit-password-123 node tools/uiaudit.mjs [screen-name ...]
+// The first-run screen needs an EMPTY instance on :3101: run it on its own, BASE_EMPTY=http://localhost:3101 node tools/uiaudit.mjs first-run
 import { readdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -24,7 +24,7 @@ const [SHARD_I, SHARD_N] = (process.env.AUDIT_SHARD || '1/1').split('/').map(Num
 let screenNo = 0;
 if (!EMAIL || !PASS) { console.error('set AUDIT_EMAIL and AUDIT_PASSWORD (administrator of the throw-away instance)'); process.exit(2); }
 if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000; use a throw-away instance, see the header'); process.exit(2); }
-const { TEMPLATES } = await import('./src/templates.js');
+const { TEMPLATES } = await import('../web/src/templates.js');
 const SAMPLE = TEMPLATES[0].dbml;
 
 // ---------- fixtures (API)

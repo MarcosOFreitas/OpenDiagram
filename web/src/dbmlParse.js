@@ -2,7 +2,7 @@
 // the bundle) even to read DBML. These are the steps of Parser.parse(text, 'dbmlv2') in @dbml/core 10.3 (@dbml/parse compiles, the
 // model is built from its raw database); dbmlParse.test.js checks both give the same result. The SQL import and export load
 // @dbml/core itself only when used (App.jsx). The two inner modules are imported by file path: the package exports only its entry point,
-// and a path works both in Vite and in plain Node (web/benchclient.mjs reaches this file through diagramModel.js).
+// and a path works both in Vite and in plain Node (tools/benchclient.mjs reaches this file through diagramModel.js).
 import { Compiler, DEFAULT_ENTRY, MemoryProjectLayout } from '@dbml/parse';
 import Database from '../node_modules/@dbml/core/lib/model_structure/database.mjs';
 import { CompilerError } from '../node_modules/@dbml/core/lib/parse/error.mjs';

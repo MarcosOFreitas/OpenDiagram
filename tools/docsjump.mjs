@@ -1,8 +1,8 @@
 // Docs view links: real mouse clicks on index entries (first, middle and last table, every enum, back to the first) and on a link inside
 // the content, and where each target lands in the content pane. 16 = the right place; an entry near the end of the page stops where the
-// page ends (marked "page end"). Use a big diagram (the sections far from the screen are laid out late, content-visibility): web/stressdbml.mjs 200.
+// page ends (marked "page end"). Use a big diagram (the sections far from the screen are laid out late, content-visibility): tools/stressdbml.mjs 200.
 // Run it against a THROW-AWAY instance; CDP_GUI=1 for a real window. Exits 1 if a link lands anywhere else.
-//   node web/docsjump.mjs <base> <email> <password> <diagramId>
+//   node tools/docsjump.mjs <base> <email> <password> <diagramId>
 import { launch, sleep } from './cdp.mjs';
 
 const [base, email, pass, id] = process.argv.slice(2);

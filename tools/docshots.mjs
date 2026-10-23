@@ -4,7 +4,7 @@
 // THROW-AWAY instance, never against one that holds real diagrams or accounts (the pictures must not show anyone's data):
 //   docker build -t opendiagram-shots . && docker run -d --name shots-app --network opendiagram_default -p 3100:3000 -e APP_SECRET=$(openssl rand -hex 24) opendiagram-shots
 //   docker exec shots-app node src/cli.js create-admin docs@example.com 'docs-shots-password-1'
-//   BASE=http://localhost:3100 SHOTS_EMAIL=docs@example.com SHOTS_PASSWORD=docs-shots-password-1 node web/docshots.mjs [only-name ...]
+//   BASE=http://localhost:3100 SHOTS_EMAIL=docs@example.com SHOTS_PASSWORD=docs-shots-password-1 node tools/docshots.mjs [only-name ...]
 // The demo PostgreSQL (`demo-pg`, docker compose up -d) must be reachable from the app container.
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -13,13 +13,13 @@ import { launch, sleep } from './cdp.mjs';
 import { Api, seedTeam } from './fixtures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = join(HERE, 'src/docsite/img');
+const OUT = join(HERE, '../web/src/docsite/img');
 const BASE = process.env.BASE || 'http://localhost:3100';
 const EMAIL = process.env.SHOTS_EMAIL, PASS = process.env.SHOTS_PASSWORD;
 const W = 1100, H = 700, ONLY = process.argv.slice(2);
 if (!EMAIL || !PASS) { console.error('set SHOTS_EMAIL and SHOTS_PASSWORD (an administrator of the throw-away instance)'); process.exit(2); }
 if (/localhost:3000/.test(BASE)) { console.error('refusing to run against :3000 (your working instance); use a throw-away one, see the header'); process.exit(2); }
-const { TEMPLATES } = await import('./src/templates.js');
+const { TEMPLATES } = await import('../web/src/templates.js');
 const SAMPLE = TEMPLATES[0].dbml;
 
 // ---------- fixtures (API)

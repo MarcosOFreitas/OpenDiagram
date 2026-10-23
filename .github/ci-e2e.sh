@@ -61,8 +61,8 @@ timings+=("${SECONDS}s  stack up (build included)")
 if [ -n "$FIRST" ]; then
   # test-guardrails opens database sessions with the app's own code (server/src/introspect.js), so it needs the server's dependencies
   [ -d server/node_modules ] || (cd server && npm ci --omit=dev --no-audit --no-fund) || exit 1
-  step "server/test-auth.mjs" node server/test-auth.mjs
-  step "server/test-guardrails.mjs" node server/test-guardrails.mjs
+  step "tools/test-auth.mjs" node tools/test-auth.mjs
+  step "tools/test-guardrails.mjs" node tools/test-guardrails.mjs
 fi
 
 # the UI tools refuse :3000 and create accounts and diagrams: they get their own empty instance of the same image
@@ -72,10 +72,10 @@ wait_health http://localhost:3100/api/health || exit 1
 docker exec $UI node src/cli.js create-admin ui@example.com 'ui-test-password-1' >/dev/null || exit 1
 export BASE=http://localhost:3100
 
-step "web/uiaudit.mjs shard $SHARD (zero findings)" env AUDIT_SHARD="$SHARD" AUDIT_CONTAINER=$UI AUDIT_EMAIL=ui@example.com AUDIT_PASSWORD='ui-test-password-1' node web/uiaudit.mjs
+step "tools/uiaudit.mjs shard $SHARD (zero findings)" env AUDIT_SHARD="$SHARD" AUDIT_CONTAINER=$UI AUDIT_EMAIL=ui@example.com AUDIT_PASSWORD='ui-test-password-1' node tools/uiaudit.mjs
 if [ -n "$FIRST" ]; then
-  step "web/behaviorcheck.mjs (matches web/behavior.golden.json)" bash -c '
-    SNAP_EMAIL=ui@example.com SNAP_PASSWORD="ui-test-password-1" node web/behaviorcheck.mjs > /tmp/behavior.json && diff -u web/behavior.golden.json /tmp/behavior.json'
+  step "tools/behaviorcheck.mjs (matches tools/behavior.golden.json)" bash -c '
+    SNAP_EMAIL=ui@example.com SNAP_PASSWORD="ui-test-password-1" node tools/behaviorcheck.mjs > /tmp/behavior.json && diff -u tools/behavior.golden.json /tmp/behavior.json'
 fi
 
 echo "::group::timings"; printf '%s\n' "${timings[@]}"; echo "::endgroup::"

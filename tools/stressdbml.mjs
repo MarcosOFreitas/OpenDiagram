@@ -1,8 +1,8 @@
-// A realistic synthetic schema of n tables for the stress measurements (web/benchclient.mjs): three schemas, a TableGroup per
+// A realistic synthetic schema of n tables for the stress measurements (tools/benchclient.mjs): three schemas, a TableGroup per
 // eight tables with a colour, enums, 5 to 16 columns of mixed types, defaults, notes, composite and unique indexes, one or two
 // foreign keys per table, a junction table (N:N) every tenth, data lineage comments and two sticky notes. Deterministic: the same n
 // gives the same text, so runs can be compared.
-//   node web/stressdbml.mjs 100 > stress-100.dbml        writes one, to import by hand (Import -> DBML)
+//   node tools/stressdbml.mjs 100 > stress-100.dbml        writes one, to import by hand (Import -> DBML)
 const COLORS = ['#3498DB', '#27AE60', '#E67E22', '#8E44AD', '#C0392B', '#16A085', '#D35400', '#2C3E50'];
 const SCHEMAS = ['sales', 'catalog', 'ops'];
 const TYPES = ['varchar(120)', 'integer', 'decimal(12,2)', 'timestamp', 'boolean', 'text', 'date', 'bigint', 'char(2)', 'uuid'];

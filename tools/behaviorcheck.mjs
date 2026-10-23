@@ -1,10 +1,10 @@
 // Behaviour fingerprint of the interactive parts a refactor can break (menus, popovers, search, pickers, export list, copy).
 // Prints one JSON object; run it against the old and the new build (fresh throw-away instances) and diff the outputs.
-//   BASE=http://localhost:3110 SNAP_EMAIL=... SNAP_PASSWORD=... node web/behaviorcheck.mjs
+//   BASE=http://localhost:3110 SNAP_EMAIL=... SNAP_PASSWORD=... node tools/behaviorcheck.mjs
 import { launch, sleep } from './cdp.mjs';
 const BASE = process.env.BASE, EMAIL = process.env.SNAP_EMAIL, PASS = process.env.SNAP_PASSWORD;
 if (!BASE || !EMAIL || /localhost:3000/.test(BASE)) { console.error('set BASE (not :3000), SNAP_EMAIL, SNAP_PASSWORD'); process.exit(2); }
-const { TEMPLATES } = await import('./src/templates.js');
+const { TEMPLATES } = await import('../web/src/templates.js');
 let cookie = '';
 const api = async (method, path, body) => { const r = await fetch(BASE + path, { method, headers: { 'content-type': 'application/json', origin: BASE, ...(cookie ? { cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }); const s = r.headers.get('set-cookie'); if (s) cookie = s.split(';')[0]; return r.json().catch(() => ({})); };
 await api('POST', '/api/auth/login', { email: EMAIL, password: PASS });

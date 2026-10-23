@@ -1,8 +1,8 @@
 # Demo only, never for an instance other people use: makes the app trust the throw-away certificate of demo-oracle-tls
 # (the Oracle thin driver has no per-connection CA: a private CA is trusted by the whole server process). The certificate's private
 # key is committed in demo/oracle-tls, so anyone can sign with it: with this file the app would accept forged certificates.
-#   docker compose -f docker-compose.yml -f docker-compose.demo-tls.yml --profile oracle up -d
-# (or set COMPOSE_FILE=docker-compose.yml:docker-compose.demo-tls.yml in .env). Needed by server/test-oracle-tls.mjs only.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.demo-tls.yml --profile oracle up -d
+# (or set COMPOSE_FILE=docker-compose.yml:docker-compose.demo.yml:docker-compose.demo-tls.yml in .env: the Oracle demo lives in docker-compose.demo.yml). Needed by tools/test-oracle-tls.mjs only.
 services:
   app:
     environment:

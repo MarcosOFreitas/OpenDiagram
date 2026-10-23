@@ -116,7 +116,7 @@ The first release, and the last planned one: OpenDiagram is **feature-complete**
 
 ## Hosting requirements and a clean stop
 
-- New page **Hosting requirements**: memory, CPU, disk, network and browser costs, measured, with the scripts to repeat them (`server/bench.mjs`, `web/benchclient.mjs`).
+- New page **Hosting requirements**: memory, CPU, disk, network and browser costs, measured, with the scripts to repeat them (`tools/bench.mjs`, `tools/benchclient.mjs`).
 - The server now stops cleanly on `docker stop` (about 1 second, exit code 0) instead of being killed after ten seconds.
 
 ## Sessions, sign-in log and closing an account

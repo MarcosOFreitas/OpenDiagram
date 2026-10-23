@@ -521,7 +521,7 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: var(--foc
 .shell[data-theme="dark"] .nn { color: #9aa6bd; }
 .sticky-x { min-width: 20px; min-height: 20px; }
 
-/* ===== round 2 (from web/uiaudit.mjs): white surfaces keep light tokens inside the dark theme, links and ghost buttons readable on dark ===== */
+/* ===== round 2 (from tools/uiaudit.mjs): white surfaces keep light tokens inside the dark theme, links and ghost buttons readable on dark ===== */
 .admin, .menu-pop { --muted: #5b6472; --line: #e3e7ee; }
 .shell[data-theme="dark"] .admin code, .shell[data-theme="dark"] .menu-pop code { background: #eef2f9; color: inherit; }
 .shell[data-theme="dark"] .admin .seg button { background: #fff !important; color: #1f2937 !important; }

@@ -66,7 +66,7 @@ The diagram is drawn in the browser, so large diagrams cost the **person's** mac
 
 After a pause in typing, the browser reads the whole DBML again: about **35 ms** for 30 tables (18 KB) and **220 ms** for 200 tables (115 KB), median of 15 runs of the app's own DBML parse in Node on the same PC. Drawing comes on top: in a visible Chrome window a new table showed in the diagram about 0.1 s after the keystroke at 50 tables and 0.6 s at 200.
 
-On a realistic schema (`node web/stressdbml.mjs <tables>`: three schemas, TableGroups, enums, 5 to 16 columns, indexes, one or two relationships per table), in a visible Chrome window with the GPU:
+On a realistic schema (`node tools/stressdbml.mjs <tables>`: three schemas, TableGroups, enums, 5 to 16 columns, indexes, one or two relationships per table), in a visible Chrome window with the GPU:
 
 | Tables | Keystroke until the diagram shows it | Zoom / pan (frames per second) | Open Docs |
 |---|---|---|---|
@@ -100,10 +100,10 @@ On one Windows 11 PC (12 cores, 7.6 GB for Docker), with the Docker image of thi
 # server: a throw-away container with a CPU and memory limit
 docker build -t opendiagram-bench . && docker run -d --name bench-app -p 3200:3000 --cpus 1 --memory 512m -e APP_SECRET=$(openssl rand -hex 24) -e COOKIE_SECURE=0 opendiagram-bench
 docker exec bench-app node src/cli.js create-admin bench@example.com 'bench-password-123'
-BASE=http://127.0.0.1:3200 BENCH_CONTAINER=bench-app BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node server/bench.mjs
+BASE=http://127.0.0.1:3200 BENCH_CONTAINER=bench-app BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node tools/bench.mjs
 
 # browser: time to draw and frames per second for several diagram sizes (needs Chrome)
-BASE=http://127.0.0.1:3200 BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node web/benchclient.mjs
+BASE=http://127.0.0.1:3200 BENCH_EMAIL=bench@example.com BENCH_PASSWORD=bench-password-123 node tools/benchclient.mjs
 ```
 
 Not measured yet: importing a very large schema (hundreds of tables) from a real PostgreSQL or Oracle server, the scheduled refresh with many linked diagrams, and a server shared by several organizations.

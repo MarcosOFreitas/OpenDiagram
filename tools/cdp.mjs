@@ -1,4 +1,4 @@
-// Minimal Chrome DevTools Protocol driver (headless Chrome, no dependencies) shared by the UI tools in web/.
+// Minimal Chrome DevTools Protocol driver (headless Chrome, no dependencies) shared by the UI tools in tools/.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

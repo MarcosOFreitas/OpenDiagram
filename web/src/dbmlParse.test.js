@@ -21,7 +21,7 @@ test('the same errors (CompilerError with diags) for DBML that does not parse', 
   expect(mine.diags).toEqual(theirs.diags);
 });
 
-test('it also works in plain Node, outside Vite (web/benchclient.mjs imports the parse through diagramModel.js; an alias of vite.config.js broke it)', () => {
+test('it also works in plain Node, outside Vite (tools/benchclient.mjs imports the parse through diagramModel.js; an alias of vite.config.js broke it)', () => {
   const url = new URL('./diagramModel.js', import.meta.url).href;
   const code = `const { parse } = await import(${JSON.stringify(url)}); const p = parse(['Table a {', '  id int', '}'].join(String.fromCharCode(10))); if (p.error || p.tables.length !== 1) process.exit(3);`;
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8' });

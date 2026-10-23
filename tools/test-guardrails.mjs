@@ -1,4 +1,4 @@
-// e2e checks against the running stack: `node server/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls, demo-mysql up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
+// e2e checks against the running stack: `node tools/test-guardrails.mjs` (app on :3000, demo-pg, demo-pg-tls, demo-mysql up; needs TEST_ADMIN_EMAIL / TEST_ADMIN_PASSWORD)
 import { execSync } from 'node:child_process';
 
 const BASE = process.env.BASE || 'http://localhost:3000';
@@ -77,7 +77,7 @@ Stock keeping unit:
 
 // 3. the session the app opens is read-only even for a superuser: the app's own session code (introspect.js pgWith, myWith, oraWith),
 // straight to the demo databases' ports published on this machine (docker-compose.demo.yml)
-const { pgWith, myWith, oraWith } = await import('./src/introspect.js');
+const { pgWith, myWith, oraWith } = await import('../server/src/introspect.js');
 const writeFails = async (name, run, re) => {
   try { await run(); check(name, false, 'the write succeeded'); } catch (e) { check(name, re.test(e.message), e.message.split('\n')[0]); }
 };
@@ -174,7 +174,7 @@ r = await post('import', { ...my('reader', 'reader'), schemas: ['shop'], tables:
 check('mysql import only the picked table', r.status === 200 && r.tables === 1, `${r.tables} tables`);
 // the app's MySQL session makes a write fail, for root too (myWith, as pgWith above)
 await writeFails('mysql read-only session rejects INSERT as root (myWith)', () => myWith({ host: '127.0.0.1', port: 3307, database: 'shop', user: 'root', password: 'demo' }, (cn) => cn.query("INSERT INTO customers (name, email) VALUES ('x', 'x@example.com')")), /READ ONLY transaction/i);
-// Oracle only when its demo runs (docker compose --profile oracle up -d) and its port is given: ORACLE_PORT=1522 node server/test-guardrails.mjs
+// Oracle only when its demo runs (docker compose --profile oracle up -d) and its port is given: ORACLE_PORT=1522 node tools/test-guardrails.mjs
 if (process.env.ORACLE_PORT) await writeFails('oracle read-only session rejects INSERT (oraWith)', () => oraWith({ host: '127.0.0.1', port: +process.env.ORACLE_PORT, database: 'FREEPDB1', user: 'shop', password: 'shop' }, (conn) => conn.execute("insert into customers (id, email) values (999999, 'x@example.com')")), /ORA-01456/);
 else console.log('SKIP  oracle read-only session (no ORACLE_PORT: the Oracle demo is not part of this run)');
 // TLS: the server's auto-generated certificate (its name never matches the host)
