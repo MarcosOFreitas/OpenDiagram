@@ -2,4 +2,24 @@
 
 `server.pem` / `server.key` are a **throw-away, self-signed demo certificate** (CN `oracle.demo.test`, only that name in the SAN). The private key is committed on purpose: it protects nothing, it only lets `demo-oracle-tls` (a `socat` TLS proxy in front of `demo-oracle`, `--profile oracle`) speak TCPS so the Oracle TLS modes can be tested. Never reuse it.
 
+It is a server certificate, not a CA (`CA:FALSE`, extended key usage `serverAuth`): the app trusts this one certificate as its own anchor, and it cannot sign others. It was made, valid for 100 years, with:
+
+```bash
+cat > leaf.cnf <<'EOF'
+[req]
+distinguished_name = dn
+x509_extensions = leaf
+prompt = no
+[dn]
+CN = oracle.demo.test
+[leaf]
+basicConstraints = critical, CA:FALSE
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:oracle.demo.test
+subjectKeyIdentifier = hash
+EOF
+openssl req -x509 -newkey rsa:2048 -nodes -keyout server.key -out server.pem -days 36500 -config leaf.cnf
+```
+
 The `app` container trusts it only when you add `docker-compose.demo-tls.yml` (`NODE_EXTRA_CA_CERTS`; the Oracle thin driver has no per-connection CA: a private CA is trusted by the whole server process). It is off by default because the key is public: with it on, the app would accept certificates forged with that key. Never turn it on for an instance other people use.
