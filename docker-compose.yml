@@ -9,7 +9,7 @@ services:
     image: ghcr.io/marcosofreitas/opendiagram:${OPENDIAGRAM_VERSION:-1.0.0}
     build: .
     restart: unless-stopped
-    ports: ["3000:3000"]
+    ports: ["${OPENDIAGRAM_PORT:-3000}:3000"]
     environment:
       APP_SECRET: ${APP_SECRET:-}
       REQUIRE_APP_SECRET: ${REQUIRE_APP_SECRET:-}

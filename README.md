@@ -90,7 +90,7 @@ docker compose start app
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `APP_SECRET` | empty | Key for AES-256-GCM encryption of saved passwords and CA PEMs. Empty = a public development key and a warning at startup (local trial only); the server **refuses to start** without it when `COOKIE_SECURE=1`, `DB_HOST_POLICY` is not `open`, or `REQUIRE_APP_SECRET=1`. Changing it makes the saved connection passwords unreadable: the connections stay listed and ask for their password again. |
-| `PORT` | `3000` | HTTP port when the server runs from source (`npm start`); with Compose, change `ports:` in `docker-compose.yml` instead. |
+| `PORT` | `3000` | HTTP port when the server runs from source (`npm start`); with Compose, set `OPENDIAGRAM_PORT` in `.env` instead. |
 | `DATA_DIR` | `/data` (container), `./data` (from source) | Where `app.db` (SQLite) lives; with Compose it is the `appdata` volume. **Back it up.** |
 | `ALLOW_SIGNUP` | empty | Empty: the administrator decides (closed after the first account). `1` opens self-registration, `0` forces it closed. |
 | `DB_HOST_POLICY` | `open` | Which database hosts users may connect to: `open`, `public-only` (blocks private, loopback and link-local addresses) or `allowlist` (+ `DB_HOST_ALLOWLIST`, comma-separated host names). |
