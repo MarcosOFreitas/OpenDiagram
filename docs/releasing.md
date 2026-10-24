@@ -34,4 +34,4 @@ Running the workflow by hand (*Actions → release → Run workflow*) builds and
 
 ## After a release
 
-Security reports arrive through GitHub's private vulnerability reporting ([`SECURITY.md`](../SECURITY.md)). A fix lands on `main` and in the next tag; older releases are not patched. Dependabot opens security updates; version updates of `vite` / `vitest` majors are done by hand, together (see the comment in `.github/dependabot.yml`).
+Security reports arrive through GitHub's private vulnerability reporting ([`SECURITY.md`](../SECURITY.md)). A fix lands on `main` and in the next tag; older releases are not patched. Dependabot opens security updates; version updates of `vite` / `vitest` majors, and of `react` / `react-dom` majors, are done by hand, each pair together (see the comment in `.github/dependabot.yml`).
