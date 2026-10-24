@@ -11,7 +11,7 @@ How to run OpenDiagram from source, change it, and prove the change. The rules b
 ## Run it
 
 ```bash
-cp .env.example .env    # set APP_SECRET (openssl rand -hex 32); uncomment COMPOSE_PATH_SEPARATOR and COMPOSE_FILE to include the demo databases
+cp .env.example .env    # set APP_SECRET (openssl rand -hex 32); uncomment COMPOSE_PATH_SEPARATOR, COMPOSE_FILE and OPENDIAGRAM_VERSION=dev (demo databases; local image tagged dev)
 docker compose up -d --build                    # the app on :3000, built from source, plus demo-pg, demo-pg-tls, demo-mysql
 docker compose --profile oracle up -d           # the Oracle demo (slow first start) and its TLS proxy
 docker compose up -d --build app                # rebuild after a change (the web build runs inside the image)

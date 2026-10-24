@@ -43,7 +43,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build   
 docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d           # optional: demo Oracle Free (the first start is slow)
 ```
 
-Uncommenting `COMPOSE_PATH_SEPARATOR` and `COMPOSE_FILE` in `.env` makes plain `docker compose ...` include the demo file; the commands below assume it.
+Uncommenting `COMPOSE_PATH_SEPARATOR`, `COMPOSE_FILE` and `OPENDIAGRAM_VERSION=dev` in `.env` makes plain `docker compose ...` include the demo file and tags the image built from the clone `dev`, so it never replaces the published one; the commands below assume it.
 
 Open <http://localhost:3000> and **create the first account: it becomes the administrator**. From the avatar menu → **Administration** it creates the other users (each gets a temporary password and must choose their own at first sign-in) and groups. Public sign-up stays closed unless you open it. An account without diagrams opens on **No diagrams yet**: start a blank diagram or a template such as "Online store - sample" (nothing is created on its own). Alternatively create the administrator from the command line: `docker compose exec app node src/cli.js create-admin <email> <password>`.
 

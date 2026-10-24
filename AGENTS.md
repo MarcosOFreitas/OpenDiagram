@@ -9,7 +9,7 @@ Read [`.specs/README.md`](.specs/README.md) for the specs and their status befor
 Requirements: Docker with Compose v2 to run it; **Node 24** for development (the server uses the built-in `node:sqlite`); Chrome/Chromium only for the UI tools.
 
 ```bash
-cp .env.example .env                          # set APP_SECRET (openssl rand -hex 32); uncomment COMPOSE_PATH_SEPARATOR + COMPOSE_FILE so the commands below include docker-compose.demo.yml
+cp .env.example .env                          # set APP_SECRET (openssl rand -hex 32); uncomment COMPOSE_PATH_SEPARATOR + COMPOSE_FILE (the commands below include docker-compose.demo.yml) + OPENDIAGRAM_VERSION=dev (the local build never replaces the published image)
 docker compose up -d --build                  # app on :3000 + demo-pg, demo-pg-tls, demo-mysql
 docker compose --profile oracle up -d         # demo Oracle (slow first start) + its TLS proxy
 docker compose up -d --build app              # rebuild after a code change (the web build runs inside the image)
