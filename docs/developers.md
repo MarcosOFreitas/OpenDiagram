@@ -27,7 +27,7 @@ The specs in `.specs/` are the detailed reference, one topic per file (`.specs/R
 | `demo/` | Demo databases (PostgreSQL, MySQL, Oracle, TLS proxies) for trying the import and for the tests. |
 | `docs/` | These developer pages. |
 | `.specs/` | The specifications: product, architecture, each feature area, security, testing, known limitations and ideas for forks. |
-| `.github/` | CI (`ci.yml`), the release workflow (`release.yml`), the end-to-end script (`ci-e2e.sh`), Dependabot, issue and pull-request templates. |
+| `.github/` | CI (`ci.yml`), the release workflow (`release.yml`), the end-to-end script (`ci-e2e.sh`), issue and pull-request templates. |
 | `.githooks/` | A pre-commit hook that runs the unit tests the staged files can affect (`git config core.hooksPath .githooks`). |
 | `.claude/skills/` | Optional guides for AI coding agents (test-first, verification, review, security, SQL, UI review), each tied to this repository's rules in `AGENTS.md`. Nothing in the app depends on them. |
 

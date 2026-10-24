@@ -23,7 +23,7 @@ Do this before your first `docker compose up --build`: a local build is tagged w
 
 - **Actions**: enable them (forks start with them off). `ci.yml` runs the unit job on every push to `main` and every pull request, and the end-to-end job on `main` and on demand; `release.yml` runs on a pushed `v*` tag.
 - **Private vulnerability reporting** (Settings → Code security): `SECURITY.md` and the issue template point to it.
-- **Dependabot** alerts and security updates (Settings → Code security); version updates come from `.github/dependabot.yml`.
+- **Dependabot** alerts and security updates (Settings → Code security), if you will maintain it. The original has no version updates (no `.github/dependabot.yml`): add one if you want them, with the pairs of [Development](development.md) (*Dependencies*) moving together.
 - **Branch protection** (optional): require the `unit` check. Do not require `e2e` on pull requests: it does not run there.
 - **GHCR package**: after your first tag, make the package public (see [Releasing](releasing.md)).
 

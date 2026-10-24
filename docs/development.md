@@ -47,7 +47,7 @@ Open the app and create the first account: it becomes the administrator. The dem
 | A database engine | *Adding a database engine* in `.specs/01-architecture.md` (the places MySQL touched). |
 | A change to the SQLite schema | *Schema migrations* in `.specs/01-architecture.md`; prove it like `server/test/migration.test.js`. |
 | DBML parsing | The app parses with `@dbml/parse` and the model of `@dbml/core` (`web/src/dbmlParse.js` and its server copy); an upgrade keeps both `dbmlParse.test.js` green, and `web/src/formats.test.js` pins what the import relies on. |
-| Dependencies | `npm audit --audit-level=high` runs in CI. `vite`, `vitest` and their plugins move together, by hand (`.github/dependabot.yml`). |
+| Dependencies | `npm audit --audit-level=high` runs in CI. There are no automatic version updates (the project is finished; Dependabot alerts can be turned on in the repository settings). When you update by hand, majors move in pairs: `vite`, `vitest`, `@vitejs/plugin-react` and `jsdom` together, and `react` with `react-dom` (and an `@xyflow/react` that supports them); one of them alone breaks `npm ci` on peer dependencies. |
 | Anything that connects out, reads data or widens exposure | Security invariant 6: revisit `.specs/05-security.md` first. |
 
 ## Pitfalls
