@@ -6,7 +6,7 @@ The first release, and the last planned one: OpenDiagram is **feature-complete**
 
 **Not tested**, so try it before you rely on it:
 
-- Oracle TLS with a certificate from a real private CA (tested: the demo TLS proxy, and an OCI Autonomous Database with a public CA); Oracle wallets are not supported.
+- Oracle TLS with a certificate from a real company CA (tested: the demo TLS proxy with a self-signed certificate and with a simulated private chain, root → intermediate → server, and an OCI Autonomous Database with a public CA); Oracle wallets are not supported.
 - MySQL TLS against a real cloud endpoint, and `verify` with a private CA (tested: `off`, `noverify` and a failing `verify` against the demo server's own certificate).
 - MariaDB outside one manual try with 11.4 (it is not in the automated tests).
 - The Oracle import in the automated end-to-end run (it is tried by hand and in `roundtrip.mjs`).

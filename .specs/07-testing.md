@@ -137,7 +137,7 @@ export TEST_ADMIN_EMAIL=admin@example.com TEST_ADMIN_PASSWORD='a-long-test-passw
 
 ## Known gaps
 
-- Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `tools/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. Wallets are not supported, and a real Oracle server with a private CA was never tried.
+- Oracle TLS: `verify`, `serverDn` and `noverify` are checked by `tools/test-oracle-tls.mjs` against `demo-oracle-tls` (a TLS proxy with a throw-away certificate); `verify` was also checked by hand against OCI. A private CA chain (root → intermediate → server) was simulated by hand behind the same proxy (spec 03). Wallets are not supported, and a real Oracle server with a company CA was never tried.
 - CI does not run the Oracle checks, `roundtrip.mjs`, `docshots.mjs` or `visualsnap.mjs`: run them before a release ([`docs/releasing.md`](../docs/releasing.md)).
 - No screen reader, Windows high-contrast or tablet pass; the interface audit runs in Chrome only.
 - When asserting on edges in a headless/hidden pane, nodes may stay `visibility:hidden` (unmeasured): focus or screenshot first.

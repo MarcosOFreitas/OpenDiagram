@@ -6,7 +6,7 @@ OpenDiagram 1.0 is feature-complete ([00](00-product.md)): nothing below is sche
 
 - **Engines.** Live import from PostgreSQL, Oracle and MySQL 8.0+. MariaDB 10.6+ is best effort: tried by hand with 11.4, not in the automated tests, and without the table-level lineage of views. No SQL Server live import (SQL Server works as an SQL file import and export).
 - **Not imported:** functions and procedures, partition bounds and subpartitions (a partitioned table says its method and key), Oracle enums written as check constraints. MySQL triggers need the `TRIGGER` privilege.
-- **Oracle TLS:** no wallets or mutual TLS. A private CA is trusted for the whole server through `NODE_EXTRA_CA_CERTS` (no per-connection CA for Oracle and MySQL; PostgreSQL has a CA field), and a real private CA was never tested.
+- **Oracle TLS:** no wallets or mutual TLS. A private CA is trusted for the whole server through `NODE_EXTRA_CA_CERTS` (no per-connection CA for Oracle; PostgreSQL and MySQL have a CA field). A private CA chain was simulated (spec 03), a real company CA was never tested.
 - **Formats:** SQL export to another engine needs manual edits (no type or default translation, [04](04-formats.md)). JSON is export-only. An Oracle SQL file imports tables, keys, indexes and comments only.
 - **Collaboration:** no real-time co-editing (a conflict dialog instead), no notifications in the app or by e-mail, no mentions. Comments cannot be edited (delete and post again), and renaming a table or column orphans its comments.
 - **History:** no per-entry delete, no diff of the layout, no history for edit-link visitors; Compare is one version against the current state, and a rename shows as removed plus added.
