@@ -1,12 +1,12 @@
 # OpenDiagram: the app only. Demo databases for trying the import and for the e2e scripts are in docker-compose.demo.yml.
-#   docker compose up -d                      pulls the published image (OPENDIAGRAM_VERSION, default latest)
+#   docker compose up -d                      pulls the published image (OPENDIAGRAM_VERSION, default 1.0.0: the release)
 #   docker compose up -d --build              builds it from this clone instead
 # The project name is fixed, so the data volume is always opendiagram_appdata whatever the folder is called.
 name: opendiagram
 
 services:
   app:
-    image: ghcr.io/marcosofreitas/opendiagram:${OPENDIAGRAM_VERSION:-latest}
+    image: ghcr.io/marcosofreitas/opendiagram:${OPENDIAGRAM_VERSION:-1.0.0}
     build: .
     restart: unless-stopped
     ports: ["3000:3000"]

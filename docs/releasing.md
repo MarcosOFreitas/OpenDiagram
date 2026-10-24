@@ -7,6 +7,7 @@ How a version of OpenDiagram is checked and published. The 1.0.0 release followe
 - `server/package.json` and `web/package.json` carry the same `version` (bump both, and their lockfiles: `npm version X.Y.Z --no-git-tag-version` in each folder).
 - The MCP connector reports it to clients (`serverInfo.version`, read from `server/package.json`).
 - The image tags come from the git tag: `vX.Y.Z` publishes `X.Y.Z`, `X.Y` and `latest`; a pre-release such as `vX.Y.Z-rc.1` publishes only its own tag.
+- `docker-compose.yml` pins the default tag (`${OPENDIAGRAM_VERSION:-X.Y.Z}`): set it to the new version in the commit you tag, so a plain install gets it.
 - `web/src/docsite/pages/release-notes.md` gets a `## X.Y.Z` section with what changed and what was **not tested**.
 
 ## Checklist before tagging

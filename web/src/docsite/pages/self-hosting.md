@@ -15,7 +15,7 @@ docker compose up -d            # pulls the image and starts the app on :3000
 
 Open `http://localhost:3000` and create the first account: it becomes the **administrator**.
 
-The compose file runs the container with a read-only filesystem (only the `/data` volume and a small `/tmp` are writable), restarts it unless you stop it, and keeps the data in the volume `opendiagram_appdata`. Set `OPENDIAGRAM_VERSION=1.0.0` in `.env` to pin a version.
+The compose file runs the container with a read-only filesystem (only the `/data` volume and a small `/tmp` are writable), restarts it unless you stop it, and keeps the data in the volume `opendiagram_appdata`. It runs the release `1.0.0`: set `OPENDIAGRAM_VERSION` in `.env` to choose another published tag.
 
 Demo databases to try the import (PostgreSQL and MySQL, and Oracle with `--profile oracle`) need a clone of the repository: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build`. They are for trying the app only (their passwords are public).
 
@@ -94,7 +94,7 @@ docker compose cp app:/data/backups ./opendiagram-backups
 
 ## Updating
 
-Run `docker compose pull && docker compose up -d` (from a clone: pull the repository and run `docker compose up -d --build app`). The data volume is kept.
+Set the version you want in `.env` (`OPENDIAGRAM_VERSION=<tag>`, see the [releases](https://github.com/MarcosOFreitas/OpenDiagram/releases)), then run `docker compose pull && docker compose up -d` (from a clone: pull the repository and run `docker compose up -d --build app`). The data volume is kept.
 
 The compose file fixes the project name (`opendiagram`), so the data volume is always `opendiagram_appdata`, whatever the folder is called. The container runs as the unprivileged user `node`: a volume it cannot write stops it at start-up with "/data is not writable" and the command that hands it over (`docker compose run --rm --user root --entrypoint chown app -R node:node /data`).
 
