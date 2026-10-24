@@ -17,6 +17,8 @@ Open `http://localhost:3000` and create the first account: it becomes the **admi
 
 The compose file runs the container with a read-only filesystem (only the `/data` volume and a small `/tmp` are writable), restarts it unless you stop it, and keeps the data in the volume `opendiagram_appdata`. It runs the release `1.0.0`: set `OPENDIAGRAM_VERSION` in `.env` to choose another published tag.
 
+The compose file fixes the project name (`opendiagram`), so the volume keeps its name whatever the folder is called. The other side: a second install on the same Docker host would take over the first one's container and data. Give it its own name and port: `OPENDIAGRAM_PORT=3001` in its `.env`, then `docker compose -p opendiagram2 up -d` (and `-p opendiagram2` in every later `docker compose` command for it).
+
 Demo databases to try the import (PostgreSQL and MySQL, and Oracle with `--profile oracle`) need a clone of the repository: `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build`. They are for trying the app only (their passwords are public).
 
 > **Info** How much CPU, memory and disk it needs, measured: [Hosting requirements](hosting-requirements). A database behind a VPN or a firewall: see *Databases behind a VPN or a firewall* below.
