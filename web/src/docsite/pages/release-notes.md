@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-The first release, and the last planned one: OpenDiagram is **feature-complete**. The repository stays open (issues and pull requests are welcome and read on a best-effort basis), there is no promised support, and forks are encouraged. The image is `ghcr.io/marcosoliveira-intelicity/opendiagram:1.0.0` (amd64 and arm64). Below it, the changes that led to it, newest first, grouped by theme.
+The first release, and the last planned one: OpenDiagram is **feature-complete**. The repository stays open (issues and pull requests are welcome and read on a best-effort basis), there is no promised support, and forks are encouraged. The image is `ghcr.io/marcosofreitas/opendiagram:1.0.0` (amd64 and arm64). Below it, the changes that led to it, newest first, grouped by theme.
 
 **Not tested**, so try it before you rely on it:
 

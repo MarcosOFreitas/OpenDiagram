@@ -8,7 +8,7 @@ Requires Docker with Compose v2.
 
 ```bash
 mkdir opendiagram && cd opendiagram
-curl -fsSLO https://raw.githubusercontent.com/MarcosOliveira-Intelicity/OpenDiagram/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/MarcosOFreitas/OpenDiagram/main/docker-compose.yml
 echo "APP_SECRET=$(openssl rand -hex 32)" > .env
 docker compose up -d            # pulls the image and starts the app on :3000
 ```

@@ -6,7 +6,7 @@ name: opendiagram
 
 services:
   app:
-    image: ghcr.io/marcosoliveira-intelicity/opendiagram:${OPENDIAGRAM_VERSION:-latest}
+    image: ghcr.io/marcosofreitas/opendiagram:${OPENDIAGRAM_VERSION:-latest}
     build: .
     restart: unless-stopped
     ports: ["3000:3000"]

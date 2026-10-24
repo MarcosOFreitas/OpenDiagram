@@ -25,11 +25,11 @@ Free, open-source ([Apache-2.0](#license)), self-hostable database diagramming t
 
 Requires Docker with Compose v2 (Docker Desktop on Windows and macOS). Node 24 is only needed for [development](#develop).
 
-To run it, only the compose file and a secret are needed (the image `ghcr.io/marcosoliveira-intelicity/opendiagram` is published for amd64 and arm64):
+To run it, only the compose file and a secret are needed (the image `ghcr.io/marcosofreitas/opendiagram` is published for amd64 and arm64):
 
 ```bash
 mkdir opendiagram && cd opendiagram
-curl -fsSLO https://raw.githubusercontent.com/MarcosOliveira-Intelicity/OpenDiagram/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/MarcosOFreitas/OpenDiagram/main/docker-compose.yml
 echo "APP_SECRET=$(openssl rand -hex 32)" > .env
 docker compose up -d            # app on :3000
 ```
@@ -37,7 +37,7 @@ docker compose up -d            # app on :3000
 To try the live import against the demo databases, or to develop, clone the repository instead:
 
 ```bash
-git clone https://github.com/MarcosOliveira-Intelicity/OpenDiagram.git && cd OpenDiagram
+git clone https://github.com/MarcosOFreitas/OpenDiagram.git && cd OpenDiagram
 cp .env.example .env            # set APP_SECRET (openssl rand -hex 32)
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build                    # app (built from source) + demo PostgreSQL and MySQL
 docker compose -f docker-compose.yml -f docker-compose.demo.yml --profile oracle up -d           # optional: demo Oracle Free (the first start is slow)

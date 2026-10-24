@@ -6,7 +6,7 @@ OpenDiagram is Apache-2.0: you may copy it, change it and publish your own versi
 
 | Where | What | To |
 |---|---|---|
-| `docker-compose.yml` (`image:`) | `ghcr.io/marcosoliveira-intelicity/opendiagram` | `ghcr.io/<your-owner>/<your-repo>` in lowercase (the release workflow already publishes to `ghcr.io/${{ github.repository }}`) |
+| `docker-compose.yml` (`image:`) | `ghcr.io/marcosofreitas/opendiagram` | `ghcr.io/<your-owner>/<your-repo>` in lowercase (the release workflow already publishes to `ghcr.io/${{ github.repository }}`) |
 | `README.md` (quick start), `web/src/docsite/pages/self-hosting.md`, `SECURITY.md`, `CONTRIBUTING.md` | the image name and the repository URLs | yours |
 | `.github/ISSUE_TEMPLATE/config.yml` | the security advisory link | your repository's `/security/advisories/new` |
 | `NOTICE` | keep the original copyright line | add your own line below it (Apache-2.0 section 4); keep `LICENSE` |

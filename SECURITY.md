@@ -10,7 +10,7 @@ Please include what you found, the version or commit, how to reproduce it, and t
 
 ## Supported versions
 
-A fix, when someone makes one, lands on the default branch and in the next tagged release (`ghcr.io/marcosoliveira-intelicity/opendiagram:<version>`); older releases are not patched. If a fix does not come, the code is Apache-2.0: a fork may carry it.
+A fix, when someone makes one, lands on the default branch and in the next tagged release (`ghcr.io/marcosofreitas/opendiagram:<version>`); older releases are not patched. If a fix does not come, the code is Apache-2.0: a fork may carry it.
 
 ## What is in scope
 
