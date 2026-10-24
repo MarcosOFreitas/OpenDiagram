@@ -188,6 +188,16 @@ test('MySQL wraps a rejected certificate as HANDSHAKE_SSL_ERROR (seen in the e2e
   assert.equal(explainDbError(other, { type: 'mysql', host: 'db' }).message, 'wrong version number'); // another handshake failure is not a certificate problem
 });
 
+test('a rejected certificate does not tell the person to restart Node with --use-system-ca (seen with a private CA chain): only an operator could, and the CA field is the way', () => {
+  const hint = '; if the root CA is installed locally, try running Node.js with --use-system-ca';
+  const my = Object.assign(new Error(`unable to get issuer certificate${hint}`), { code: 'HANDSHAKE_SSL_ERROR' });
+  assert.match(explainDbError(my, { type: 'mysql', host: 'db' }).message, /^The server's certificate was not accepted.*\(unable to get issuer certificate\)$/);
+  const pg = Object.assign(new Error(`unable to verify the first certificate${hint}`), { code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' });
+  const out = explainDbError(pg, { type: 'postgres', host: 'db' }).message;
+  assert.match(out, /\(unable to verify the first certificate\)$/);
+  assert.doesNotMatch(out, /use-system-ca|Node\.js/);
+});
+
 test('a PostgreSQL server that hangs up in the middle of a query fails that request, it does not crash the app (release audit)', async () => {
   const srv = net.createServer((s) => s.once('data', () => { // the startup message: accepted with no password
     s.write(Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 0])); // AuthenticationOk

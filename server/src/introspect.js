@@ -525,7 +525,8 @@ const drivers = { postgres: { schemas: pgSchemas, tables: pgTables, import: pgIm
 const TLS_CODES = /^(SELF_SIGNED_CERT_IN_CHAIN|DEPTH_ZERO_SELF_SIGNED_CERT|UNABLE_TO_VERIFY_LEAF_SIGNATURE|UNABLE_TO_GET_ISSUER_CERT(_LOCALLY)?|CERT_HAS_EXPIRED|ERR_TLS_CERT_ALTNAME_INVALID|CERT_UNTRUSTED)$/;
 export function explainDbError(e, c = {}) {
   if (e?.statusCode) return e;
-  const msg = String(e?.message ?? e).split('\n')[0].trim(), code = String(e?.code ?? ''), at = `${c.host}:${+c.port || { oracle: 1521, mysql: 3306 }[c.type] || 5432}`;
+  // Node's --use-system-ca hint is for an operator, not for the person filling in the form: dropped
+  const msg = String(e?.message ?? e).split('\n')[0].replace(/; if the root CA is installed locally, try running Node\.js with --use-system-ca$/, '').trim(), code = String(e?.code ?? ''), at = `${c.host}:${+c.port || { oracle: 1521, mysql: 3306 }[c.type] || 5432}`;
   const plain = code === 'ENOTFOUND' || code === 'EAI_AGAIN' ? `Host "${c.host}" was not found: check the name (this server looks it up from its own network).`
     : code === 'ECONNREFUSED' || /^NJS-503\b/.test(msg) ? `Nothing answers on ${at}: is the database running, and is the port right?`
       : ['ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH'].includes(code) || /timeout expired|connection timeout|^NJS-510\b/i.test(msg) ? `No answer from ${at}: a firewall, a VPN that is off, or the wrong host or port.`
